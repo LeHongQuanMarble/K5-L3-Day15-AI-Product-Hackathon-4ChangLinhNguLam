@@ -61,8 +61,8 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 | T04 | Product Acceptance Testing | TV1 | P0 | CP3–CP4 | T14 *(nghiệm thu tăng dần)*, T15 | 28/11 12:30 | TODO |
 | T05 | Demo, Pitch & Checkpoint Submission | TV1 | P0 | CP1–CP4 | — *(outline song song; chốt số sau T04, T19, T20)* | 28/11 14:00 | IN_PROGRESS |
 | T21 | Final Submission & Project Closure | TV1 | P0 | Final | T05 | 28/11 23:00 | TODO |
-| T06 | Application Contract & Mock Agent | TV2 | P0 | CP2 | T01 *(chốt Contract sớm, song song T02)* | 27/11 19:00 | IN_PROGRESS *(cần TV2 xác nhận)* |
-| T07 | Real LLM Integration & Usage Tracking | TV2 | P0 | CP3 | T06 *(song song T12)* | 27/11 21:30 | TODO *(cần TV2 xác nhận)* |
+| T06 | Application Contract & Mock Agent | TV2 | P0 | CP2 | T01 *(chốt Contract sớm, song song T02)* | 27/11 19:00 | DONE *(PR #11 merge `main` `4e5bdf5`; 25/25 test + `run.py` mock OK; chờ TV1/TV3 xác nhận Contract)* |
+| T07 | Real LLM Integration & Usage Tracking | TV2 | P0 | CP3 | T06 *(song song T12)* | 27/11 21:30 | DONE *(merge `main` `8845a9f`; `gpt-4o-mini` `eval --try` token > 0; 67/67 test)* |
 | T08 | Agent Routing, Question & Module Generation | TV2 | P0 | CP3 | T06, T07, T12 | 28/11 02:00 | TODO *(cần TV2 xác nhận)* |
 | T09 | AI Guardrails & Output Validation | TV2 | P0 | CP3 | T06, T08 | 28/11 06:00 | TODO *(cần TV2 xác nhận)* |
 | T10 | AI Improvement After Evaluation Run 1 | TV2 | P0 | CP4 | T18 | 28/11 11:30 | TODO |
@@ -327,9 +327,9 @@ TODO.
 **Công việc:**
 
 - [ ] Thống nhất với TV1 & TV3 schema JSON `ApplicationPlan` v1.0 (bao gồm cách biểu diễn `REFUSE` trong `status`/`errors` và trường cảnh báo kiểm duyệt cho bộ đề AI sinh).
-- [ ] Cài đặt module Contract & `validate_application_plan` (kiểm schema, chế độ `reuse_existing` không chứa HTML mới, `mouse_always_enabled: true`).
-- [ ] Cài đặt Mock Agent (`simulated=true`, không cần API key) hỗ trợ tối thiểu 5 nhánh: `REUSE`, `GENERATE` (HTML mẫu hợp lệ), `ASK_CLARIFY`, `REFUSE`, và `ERROR`.
-- [ ] Viết unit test kiểm chứng Contract + Mock Agent và hướng dẫn ngắn cách gọi cho TV3/TV4.
+- [x] Cài đặt module Contract & `validate_application_plan` (kiểm schema, chế độ `reuse_existing` không chứa HTML mới, `mouse_always_enabled: true`).
+- [x] Cài đặt Mock Agent (`simulated=true`, không cần API key) hỗ trợ tối thiểu 5 nhánh: `REUSE`, `GENERATE` (HTML mẫu hợp lệ), `ASK_CLARIFY`, `REFUSE`, và `ERROR`.
+- [x] Viết unit test kiểm chứng Contract + Mock Agent và hướng dẫn ngắn cách gọi cho TV3/TV4.
 
 **Deliverables:**
 
@@ -337,10 +337,10 @@ Code Contract + `validate_application_plan` + Mock Agent trong `codebase/`, kèm
 
 **Acceptance Criteria:**
 
-- [ ] Mock Agent chạy được không cần API key, trả đúng Contract với `simulated=true` và hoạt động độc lập không chờ T12.
-- [ ] Nhánh `reuse_existing` trả `player_id` hợp lệ và `html: null`; nhánh `generate_new` trả HTML nháp qua được `check_game`.
-- [ ] Mọi `ApplicationPlan` hợp lệ đều có `interaction.fallback = "mouse"` và `mouse_always_enabled = true`.
-- [ ] Unit test cho Contract & 5 kịch bản Mock Agent chạy pass 100%.
+- [x] Mock Agent chạy được không cần API key, trả đúng Contract với `simulated=true` và hoạt động độc lập không chờ T12.
+- [x] Nhánh `reuse_existing` trả `player_id` hợp lệ và `html: null`; nhánh `generate_new` trả HTML nháp qua được `check_game`.
+- [x] Mọi `ApplicationPlan` hợp lệ đều có `interaction.fallback = "mouse"` và `mouse_always_enabled = true`.
+- [x] Unit test cho Contract & 5 kịch bản Mock Agent chạy pass 100%.
 
 **Handoff:**
 
@@ -348,7 +348,7 @@ Bàn giao Contract v1.0 & Mock Agent cho TV3 (T12, T14) và TV4 (T17).
 
 **Status:**
 
-IN_PROGRESS.
+DONE *(27/11/2026): merge `main` qua PR #11. `codebase/application_contract.py` (`validate_application_plan`, `validate_agent_response`) + `mock_agent_v1.py`; 25/25 test T06; `python codebase/accept_t06_entrypoint.py` (chạy `run.py` thật, `AGENT_MODE=t06_mock`) OK. Còn mở: TV1/TV3 xác nhận Contract (REFUSE = `status=error` + `errors.code=refused`). Chi tiết: `docs/chatbot/T06/T06_DECISION.md`.*
 
 ---
 
@@ -365,10 +365,10 @@ IN_PROGRESS.
 
 **Công việc:**
 
-- [ ] Cấu hình và kiểm thử kết nối LLM thật qua `.env` (không commit `.env` hay API key) bằng `codebase/ai.py`.
-- [ ] Xác minh `call_model` trả đủ 4 khóa `text`, `model`, `tokens_in`, `tokens_out` lấy trực tiếp từ `usage` của API (gồm cả thinking/reasoning tokens nếu có).
-- [ ] Kiểm thử xử lý lỗi API (timeout, sai key, rate limit) để exception bay ra đúng hợp đồng `tracing.py` (không lộ key trong log lỗi).
-- [ ] Chạy thử `python run.py` và `python run.py eval --try` (3 câu) kiểm tra file `traces/` ghi nhận token > 0.
+- [x] Cấu hình và kiểm thử kết nối LLM thật qua `.env` (không commit `.env` hay API key) bằng `codebase/ai.py`.
+- [x] Xác minh `call_model` trả đủ 4 khóa `text`, `model`, `tokens_in`, `tokens_out` lấy trực tiếp từ `usage` của API (gồm cả thinking/reasoning tokens nếu có).
+- [x] Kiểm thử xử lý lỗi API (timeout, sai key, rate limit) để exception bay ra đúng hợp đồng `tracing.py` (không lộ key trong log lỗi).
+- [x] Chạy thử `python run.py` và `python run.py eval --try` (3 câu) kiểm tra file `traces/` ghi nhận token > 0.
 
 **Deliverables:**
 
@@ -376,9 +376,9 @@ IN_PROGRESS.
 
 **Acceptance Criteria:**
 
-- [ ] `call_model` giữ nguyên `@model_call` và trả đúng 4 khóa với `tokens_in > 0`, `tokens_out > 0` từ API `usage`.
-- [ ] Không có API key trong code hoặc git diff; `.env` nằm trong `.gitignore`.
-- [ ] `python run.py eval --try` chạy hoàn tất với model thật và sinh log hợp lệ trong `traces/`.
+- [x] `call_model` giữ nguyên `@model_call` và trả đúng 4 khóa với `tokens_in > 0`, `tokens_out > 0` từ API `usage`.
+- [x] Không có API key trong code hoặc git diff; `.env` nằm trong `.gitignore`.
+- [x] `python run.py eval --try` chạy hoàn tất với model thật và sinh log hợp lệ trong `traces/`.
 
 **Handoff:**
 
@@ -386,7 +386,7 @@ Bàn giao cấu hình model thật (tên model, cách đặt `.env`) cho TV3 (T1
 
 **Status:**
 
-TODO.
+DONE *(27/11/2026): merge `main` `8845a9f`. OpenAI `gpt-4o-mini`: `python run.py` và `eval --try` (`run-try@20261127-204212`, 3 câu, 0 lỗi, token > 0); 67/67 test T07. `.env` mỗi máy cần `MODEL_PROVIDER=openai`, `MODEL_NAME=gpt-4o-mini`, `API_KEY`. Còn mở: `ailab/llm.py` chưa xử lý phản hồi rỗng (TV3). Chi tiết: `docs/chatbot/T07/T07_RESULTS.md`.*
 
 ---
 
@@ -970,5 +970,5 @@ flowchart LR
 ### Các task đang chặn tiến độ (Current Blockers — cần xử lý ngay)
 
 1. **T17 & T16 (TV4 – KHẨN cho CP2 19:30):** Nhánh `feat/t16-t17-cp2-data-eval` đang mở; cần TV4 xác nhận tiến độ, chốt cứng chuẩn "đạt" §7 với TV1 (đề xuất: `Overall ≥ 80%`, `Refusal = 100%`, `HITL Bypass = 0`) và merge `DATA_CARD.md`, `metric_spec.yaml` (≥3–4 metric), `benchmark.csv` (≥10 câu) trước 19:30.
-2. **T06 (TV2 – KHẨN cho CP2 19:30):** Cần TV2 xác nhận enum `REFUSE` trong `ApplicationPlan` Contract v1.0 và hoàn thiện Mock Agent chạy qua `python run.py` cho CP2.
+2. **T06 (TV2 – KHẨN cho CP2 19:30):** Cần TV2 xác nhận enum `REFUSE` trong `ApplicationPlan` Contract v1.0 và hoàn thiện Mock Agent chạy qua `python run.py` cho CP2. *(Đã xong 27/11: mock chạy qua `run.py`, REFUSE đã chốt phía TV2; chờ TV1/TV3 xác nhận.)*
 3. **T03 (TV1 – CP2/CP3):** Cần ghi nhận tiến độ khảo sát/lịch hẹn phỏng vấn thực tế và sớm có số liệu thật cho `evidence/summary.md`, `spec.md` §2 và `cost/personas.yaml` (T20).
