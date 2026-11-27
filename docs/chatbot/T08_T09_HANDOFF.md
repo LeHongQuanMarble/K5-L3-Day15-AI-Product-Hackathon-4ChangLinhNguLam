@@ -1,7 +1,7 @@
 # Bàn giao AI Core T08 & T09 cho TV3 (T14 Web/Backend) và TV4 (T18 Evaluation Run 1)
 
 > **Branch:** `feat/t08-t09-ai-core-takeover` (Emergency Takeover tạm thời — Owner chính thức vẫn là TV2 Hồ Quốc Toản).  
-> **Trạng thái hiện tại:** `Implemented` · `Tested` (**262/262** unit/acceptance tests) · `Mock Verified` · `Integration Ready (AI Core)` · **Chưa `Real AI Verified`** (blocker: máy hiện chưa có `.env` / `API_KEY` để chạy Real LLM `gpt-4o-mini`; chưa tích hợp Web/Backend T14 nên chưa tuyên bố Real AI E2E).
+> **Trạng thái hiện tại:** `Implemented` · `Tested` (**263/263** unit/acceptance tests) · `Mock Verified` · **`Real AI Verified (AI Core — gpt-4o-mini)`** · `Integration Ready (AI Core)` · *(Chưa `Web/Backend E2E Verified` — phụ thuộc TV3 tích hợp T14).*
 
 ---
 
@@ -73,15 +73,17 @@ API_KEY=<dien-openai-api-key-cua-ban>
 
 ---
 
-## 5. Kết quả kiểm thử & Trạng thái Real AI Verification
+## 5. Kết quả kiểm thử & Real AI Verification (`gpt-4o-mini`)
 
 | Kiểm tra | Kết quả |
 |---|---|
-| `python -m unittest discover -s codebase -p "test_*.py"` | **113/113 PASS** (25 T06 + 67 T07 + 21 T08/T09) |
+| `python -m unittest discover -s codebase -p "test_*.py"` | **114/114 PASS** (25 T06 + 67 T07 + 22 T08/T09) |
 | `python -m unittest discover -s ailab -p "test_*.py"` | **147/147 PASS** (0 regression) |
 | `python codebase/accept_t06_entrypoint.py` | **2/2 PASS** |
 | `python run.py check` | **PASS (0 cảnh báo)** — 30 câu, 6 metric |
-| `python run.py eval --try` (Real AI `gpt-4o-mini`) | **CHƯA CHẠY (BLOCKED: chưa có `.env` cục bộ)** |
+| `python run.py eval --try` (Real AI `gpt-4o-mini`, `run-try@20261128-015635`) | **3/3 PASS (0 lỗi, `KEY_LEAKED=False`)**: `B01` (1 call, 13 tools, 1787/165 tok, 4.20s), `B02` (1 call, 13 tools, 1783/184 tok, 3.82s), `B03` (1 call, 11 tools, 1791/114 tok, 2.52s) |
+| Kịch bản Real AI mục tiêu qua `run_agent()` (`gpt-4o-mini`) | **5/5 PASS (`contract_ok=True`)**: `REUSE_MOUSE_B16` (`model=None`, 1 call, 13 tools, 3.45s), `GENERATE_DRAFT_B13` (`check_game=True`, 0 cờ an toàn, 2 calls, 14 tools, 13.13s), `ASK_CLARIFY_B05` (1 `?`, 1 call, 1.99s), `REFUSE_HITL_B17` (**0 LLM call**, 0.00s), `QGEN_EXAM_B14` (`validate_exam=True` + `knowledge_review_required`, 1 call, 12 tools, 4.42s) |
+| Tổng chi phí xác minh Real AI (9 lượt gọi `gpt-4o-mini`, không tính Run 1) | `16,069` token vào · `2,321` token ra · **~$0.0038** (ngân sách duyệt: `$0.05`) |
 
 ---
 
@@ -98,4 +100,4 @@ API_KEY=<dien-openai-api-key-cua-ban>
   3. Sau khi PM xác nhận `eval --try` đạt, chạy `python run.py eval` (30 câu → `eval/run-1.csv` + `traces/run-1.jsonl`) và chấm điểm theo `eval/grading-sheet.md`.
 - **Giới hạn đã biết:**
   - Guardrails là tập Rules deterministic đã qua unit/security tests (không tuyên bố an toàn tuyệt đối với mọi biến thể tấn công ngoài mẫu).
-  - Chưa `Real AI Verified` trên LLM thật và chưa xác minh Web/Backend E2E (phụ thuộc `.env` và T14).
+  - Đã `Real AI Verified` cho **AI Core (`codebase/agent.py`)**, nhưng **chưa xác minh Web/Backend E2E** (phụ thuộc TV3 hoàn tất T14) và **chưa chạy Evaluation Run 1 chính thức** (TV4 T18).
