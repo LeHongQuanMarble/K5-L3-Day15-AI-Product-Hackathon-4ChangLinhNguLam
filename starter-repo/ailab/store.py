@@ -1,4 +1,6 @@
 """SQLite + các thao tác dữ liệu của AI Lab. Chỉ thư viện chuẩn."""
+import base64
+import re
 import hashlib
 import hmac
 import json
@@ -15,6 +17,54 @@ DB_PATH = os.environ.get("AILAB_DB") or os.path.join(HERE, "data", "ailab.db")
 
 HANDS_URL = "jl:builtin/hands/mediapipe"
 
+# Ảnh nền có sẵn cho các mục có sẵn / đã nhập, theo tên (ailab/seed_images/*.jpg). Chỉ điền khi mục chưa có ảnh: ai đã tự đổi ảnh thì giữ nguyên.
+SEED_DIR = os.path.join(HERE, "seed_images")
+SEED_IMAGES = {
+    "models": {"Bàn tay (MediaPipe)": "hands.jpg"},
+    "players": {"Quiz ABCD bằng cử chỉ": "quiz.jpg", "Vòng quay chọn tên": "wheel.jpg", "Cầu Lông 3D": "badminton.jpg", "Sút Penalty 3D": "penalty.jpg",
+                "Giải cứu thế giới": "rescue.jpg", "Chim Bay Nói": "voiceflap.jpg", "Tết 2027: Dê Vàng và cổng băng": "tet.jpg"},
+    "apps": {"Tết 2027 bằng tay": "tet.jpg"},
+}
+SEED_EXAMS_FILE = os.path.join(HERE, "seed_exams.json")
+
+
+def _data_uri(fn):
+    with open(os.path.join(SEED_DIR, fn), "rb") as f:
+        return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+
+
+def seed_exams(c):
+    """Bộ đề có sẵn của AI Lab (owner_id 0): mọi người dùng được, chỉ Admin sửa. Nội dung ở ailab/seed_exams.json; chỉ thêm khi chưa có bộ đề cùng tên."""
+    if not os.path.exists(SEED_EXAMS_FILE):
+        return
+    with open(SEED_EXAMS_FILE, encoding="utf-8") as f:
+        items = json.load(f)
+    now = time.time()
+    for e in items:
+        if c.execute("SELECT 1 FROM exams WHERE owner_id=0 AND name=?", (e["name"],)).fetchone():
+            continue
+        parse_questions(e["content"])  # sai mẫu thì báo lỗi ngay khi khởi động, không lưu bộ đề hỏng
+        img = _data_uri(e["image"]) if e.get("image") and os.path.exists(os.path.join(SEED_DIR, e["image"])) else ""
+        c.execute("INSERT INTO exams(owner_id,name,description,image,content,created,updated) VALUES(0,?,?,?,?,?,?)",
+                  (e["name"], e["description"], img, e["content"], now, now))
+
+
+def seed_images(c):
+    """Điền ảnh nền có sẵn cho mục cùng tên. Gọi mỗi lần chạy, nên mục mới nhập sau cũng được điền ở lần chạy kế. Ảnh người dùng tự đổi thì giữ nguyên."""
+    for table, names in SEED_IMAGES.items():
+        for name, fn in names.items():
+            path = os.path.join(SEED_DIR, fn)
+            if not os.path.exists(path):
+                continue
+            uri = _data_uri(fn)
+            sha = hashlib.sha1(uri.encode()).hexdigest()
+            done = c.execute("SELECT sha FROM seed_log WHERE tbl=? AND name=?", (table, name)).fetchone()
+            for r in c.execute("SELECT id, image FROM %s WHERE name=?" % table, (name,)).fetchall():
+                # điền khi chưa có ảnh, hoặc ảnh vẫn là bản có sẵn lần trước (người dùng chưa đổi) để cập nhật ảnh mới
+                if r["image"] == "" or (done and hashlib.sha1(r["image"].encode()).hexdigest() == done["sha"]):
+                    c.execute("UPDATE %s SET image=? WHERE id=?" % table, (uri, r["id"]))
+            c.execute("INSERT OR REPLACE INTO seed_log(tbl,name,sha) VALUES(?,?,?)", (table, name, sha))
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, username TEXT UNIQUE NOT NULL, pw TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('admin','user')), created REAL NOT NULL);
@@ -30,6 +80,9 @@ CREATE TABLE IF NOT EXISTS apps(id INTEGER PRIMARY KEY, owner_id INTEGER NOT NUL
   player_id INTEGER NOT NULL REFERENCES players(id), model_id INTEGER REFERENCES models(id), mapping TEXT NOT NULL DEFAULT '{}',
   content TEXT NOT NULL DEFAULT '', sure REAL NOT NULL DEFAULT 0.8, hold_ms INTEGER NOT NULL DEFAULT 800,
   share INTEGER NOT NULL DEFAULT 0, created REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS exams(id INTEGER PRIMARY KEY, owner_id INTEGER NOT NULL, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+  image TEXT NOT NULL DEFAULT '', content TEXT NOT NULL, created REAL NOT NULL, updated REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS seed_log(tbl TEXT NOT NULL, name TEXT NOT NULL, sha TEXT NOT NULL, PRIMARY KEY(tbl, name));
 CREATE TABLE IF NOT EXISTS chats(id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, title TEXT NOT NULL, messages TEXT NOT NULL DEFAULT '[]', created REAL NOT NULL);
 """
 
@@ -52,6 +105,10 @@ def init(admin_password=None):
     """Tạo bảng, tài khoản admin lần đầu, và hai trình chơi mẫu. Trả mật khẩu admin nếu vừa tạo (để in ra một lần)."""
     c = connect()
     c.executescript(SCHEMA)
+    for table, col, ddl in (("models", "image", "TEXT NOT NULL DEFAULT ''"), ("players", "image", "TEXT NOT NULL DEFAULT ''"),
+                            ("apps", "image", "TEXT NOT NULL DEFAULT ''"), ("apps", "exam_id", "INTEGER")):
+        if col not in {r[1] for r in c.execute("PRAGMA table_info(%s)" % table)}:  # DB cũ: thêm cột, không mất dữ liệu
+            c.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, col, ddl))
     made = None
     if not c.execute("SELECT 1 FROM users WHERE role='admin'").fetchone():
         made = admin_password or secrets.token_urlsafe(9)
@@ -69,6 +126,8 @@ def init(admin_password=None):
         c.execute("INSERT INTO models(owner_id,name,description,kind,url,outputs,visibility,created) VALUES(0,?,?,?,?,?, 'public',?)",
                   ("Bàn tay (MediaPipe)", "Nhận diện bàn tay: nắm tay, xòe tay và vị trí tay. Không cần huấn luyện.", "hands", HANDS_URL,
                    json.dumps([{"key": "fist", "role": "action"}, {"key": "open", "role": "action"}, {"key": "none", "role": "empty"}]), time.time()))
+    seed_exams(c)
+    seed_images(c)
     c.commit()
     c.close()
     return made
@@ -203,7 +262,7 @@ def get_model(c, mid, user, edit=False):
 
 # ---------- trình chơi ----------
 def player_row(r, user, full=False):
-    d = {k: r[k] for k in ("id", "owner_id", "name", "description", "status", "source", "visibility", "note", "created", "updated")}
+    d = {k: r[k] for k in ("id", "owner_id", "name", "description", "image", "status", "source", "visibility", "note", "created", "updated")}
     d["manifest"] = json.loads(r["manifest"])
     d["flags"] = json.loads(r["flags"])
     d["mine"] = r["owner_id"] == user["id"]
@@ -258,6 +317,100 @@ def replace_player_html(c, r, html):
     c.execute("UPDATE players SET name=?,description=?,html=?,manifest=?,flags=?,status=?,updated=? WHERE id=?",
               (m["name"], m["description"], html, json.dumps(m), json.dumps(contract.scan(html)), status, time.time(), r["id"]))
     c.commit()
+
+
+# ---------- ảnh + thông tin chung (tên, mô tả, ảnh) ----------
+IMG_RE = re.compile(r"^data:image/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$")
+IMG_MAX = 300 * 1024  # byte sau khi giải mã; giao diện nên thu nhỏ ảnh còn ~640 px (vài chục KB)
+
+
+def clean_image(v):
+    """'' hoặc None = bỏ ảnh. Ngược lại phải là data URL png/jpeg/webp, tối đa 300 KB."""
+    if v in (None, ""):
+        return ""
+    m = IMG_RE.match(v) if isinstance(v, str) and len(v) <= IMG_MAX * 4 // 3 + 64 else None
+    if not m:
+        raise Err(400, "image", "Ảnh phải là png, jpeg hoặc webp, tối đa 300 KB.")
+    try:
+        raw = base64.b64decode(m.group(2), validate=True)
+    except Exception:
+        raise Err(400, "image", "Ảnh không hợp lệ.")
+    if len(raw) > IMG_MAX:
+        raise Err(400, "image", "Ảnh tối đa 300 KB.")
+    sig = {"png": b"\x89PNG", "jpeg": b"\xff\xd8", "webp": b"RIFF"}[m.group(1)]
+    if not raw.startswith(sig):
+        raise Err(400, "image", "Nội dung ảnh không khớp định dạng.")
+    return v
+
+
+META_TABLES = {"models": "models", "players": "players", "apps": "apps", "exams": "exams"}
+
+
+def update_meta(c, res, rid, user, d):
+    """Sửa tên, mô tả, ảnh (mỗi trường có thì mới đổi) của mô hình, trình chơi, ứng dụng hoặc bộ đề.
+    Người tạo hoặc Admin; mô hình có sẵn của AI Lab thì không; trình chơi mẫu chỉ Admin."""
+    if res not in META_TABLES:
+        raise Err(404, "not_found", "Không thấy.")
+    if res == "models":
+        r = get_model(c, rid, user, edit=True)
+    elif res == "players":
+        r = get_player(c, rid, user, edit=True)
+        if r["owner_id"] is None and user["role"] != "admin":
+            raise Err(403, "forbidden", "Trình chơi mẫu chỉ Admin được sửa thông tin.")
+    else:
+        r = c.execute("SELECT * FROM %s WHERE id=?" % res, (rid,)).fetchone()
+        if not r or not (r["owner_id"] == user["id"] or user["role"] == "admin"):
+            raise Err(404, "not_found", "Không thấy.")
+    sets, vals = [], []
+    if "name" in d:
+        sets.append("name=?"); vals.append(_s(d["name"], 1, 80, "name", "Tên"))
+    if "description" in d:
+        desc = d["description"] or ""
+        if not isinstance(desc, str) or len(desc) > 300:
+            raise Err(400, "description", "Mô tả tối đa 300 ký tự.")
+        sets.append("description=?"); vals.append(desc)
+    if "image" in d:
+        sets.append("image=?"); vals.append(clean_image(d["image"]))
+    if not sets:
+        raise Err(400, "empty", "Chưa có gì để sửa (name, description hoặc image).")
+    if res in ("players", "exams"):
+        sets.append("updated=?"); vals.append(time.time())
+    c.execute("UPDATE %s SET %s WHERE id=?" % (res, ",".join(sets)), (*vals, rid))
+    c.commit()
+
+
+# ---------- bộ đề ----------
+def clean_exam(d):
+    name = _s(d.get("name"), 1, 80, "name", "Tên bộ đề")
+    desc = d.get("description") or ""
+    if not isinstance(desc, str) or len(desc) > 300:
+        raise Err(400, "description", "Mô tả tối đa 300 ký tự.")
+    content = d.get("content")
+    if not isinstance(content, str) or len(content) > 40000:
+        raise Err(400, "content", "Nội dung bộ đề tối đa 40000 ký tự.")
+    qs = parse_questions(content)
+    if not (1 <= len(qs) <= 200):
+        raise Err(400, "questions", "Bộ đề cần 1–200 câu hỏi.")
+    return name, desc, content.strip(), clean_image(d.get("image"))
+
+
+def exam_row(r, user, full=False):
+    d = {k: r[k] for k in ("id", "owner_id", "name", "description", "image", "created", "updated")}
+    d["mine"] = r["owner_id"] == user["id"]
+    d["builtin"] = r["owner_id"] == 0
+    d["count"] = len(parse_questions(r["content"]))
+    if full:
+        d["content"] = r["content"]
+    return d
+
+
+def get_exam(c, eid, user, edit=False):
+    r = c.execute("SELECT * FROM exams WHERE id=?", (eid,)).fetchone()
+    if not r or not (r["owner_id"] in (user["id"], 0) or user["role"] == "admin"):
+        raise Err(404, "not_found", "Không thấy bộ đề này.")
+    if edit and r["owner_id"] == 0 and user["role"] != "admin":
+        raise Err(403, "builtin", "Bộ đề có sẵn của AI Lab, chỉ Admin được sửa hoặc xoá.")
+    return r
 
 
 # ---------- ứng dụng ----------
@@ -333,9 +486,21 @@ def clean_app(c, user, d, existing=None):
             used.add(o)
             mapping[i["key"]] = o
     content = d.get("content") or ""
+    exam_id = None
+    needs_q = man.get("questions") == "exam" or man.get("content", {}).get("kind") == "questions"
+    if needs_q and d.get("examId") not in (None, ""):
+        try:
+            exam_id = int(d.get("examId"))
+        except (TypeError, ValueError):
+            raise Err(400, "exam", "Chọn một bộ đề.")
+        ex = c.execute("SELECT * FROM exams WHERE id=?", (exam_id,)).fetchone()
+        keepx = existing is not None and existing["exam_id"] == exam_id
+        if not ex or not (ex["owner_id"] in (user["id"], 0) or user["role"] == "admin" or keepx):
+            raise Err(400, "exam", "Bộ đề này không dùng được.")
+        content = ex["content"]  # chép lúc lưu; khi chơi lấy bản mới nhất của bộ đề (play_data)
     if not isinstance(content, str) or len(content) > 40000:
         raise Err(400, "content", "Nội dung quá dài.")
-    if man.get("questions") == "exam" or man.get("content", {}).get("kind") == "questions":
+    if needs_q:
         if not parse_questions(content):
             raise Err(400, "questions", "Cần ít nhất một câu hỏi.")
     elif "content" in man:
@@ -350,11 +515,12 @@ def clean_app(c, user, d, existing=None):
         raise Err(400, "sure", "Độ chắc chắn và thời gian giữ phải là số.")
     if not (0.5 <= sure <= 0.99) or not (300 <= hold <= 5000):
         raise Err(400, "sure", "Độ chắc chắn 0.5–0.99, thời gian giữ 300–5000 ms.")
-    return name, desc, pid, model_id, mapping, content, sure, hold, 1 if d.get("share") else 0
+    image = clean_image(d["image"]) if "image" in d else (existing["image"] if existing is not None else "")
+    return name, desc, pid, model_id, mapping, content, sure, hold, 1 if d.get("share") else 0, exam_id, image
 
 
 def app_row(r, user):
-    d = {k: r[k] for k in ("id", "owner_id", "name", "description", "player_id", "model_id", "content", "sure", "hold_ms", "share", "created")}
+    d = {k: r[k] for k in ("id", "owner_id", "name", "description", "image", "player_id", "model_id", "exam_id", "content", "sure", "hold_ms", "share", "created")}
     d["mapping"] = json.loads(r["mapping"])
     d["mine"] = r["owner_id"] == user["id"]
     return d
@@ -384,7 +550,11 @@ def play_data(c, aid, user):
         m = c.execute("SELECT * FROM models WHERE id=?", (a["model_id"],)).fetchone()
         out["model"] = {"kind": m["kind"], "url": m["url"], "outputs": json.loads(m["outputs"])}
     if man.get("questions") == "exam" or man.get("content", {}).get("kind") == "questions":
-        out["questions"] = parse_questions(a["content"])
+        src = a["content"]
+        if a["exam_id"]:
+            ex = c.execute("SELECT content FROM exams WHERE id=?", (a["exam_id"],)).fetchone()
+            src = ex["content"] if ex else src  # bộ đề bị xoá thì dùng bản chép lúc lưu
+        out["questions"] = parse_questions(src)
     elif "content" in man:
         out["content"] = [{"id": str(i + 1), "text": x.strip()} for i, x in enumerate(a["content"].splitlines()) if x.strip()]
     return out
