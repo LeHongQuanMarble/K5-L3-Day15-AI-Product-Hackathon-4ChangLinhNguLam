@@ -67,8 +67,8 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 | T09 | AI Guardrails & Output Validation | TV2 | P0 | CP3 | T06, T08 | 28/11 06:00 | TODO *(cần TV2 xác nhận)* |
 | T10 | AI Improvement After Evaluation Run 1 | TV2 | P0 | CP4 | T18 | 28/11 11:30 | TODO |
 | T11 | Repository & Development Foundation | TV3 | P0 | CP1 | — | 27/11 16:30 | DONE *(root chuẩn BTC, 27/27 unittest pass)* |
-| T12 | Catalog, Tools & Composition Services | TV3 | P0 | CP3 | T06, T11 *(song song T07)* | 27/11 22:30 | IN_PROGRESS *(cần TV3 xác nhận)* |
-| T13 | Game Runtime & Interaction Compatibility | TV3 | P0 | CP3 | T11 *(bắt đầu khi interface ổn định)* | 28/11 04:00 | IN_PROGRESS *(cần TV3 xác nhận)* |
+| T12 | Catalog, Tools & Composition Services | TV3 | P0 | CP3 | T06, T11 *(song song T07)* | 27/11 22:30 | DONE *(tools + Composer + Snapshot; 37/37 unittest pass)* |
+| T13 | Game Runtime & Interaction Compatibility | TV3 | P0 | CP3 | T11 *(bắt đầu khi interface ổn định)* | 28/11 04:00 | DONE *(runtime Edge headless thật: fallback 6/6, CSP/sandbox 4/4, 2/2 Player động — `evidence/runtime-smoke.md`)* |
 | T14 | Web/Backend Integration & HITL | TV3 | P0 | CP3 | T06 *(khởi chạy sớm)*, T08, T12, T13 | 28/11 08:30 | TODO *(cần TV3 xác nhận)* |
 | T15 | E2E Testing & Demo Recording | TV3 | P0 | CP3–CP4 | T07, T08, T14 *(CP3)* · T09 *(CP4)* | 28/11 09:30 *(video CP3)* / 12:00 *(CP4)* | TODO |
 | T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | — *(song song AI & Software)* | 27/11 19:00 (v1) / 28/11 09:00 (full) | IN_PROGRESS *(CP2 đã merge PR #6; CP3 khóa snapshot `79822a4` + Dataset 4 đã merge qua PR #8, chờ TV4 xác nhận)* |
@@ -77,7 +77,7 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 | T19 | Evaluation Run 2 & Comparison Report | TV4 | P0 | CP4 | T10, T18 | 28/11 13:00 | TODO |
 | T20 | Cost Simulation & Operational Analysis | TV4 | P0 | CP4 | T03, T07 *(chuẩn bị sớm)* · T19 *(chốt số cuối)* | 28/11 13:30 | TODO |
 
-> **Cập nhật trạng thái ngày 27/11/2026:** chỉ **T01** và **T11** đủ bằng chứng để đánh `DONE` (`run.py check` pass + đã merge `main`, unit test nền tảng pass). Các task còn lại **chưa đánh DONE**: `T02` đã merge PR #5 nhưng ở `REVIEW`, chờ TV1+TV4 ký freeze §7 và TV2+TV3 chốt Contract; `T12`/`T13` code đã merge qua PR #7 nhưng chờ TV3 xác nhận và kiểm thử runtime browser/Mouse Fallback; `T16`/`T17` bản CP3 đã merge qua PR #8 nhưng chờ TV4 xác nhận, TV1 bổ sung 4 câu nguồn thật (T03) và ký chấm chéo; `T14`/`T15`/`T18`–`T20` chưa có bằng chứng chạy thật (Web/HITL, video, Eval Run 1/2, cost simulation). Không tự nâng trạng thái khi chưa có bằng chứng kiểm chứng (bước 6–8 trong phần "Hướng dẫn AI Agent" đầu file).
+> **Cập nhật trạng thái ngày 27/11/2026:** `T01`, `T11`, `T12`, `T13` đủ bằng chứng để đánh `DONE` (`run.py check` pass + đã merge `main`; unit test 37/37 pass; runtime browser headless thật ở `evidence/runtime-smoke.md`). Các task còn lại **chưa đánh DONE**: `T02` đã merge PR #5 nhưng ở `REVIEW`, chờ TV1+TV4 ký freeze §7 và TV2+TV3 chốt Contract; `T16`/`T17` bản CP3 đã merge qua PR #8 và đã được TV4 xác nhận kiểm chứng, chờ TV1 bổ sung 4 câu nguồn thật (T03) và ký chấm chéo; `T14`/`T15`/`T18`–`T20` chưa có bằng chứng chạy thật (Web/HITL, video, Eval Run 1/2, cost simulation). Không tự nâng trạng thái khi chưa có bằng chứng kiểm chứng (bước 6–8 trong phần "Hướng dẫn AI Agent" đầu file).
 
 ---
 
@@ -558,10 +558,10 @@ DONE.
 
 **Công việc:**
 
-- [ ] Xây dựng bộ công cụ `@tool` đọc Catalog trong `codebase/tools.py` (tận dụng `ailab/store.py` & `ailab/seed_exams.json`): `list_players`, `get_player`, `list_models` (có metadata `kinds`/`inputs` rõ ràng để khớp `REUSE`).
-- [ ] Cài đặt `validate_compatibility(player, model, exam)` kiểm tra tương thích giữa `Model`, `Player` (manifest `jl-camera`) và `Question Set`.
-- [ ] Cài đặt `App Composer` nhận `ApplicationPlan` đã hợp lệ (nhánh `REUSE` hoặc `GENERATE` nháp) để tạo bản ứng dụng `DRAFT` (ghép `Model + Player + Question Set`), tuyệt đối không tự đặt `APPROVED` và không tự ghi module `GENERATE` vào Catalog chính thức.
-- [ ] Xuất bản **Catalog Snapshot** cố định cho TV4 dùng trong `DATA_CARD.md` (T16) và Benchmark (T17).
+- [x] Xây dựng bộ công cụ `@tool` đọc Catalog trong `codebase/tools.py` (tận dụng `ailab/store.py` & `ailab/seed_exams.json`): `list_players`, `get_player`, `list_models` (có metadata `kinds`/`inputs` rõ ràng để khớp `REUSE`).
+- [x] Cài đặt `validate_compatibility(player, model, exam)` kiểm tra tương thích giữa `Model`, `Player` (manifest `jl-camera`) và `Question Set`.
+- [x] Cài đặt `App Composer` nhận `ApplicationPlan` đã hợp lệ (nhánh `REUSE` hoặc `GENERATE` nháp) để tạo bản ứng dụng `DRAFT` (ghép `Model + Player + Question Set`), tuyệt đối không tự đặt `APPROVED` và không tự ghi module `GENERATE` vào Catalog chính thức.
+- [x] Xuất bản **Catalog Snapshot** cố định cho TV4 dùng trong `DATA_CARD.md` (T16) và Benchmark (T17).
 
 **Deliverables:**
 
@@ -569,10 +569,10 @@ Các hàm `@tool` trong `codebase/tools.py`, dịch vụ `App Composer` trong `a
 
 **Acceptance Criteria:**
 
-- [ ] Mỗi công cụ trong `codebase/tools.py` có `@tool` và docstring đủ 4 ý (tên · input · output · tác động ra ngoài), chỉ đọc dữ liệu, không tự xuất bản.
-- [ ] `validate_compatibility` bắt đúng tổ hợp không tương thích (ví dụ Model âm thanh khi Runtime chưa hỗ trợ hoặc sai nhãn/input).
-- [ ] `App Composer` ghép thành công `ApplicationPlan` cho cả nhánh `REUSE` (dùng nguyên `player_id`, không ghi đè HTML gốc) và `GENERATE` (tạo bản nháp `DRAFT` tách biệt khỏi Catalog chính thức).
-- [ ] Unit test cho toàn bộ tools và `App Composer` chạy pass 100%.
+- [x] Mỗi công cụ trong `codebase/tools.py` có `@tool` và docstring đủ 4 ý (tên · input · output · tác động ra ngoài), chỉ đọc dữ liệu, không tự xuất bản.
+- [x] `validate_compatibility` bắt đúng tổ hợp không tương thích (ví dụ Model âm thanh khi Runtime chưa hỗ trợ hoặc sai nhãn/input).
+- [x] `App Composer` ghép thành công `ApplicationPlan` cho cả nhánh `REUSE` (dùng nguyên `player_id`, không ghi đè HTML gốc) và `GENERATE` (tạo bản nháp `DRAFT` tách biệt khỏi Catalog chính thức).
+- [x] Unit test cho toàn bộ tools và `App Composer` chạy pass 100% *(37/37 qua `python -m unittest discover -s ailab -p "test_*.py"`)*.
 
 **Handoff:**
 
@@ -580,7 +580,7 @@ Bàn giao tools & `App Composer` cho TV2 (T08) và Catalog Snapshot cho TV4 (T16
 
 **Status:**
 
-IN_PROGRESS.
+DONE *(27/11/2026): tools + `App Composer` + Catalog Snapshot đã merge qua PR #7; 37/37 unittest pass.*
 
 ---
 
@@ -597,10 +597,10 @@ IN_PROGRESS.
 
 **Công việc:**
 
-- [ ] Kiểm tra & chuẩn hóa tương thích Runtime cho các `Player` trong Catalog với `Question Set` động (không hardcode câu hỏi vào HTML) và các loại Model được hỗ trợ (`hands`, `image`, `pose`, `mouse`).
-- [ ] Xác minh & gia cố **Mouse Fallback**: trò chơi vẫn chơi trọn vẹn bằng chuột khi không có Model, Model đang tải/lỗi, không có camera, bị từ chối quyền camera, hoặc giáo viên chủ động tắt camera — không mất điểm/tiến độ.
-- [ ] Xác minh cơ chế chạy thử trong `iframe sandbox` + CSP (chặn gọi mạng ngoài whitelist, chặn thoát khung) cho module `GENERATE` bản nháp.
-- [ ] Bổ sung kiểm thử tự động/smoke cho runtime compatibility và sandbox headers.
+- [x] Kiểm tra & chuẩn hóa tương thích Runtime cho các `Player` trong Catalog với `Question Set` động (không hardcode câu hỏi vào HTML) và các loại Model được hỗ trợ (`hands`, `image`, `pose`, `mouse`).
+- [x] Xác minh & gia cố **Mouse Fallback**: trò chơi vẫn chơi trọn vẹn bằng chuột khi không có Model, Model đang tải/lỗi, không có camera, bị từ chối quyền camera, hoặc giáo viên chủ động tắt camera — không mất điểm/tiến độ.
+- [x] Xác minh cơ chế chạy thử trong `iframe sandbox` + CSP (chặn gọi mạng ngoài whitelist, chặn thoát khung) cho module `GENERATE` bản nháp.
+- [x] Bổ sung kiểm thử tự động/smoke cho runtime compatibility và sandbox headers.
 
 **Deliverables:**
 
@@ -608,9 +608,9 @@ Cập nhật Runtime/Player trong `ailab/web/` & `ailab/server.py`, kiểm thử
 
 **Acceptance Criteria:**
 
-- [ ] 100% module `Player` trong Catalog P0 nhận được `Question Set` động và chạy ổn định trong Runtime.
-- [ ] Chuyển sang `Mouse Fallback` trong 5 tình huống (không có Model, Model lỗi, không có camera, từ chối quyền camera, tắt camera) đều chơi hết lượt mà không mất điểm hay tiến độ.
-- [ ] Module `GENERATE` nháp chạy xem thử trong `iframe sandbox` có CSP chặt, không thể đọc cookie/DOM cha hay gọi mạng trái phép.
+- [x] 100% module `Player` trong Catalog P0 nhận được `Question Set` động và chạy ổn định trong Runtime *(2/2: Quiz nhận Question Set 2 câu, Vòng quay nhận danh sách 3 mục)*.
+- [x] Chuyển sang `Mouse Fallback` trong 5 tình huống (không có Model, Model lỗi, không có camera, từ chối quyền camera, tắt camera) đều chơi hết lượt mà không mất điểm hay tiến độ *(kiểm thêm "Model đang tải" → 6/6, mỗi tình huống 2/2)*.
+- [x] Module `GENERATE` nháp chạy xem thử trong `iframe sandbox` có CSP chặt, không thể đọc cookie/DOM cha hay gọi mạng trái phép *(4/4: network, parent DOM, escape, cookie đều `blocked`)*.
 
 **Handoff:**
 
@@ -618,7 +618,7 @@ Bàn giao Runtime đã xác minh cho TV3 (T14, T15) và báo cáo giới hạn R
 
 **Status:**
 
-IN_PROGRESS.
+DONE *(27/11/2026): chạy thật bằng Edge headless qua `python ailab/runtime_smoke.py`; bằng chứng `evidence/runtime-smoke.md` — fallback 6/6 (mỗi tình huống 2/2), CSP/sandbox 4/4 blocked, 2/2 Player nhận dữ liệu động; 37/37 unittest pass.*
 
 ---
 
