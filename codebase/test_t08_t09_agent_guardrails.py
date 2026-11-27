@@ -429,6 +429,25 @@ class TestT08ReuseGenerateClarifyWorkflow(TempCatalogTestCase):
         self.assertIn("kiểm duyệt", out["output"].lower())
         self.assertNotIn("```html", out["output"].lower())
 
+    def test_info_exam_lines_in_message_still_validated_and_warned(self):
+        route_json = {
+            "decision": "INFO",
+            "message": (
+                "Dưới đây là 2 câu:\n"
+                "1. Đơn vị tần số là? | Hz | m | s | kg | =A\n"
+                "2. Chu kỳ T bằng? | 1/f | f | 2f | f^2 | =A"
+            ),
+            "exam_content": None,
+        }
+        with mock.patch.object(agent, "call_model", return_value=_fake_llm_reply(route_json)):
+            tracing.begin("info-fallback")
+            env = agent.run_agent("Soạn 2 câu trắc nghiệm Vật lý 12.")
+            _, events = tracing.end()
+
+        self.assertTrue(any(w["code"] == "knowledge_review_required" for w in env["warnings"]))
+        self.assertIn("validate_exam", [e["name"] for e in events if e["kind"] == "tool"])
+        self.assertNotIn("1. Đơn vị", env["message"])
+
     def test_provider_error_propagates_for_tracing(self):
         err = pu.ProviderError("openai", "rate_limit", status=429)
         with mock.patch.object(agent, "call_model", side_effect=err):
