@@ -30,6 +30,52 @@ class FlagDetail(unittest.TestCase):
         self.assertEqual(contract.scan(llm.QUIZ_TEMPLATE.replace("__TITLE__", "T")), [])
 
 
+class ImageAndExam(unittest.TestCase):
+    PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+
+    def test_image_ok_and_clear(self):
+        self.assertEqual(store.clean_image(self.PNG), self.PNG)
+        self.assertEqual(store.clean_image(""), "")
+        self.assertEqual(store.clean_image(None), "")
+
+    def test_image_refusals(self):
+        for bad in ("http://x/y.png", "data:image/svg+xml;base64,PHN2Zz4=", "data:image/png;base64,AAAA", "data:image/png;base64,!!!",
+                    "data:image/png;base64," + "A" * 500000):
+            with self.assertRaises(store.Err):
+                store.clean_image(bad)
+
+    def test_exam_needs_valid_questions(self):
+        ok = store.clean_exam({"name": "Đề 1", "content": "2+2=? | 3 | 4 | =B"})
+        self.assertEqual(ok[0], "Đề 1")
+        for bad in ({"name": "", "content": "a | b | c | =A"}, {"name": "x", "content": ""}, {"name": "x", "content": "sai mẫu"}):
+            with self.assertRaises(store.Err):
+                store.clean_exam(bad)
+
+
+class SeedImages(unittest.TestCase):
+    def test_every_seed_file_is_a_valid_image(self):
+        import base64
+        for table, names in store.SEED_IMAGES.items():
+            for name, fn in names.items():
+                with open(os.path.join(store.SEED_DIR, fn), "rb") as f:
+                    uri = "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+                self.assertEqual(store.clean_image(uri), uri, "%s/%s" % (table, name))
+
+
+class SeedExams(unittest.TestCase):
+    def test_seed_exams_parse_and_are_big(self):
+        import json
+        with open(store.SEED_EXAMS_FILE, encoding="utf-8") as f:
+            items = json.load(f)
+        self.assertGreaterEqual(len(items), 5)
+        for e in items:
+            qs = store.parse_questions(e["content"])
+            self.assertGreaterEqual(len(qs), 15, e["name"])
+            self.assertTrue(os.path.exists(os.path.join(store.SEED_DIR, e["image"])), e["name"])
+            for q in qs:  # đáp án đúng phải nằm trong các lựa chọn
+                self.assertIn(q["answer"], [c["key"] for c in q["choices"]])
+
+
 class Hands(unittest.TestCase):
     def test_hands_kind_allowed_in_player(self):
         html = '<script type="application/json" id="jl-camera">{"name":"T","inputs":[{"key":"grab","label":"Nắm","required":true,"accepts":["action"]}],"kinds":["hands","image"]}</script>'

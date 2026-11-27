@@ -195,6 +195,11 @@ class H(BaseHTTPRequestHandler):
     def _authed(self, c, method, p, user):
         parts = p.split("/")
         res = parts[0]
+        if len(parts) == 3 and parts[2] == "meta" and method == "POST" and res in store.META_TABLES:
+            store.update_meta(c, res, _int(parts[1]), user, self._body())  # tên, mô tả, ảnh
+            return self._json(200, {"ok": True})
+        if res == "exams":
+            return self._exams(c, method, parts, user)
         if res == "models":
             return self._models(c, method, parts, user)
         if res == "players":
@@ -208,6 +213,50 @@ class H(BaseHTTPRequestHandler):
             return self._admin(c, method, parts)
         raise Err(404, "not_found", "Không thấy.")
 
+    def _exams(self, c, method, parts, user):
+        """Bộ đề: nguồn câu hỏi dùng chung cho ứng dụng. Của ai người đó thấy; Admin thấy hết."""
+        if len(parts) == 1:
+            if method == "GET":
+                if "scope=all" in self.path:
+                    _need_admin(user)
+                    rows = c.execute("SELECT e.*, u.username owner FROM exams e LEFT JOIN users u ON u.id=e.owner_id ORDER BY e.id DESC").fetchall()
+                else:
+                    rows = c.execute("SELECT e.*, u.username owner FROM exams e LEFT JOIN users u ON u.id=e.owner_id WHERE e.owner_id IN (?,0) ORDER BY e.id DESC", (user["id"],)).fetchall()
+                out = []
+                for r in rows:
+                    d = store.exam_row(r, user)
+                    d["owner"] = r["owner"] or "AI Lab"
+                    out.append(d)
+                return self._json(200, {"exams": out})
+            if method == "POST":
+                if c.execute("SELECT COUNT(*) FROM exams WHERE owner_id=?", (user["id"],)).fetchone()[0] >= 100:
+                    raise Err(409, "storage_full", "Mỗi tài khoản có tối đa 100 bộ đề.")
+                name, desc, content, image = store.clean_exam(self._body())
+                now = time.time()
+                cur = c.execute("INSERT INTO exams(owner_id,name,description,image,content,created,updated) VALUES(?,?,?,?,?,?,?)",
+                                (user["id"], name, desc, image, content, now, now))
+                c.commit()
+                return self._json(201, {"id": cur.lastrowid})
+        elif len(parts) == 2:
+            eid = _int(parts[1])
+            r = store.get_exam(c, eid, user, edit=method in ("PUT", "DELETE"))
+            if method == "GET":
+                return self._json(200, {"exam": store.exam_row(r, user, full=True)})
+            if method == "PUT":
+                d = self._body()
+                name, desc, content, image = store.clean_exam(d if "image" in d else dict(d, image=r["image"]))
+                c.execute("UPDATE exams SET name=?,description=?,image=?,content=?,updated=? WHERE id=?", (name, desc, image, content, time.time(), eid))
+                c.commit()
+                return self._json(200, {"ok": True})
+            if method == "DELETE":
+                n = c.execute("SELECT COUNT(*) FROM apps WHERE exam_id=?", (eid,)).fetchone()[0]
+                if n:
+                    raise Err(409, "in_use", "Có %d ứng dụng đang dùng bộ đề này. Đổi hoặc xoá ứng dụng trước." % n)
+                c.execute("DELETE FROM exams WHERE id=?", (eid,))
+                c.commit()
+                return self._json(200, {"ok": True})
+        raise Err(404, "not_found", "Không thấy.")
+
     def _models(self, c, method, parts, user):
         if len(parts) == 1:
             if method == "GET":
@@ -216,11 +265,12 @@ class H(BaseHTTPRequestHandler):
                     q = "usable"
                 return self._json(200, {"models": store.list_models(c, user, q)})
             if method == "POST":
-                name, desc, kind, url, outs, vis = store.clean_model(self._body())
+                body = self._body()
+                name, desc, kind, url, outs, vis = store.clean_model(body)
                 if c.execute("SELECT COUNT(*) FROM models WHERE owner_id=?", (user["id"],)).fetchone()[0] >= 100:
                     raise Err(409, "storage_full", "Mỗi tài khoản có tối đa 100 mô hình.")
-                cur = c.execute("INSERT INTO models(owner_id,name,description,kind,url,outputs,visibility,created) VALUES(?,?,?,?,?,?,?,?)",
-                                (user["id"], name, desc, kind, url, json.dumps(outs), vis, time.time()))
+                cur = c.execute("INSERT INTO models(owner_id,name,description,kind,url,outputs,visibility,created,image) VALUES(?,?,?,?,?,?,?,?,?)",
+                                (user["id"], name, desc, kind, url, json.dumps(outs), vis, time.time(), store.clean_image(body.get("image"))))
                 c.commit()
                 return self._json(201, {"id": cur.lastrowid})
         elif len(parts) == 2:
@@ -230,7 +280,9 @@ class H(BaseHTTPRequestHandler):
                 return self._json(200, {"model": store.model_row(r, user)})
             if method == "PUT":
                 store.get_model(c, mid, user, edit=True)
-                name, desc, kind, url, outs, vis = store.clean_model(self._body())
+                body = self._body()
+                name, desc, kind, url, outs, vis = store.clean_model(body)
+                img = store.clean_image(body["image"]) if "image" in body else None
                 used = c.execute("SELECT mapping FROM apps WHERE model_id=?", (mid,)).fetchall()
                 keys = {o["key"] for o in outs}
                 for a in used:
@@ -238,6 +290,8 @@ class H(BaseHTTPRequestHandler):
                         raise Err(409, "in_use", "Có ứng dụng đang gắn vào một lớp bạn vừa bỏ hoặc đổi tên. Sửa ứng dụng trước.")
                 c.execute("UPDATE models SET name=?,description=?,kind=?,url=?,outputs=?,visibility=? WHERE id=?",
                           (name, desc, kind, url, json.dumps(outs), vis, mid))
+                if img is not None:
+                    c.execute("UPDATE models SET image=? WHERE id=?", (img, mid))
                 c.commit()
                 return self._json(200, {"ok": True})
             if method == "DELETE":
@@ -352,8 +406,8 @@ class H(BaseHTTPRequestHandler):
                 if c.execute("SELECT COUNT(*) FROM apps WHERE owner_id=?", (user["id"],)).fetchone()[0] >= 200:
                     raise Err(409, "storage_full", "Mỗi tài khoản có tối đa 200 ứng dụng.")
                 v = store.clean_app(c, user, self._body())
-                cur = c.execute("INSERT INTO apps(owner_id,name,description,player_id,model_id,mapping,content,sure,hold_ms,share,created) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                                (user["id"], v[0], v[1], v[2], v[3], json.dumps(v[4]), v[5], v[6], v[7], v[8], time.time()))
+                cur = c.execute("INSERT INTO apps(owner_id,name,description,player_id,model_id,mapping,content,sure,hold_ms,share,exam_id,image,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                                (user["id"], v[0], v[1], v[2], v[3], json.dumps(v[4]), v[5], v[6], v[7], v[8], v[9], v[10], time.time()))
                 c.commit()
                 return self._json(201, {"id": cur.lastrowid})
         elif len(parts) == 2:
@@ -365,7 +419,7 @@ class H(BaseHTTPRequestHandler):
                 if r["owner_id"] != user["id"]:
                     raise Err(403, "forbidden", "Chỉ người tạo được sửa ứng dụng này.")
                 v = store.clean_app(c, user, self._body(), existing=r)
-                c.execute("UPDATE apps SET name=?,description=?,player_id=?,model_id=?,mapping=?,content=?,sure=?,hold_ms=?,share=? WHERE id=?", (*v, aid))
+                c.execute("UPDATE apps SET name=?,description=?,player_id=?,model_id=?,mapping=?,content=?,sure=?,hold_ms=?,share=?,exam_id=?,image=? WHERE id=?", (*v, aid))
                 c.commit()
                 return self._json(200, {"ok": True})
             if method == "DELETE":

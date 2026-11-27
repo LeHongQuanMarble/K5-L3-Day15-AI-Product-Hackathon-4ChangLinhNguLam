@@ -113,7 +113,7 @@ function menuBtn(items) {
 function itemCard(o) {
   var el = h('div', { class: 'jlps-card is-grid ail-card hue-' + o.hue + (o.selected ? ' is-on' : ''), role: 'option', tabindex: '0', 'aria-selected': o.selected ? 'true' : 'false',
     onclick: o.onSelect, ondblclick: o.onOpen, onkeydown: function (e) { if (e.target === el && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); (e.key === 'Enter' && o.onOpen ? o.onOpen : o.onSelect)(); } } },
-    h('div', { class: 'ail-thumb' }, ico(o.icon || 'image'), o.pill ? h('span', { class: 'ail-pill' }, o.pill) : null),
+    h('div', { class: 'ail-thumb' }, o.image ? h('img', { class: 'ail-thumb-img', src: o.image, alt: '' }) : ico(o.icon || 'image'), o.pill ? h('span', { class: 'ail-pill' }, o.pill) : null),
     h('div', { class: 'ail-card-in' },
       h('div', { class: 'jlps-card-title' }, o.title), o.meta ? h('div', { class: 'jlps-card-sub' }, o.meta) : null,
       h('div', { class: 'ail-tags' }, o.tags || []),
@@ -173,10 +173,11 @@ function listPage(cfg) {
   function drawDetail(it) {
     stopTry();
     if (!it) return detail.replaceChildren(h('div', { class: 'jlps-detail-empty' }, 'Chọn một ' + cfg.noun + ' để xem chi tiết.'));
-    var d = cfg.detail(it);
+    var d = cfg.detail(it), foot = (d.footer || []).slice();
+    if (cfg.canMeta && !cfg.pick && cfg.canMeta(it)) foot.push(btn('Sửa thông tin', 'edit', { onclick: function () { metaModal(cfg.res, it); } }));
     detail.replaceChildren(h('div', { class: 'jlps-detail-head' }, h('h3', null, d.title), d.sub ? h('div', { class: 'ail-sub' }, d.sub) : null),
-      h('div', { class: 'jlps-detail-body' }, d.body),
-      d.footer && d.footer.length ? h('div', { class: 'jlps-detail-foot' }, h('div', { class: 'ail-row', style: 'justify-content:flex-start;flex-wrap:wrap' }, d.footer)) : null);
+      h('div', { class: 'jlps-detail-body' }, it.image ? h('img', { class: 'ail-detail-img', src: it.image, alt: '' }) : null, d.body),
+      foot.length ? h('div', { class: 'jlps-detail-foot' }, h('div', { class: 'ail-row', style: 'justify-content:flex-start;flex-wrap:wrap' }, foot)) : null);
   }
   var lastSel = null;
   function draw() {
@@ -189,6 +190,8 @@ function listPage(cfg) {
     if (!pg.length) grid.replaceChildren(h('div', { class: 'ail-empty', style: 'grid-column:1/-1' }, ico('image'), h('div', null, cfg.items.length ? 'Không có ' + cfg.noun + ' nào khớp. Thử bỏ bớt bộ lọc.' : cfg.empty)));
     pg.forEach(function (it, i) {
       var o = cfg.card(it, i);
+      o.image = it.image;
+      if (cfg.canMeta && !cfg.pick && cfg.canMeta(it)) o.menu = [{ label: 'Sửa thông tin', icon: 'edit', onclick: function () { metaModal(cfg.res, it); } }].concat(o.menu || []);
       o.hue = HUES[(it.id + i) % 4]; o.selected = String(it.id) === st.sel;
       o.onSelect = function () { st.sel = String(it.id); draw(); };
       if (cfg.pick) o.onOpen = function () { cfg.pick(it); };
@@ -281,13 +284,55 @@ function modal(title, body) {
 }
 
 
+/* ---------- ảnh + sửa thông tin (tên, mô tả, ảnh) ---------- */
+function shrink(file) {
+  return new Promise(function (ok, bad) {
+    if (!/^image\//.test(file.type)) return bad(new Error('Hãy chọn một file ảnh (png, jpeg, webp).'));
+    var url = URL.createObjectURL(file), img = new Image();
+    img.onerror = function () { URL.revokeObjectURL(url); bad(new Error('Không đọc được ảnh này.')); };
+    img.onload = function () {
+      URL.revokeObjectURL(url);
+      var k = Math.min(1, 640 / Math.max(img.width, img.height)), c = document.createElement('canvas'), g;
+      c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+      g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      var q = 0.85, out;
+      do { out = c.toDataURL('image/jpeg', q); q -= 0.1; } while (out.length > 380000 && q > 0.2);
+      if (out.length > 380000) bad(new Error('Ảnh vẫn quá lớn sau khi thu nhỏ. Chọn ảnh khác.')); else ok(out);
+    };
+    img.src = url;
+  });
+}
+function imageField(current) {
+  var val = current || '', changed = false, msg = h('div'), prev = h('div', { class: 'ail-imgprev' });
+  var file = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', 'aria-label': 'Chọn ảnh', onchange: function () {
+    var f = file.files[0]; if (!f) return;
+    shrink(f).then(function (d) { val = d; changed = true; msg.replaceChildren(); draw(); }).catch(function (e) { msg.replaceChildren(errBox(e)); });
+  } });
+  var rm = h('button', { type: 'button', class: 'ail-btn sm', onclick: function () { val = ''; changed = true; file.value = ''; draw(); } }, 'Bỏ ảnh');
+  function draw() { prev.replaceChildren(val ? h('img', { src: val, alt: 'Ảnh đại diện' }) : h('div', { class: 'ail-noimg' }, ico('image'), h('span', null, 'Chưa có ảnh'))); rm.style.display = val ? '' : 'none'; }
+  draw();
+  return { el: h('div', { class: 'l' }, 'Ảnh đại diện (tự thu nhỏ, tối đa 300 KB)', prev, h('div', { class: 'row' }, file, rm), msg), get value() { return val; }, get changed() { return changed; } };
+}
+function metaModal(res, it) {
+  var name = h('input', { type: 'text', maxlength: 80, required: true, value: it.name }), desc = h('textarea', { maxlength: 300 }), msg = h('div'), close;
+  desc.value = it.description || '';
+  var img = imageField(it.image);
+  var f = h('form', { class: 'ail-form', onsubmit: function (e) {
+    e.preventDefault();
+    var body = { name: name.value, description: desc.value }; if (img.changed) body.image = img.value;
+    api('POST', '/api/' + res + '/' + it.id + '/meta', body).then(function () { close(); route(); }).catch(function (x) { msg.replaceChildren(errBox(x)); });
+  } }, h('label', { class: 'l' }, 'Tiêu đề', name), h('label', { class: 'l' }, 'Mô tả', desc), img.el, msg,
+    h('div', { class: 'row' }, h('button', { class: 'ail-btn pri', type: 'submit' }, 'Lưu'), h('button', { type: 'button', class: 'ail-btn', onclick: function () { close(); } }, 'Huỷ')));
+  close = modal('Sửa thông tin', f); name.focus();
+}
+
 /* ---------- cấu hình từng loại ---------- */
 function actionCount(m) { return m.outputs.filter(function (o) { return o.role === 'action'; }).length; }
 function delModel(m) { confirmDo('Xoá mô hình “' + m.name + '”?', function () { api('DELETE', '/api/models/' + m.id).then(route).catch(function (e) { window.alert(e.message); }); }); }
 function modelsCfg(items, o) {
   o = o || {};
   return {
-    noun: 'mô hình', items: items, value: o.value, pick: o.pick, empty: 'Bạn chưa có mô hình nào. Bấm “Tạo mô hình” để làm từ đầu, hoặc “Thêm mô hình” nếu đã có đường dẫn Teachable Machine.', actions: o.actions,
+    noun: 'mô hình', res: 'models', canMeta: function (m) { return (m.mine || me.role === 'admin') && m.owner !== 'AI Lab'; }, items: items, value: o.value, pick: o.pick, empty: 'Bạn chưa có mô hình nào. Bấm “Tạo mô hình” để làm từ đầu, hoặc “Thêm mô hình” nếu đã có đường dẫn Teachable Machine.', actions: o.actions,
     text: function (m) { return m.name + ' ' + (m.description || '') + ' ' + m.outputs.map(function (x) { return x.key; }).join(' '); },
     filters: [
       { key: 'src', label: 'Nguồn', values: function (m) { return [srcOf(m)]; }, order: ['AI Lab', 'Của tôi', 'Người dùng khác'] },
@@ -342,7 +387,7 @@ function playersCfg(items, o) {
     return a;
   }
   return {
-    noun: 'trình chơi', items: items, value: o.value, pick: o.pick, actions: o.actions, empty: 'Bạn chưa có trình chơi nào. Bấm “Thêm trình chơi” (dán hoặc tải file HTML) hoặc nhờ Trợ lý game tạo giúp.',
+    noun: 'trình chơi', res: 'players', canMeta: function (p) { return p.mine || me.role === 'admin'; }, items: items, value: o.value, pick: o.pick, actions: o.actions, empty: 'Bạn chưa có trình chơi nào. Bấm “Thêm trình chơi” (dán hoặc tải file HTML) hoặc nhờ Trợ lý game tạo giúp.',
     text: function (p) { return p.name + ' ' + (p.description || ''); },
     filters: [
       { key: 'src', label: 'Nguồn', values: function (p) { return [srcOf(p)]; }, order: ['AI Lab', 'Của tôi', 'Người dùng khác'] },
@@ -371,7 +416,7 @@ function appsCfg(items, players, models, o) {
   players.forEach(function (p) { pn[p.id] = p.name; }); models.forEach(function (m) { mn[m.id] = m.name; });
   function del(a) { confirmDo('Xoá ứng dụng “' + a.name + '”?', function () { api('DELETE', '/api/apps/' + a.id).then(route).catch(function (e) { window.alert(e.message); }); }); }
   return {
-    noun: 'ứng dụng', items: items, actions: o.actions, empty: 'Chưa có ứng dụng. Ứng dụng ghép một trình chơi với một mô hình (hoặc nội dung của bạn) thành thứ học sinh chơi được. Bấm “Thêm ứng dụng”.',
+    noun: 'ứng dụng', res: 'apps', canMeta: function (a) { return a.mine || me.role === 'admin'; }, items: items, actions: o.actions, empty: 'Chưa có ứng dụng. Ứng dụng ghép một trình chơi với một mô hình (hoặc nội dung của bạn) thành thứ học sinh chơi được. Bấm “Thêm ứng dụng”.',
     text: function (a) { return a.name + ' ' + (a.description || '') + ' ' + (pn[a.player_id] || '') + ' ' + (mn[a.model_id] || ''); },
     filters: [
       { key: 'share', label: 'Chia sẻ', values: function (a) { return [a.share ? 'Ai có link đều chơi được' : 'Chỉ mình tôi']; }, order: ['Ai có link đều chơi được', 'Chỉ mình tôi'] },
@@ -421,9 +466,9 @@ function pickField(kind, items, value, label) {
 
 /* ---------- khung trang và các màn danh sách ---------- */
 function shell(cur, isList) {
-  var tabs = [['models', 'Mô hình', 'cube'], ['players', 'Trình chơi', 'play'], ['apps', 'Ứng dụng', 'grid'], ['chat', 'Trợ lý game', 'chat']];
+  var tabs = [['models', 'Mô hình', 'cube'], ['players', 'Trình chơi', 'play'], ['exams', 'Bộ đề', 'edit'], ['apps', 'Ứng dụng', 'grid'], ['chat', 'Trợ lý game', 'chat']];
   if (me.role === 'admin') tabs.push(['admin', 'Duyệt & tài khoản', 'shield']);
-  var names = { models: 'Mô hình AI Lab', players: 'Trình chơi AI Lab', apps: 'Ứng dụng AI Lab', chat: 'Trợ lý game', admin: 'Duyệt & tài khoản' };
+  var names = { models: 'Mô hình AI Lab', players: 'Trình chơi AI Lab', exams: 'Bộ đề AI Lab', apps: 'Ứng dụng AI Lab', chat: 'Trợ lý game', admin: 'Duyệt & tài khoản' };
   root.className = 'jlps-shell';
   root.replaceChildren(
     h('header', { class: 'ail-top' }, h('div', { class: 'ail-crumbs' }, 'JULY AI Lab', h('span', null, '/'), h('b', null, names[cur] || 'AI Lab')),
@@ -447,6 +492,55 @@ function playersView(parts) {
     listMount('Trình chơi', listPage(playersCfg(d.players, { actions: [btn('Thêm trình chơi', 'plus', { cls: 'pri', href: '#/players/new' })] })));
   }).catch(function (e) { mount(errBox(e)); });
 }
+
+/* ---------- Bộ đề: nguồn câu hỏi dùng chung cho ứng dụng ---------- */
+var EXAMPLE = '2 + 2 = ? | 3 | 4 | 5 | =B\nThủ đô của Việt Nam là Hà Nội | =Đúng';
+function examsCfg(items, o) {
+  o = o || {};
+  function del(x) { confirmDo('Xoá bộ đề “' + x.name + '”?', function () { api('DELETE', '/api/exams/' + x.id).then(route).catch(function (e) { window.alert(e.message); }); }); }
+  function bucket(x) { return x.count <= 5 ? '1–5 câu' : x.count <= 10 ? '6–10 câu' : 'Trên 10 câu'; }
+  return {
+    noun: 'bộ đề', res: 'exams', canMeta: function (x) { return !x.builtin || me.role === 'admin'; }, items: items, actions: o.actions,
+    empty: 'Bạn chưa có bộ đề nào. Bấm “Thêm bộ đề” để soạn câu hỏi dùng cho nhiều ứng dụng.',
+    text: function (x) { return x.name + ' ' + (x.description || ''); },
+    filters: [{ key: 'sub', label: 'Môn học', values: function (x) { return [x.name.indexOf(':') > 0 ? x.name.split(':')[0] : 'Khác']; }, order: ['Toán 12', 'Tiếng Anh 12', 'Tin học 12'] }, { key: 'n', label: 'Số câu hỏi', values: function (x) { return [bucket(x)]; }, order: ['1–5 câu', '6–10 câu', 'Trên 10 câu'] }],
+    card: function (x) {
+      return { icon: 'edit', title: x.name, meta: x.count + ' câu hỏi' + (x.owner && !x.mine ? ' · ' + x.owner : ''), tags: [], state: ['check', '', 'Dùng được'],
+        menu: x.builtin && me.role !== 'admin' ? [] : [{ label: 'Sửa', icon: 'edit', href: '#/exams/' + x.id }, { label: 'Xoá', icon: 'trash', cls: 'bad', onclick: function () { del(x); } }] };
+    },
+    detail: function (x) {
+      return { title: x.name, sub: x.count + ' câu hỏi', body: [x.description ? h('p', { class: 'ail-desc' }, x.description) : null,
+        h('dl', { class: 'ail-dl' }, h('dt', null, 'Số câu'), h('dd', null, String(x.count)), h('dt', null, 'Người tạo'), h('dd', null, x.mine ? 'Tôi' : (x.owner || '')))],
+        footer: x.builtin && me.role !== 'admin' ? [] : [btn('Sửa', 'edit', { cls: 'pri', href: '#/exams/' + x.id }), btn('Xoá', 'trash', { cls: 'bad', onclick: function () { del(x); } })] };
+    }
+  };
+}
+function examsView(parts) {
+  if (parts[1] === 'new') return examForm(null);
+  if (parts[1] && /^\d+$/.test(parts[1])) return examForm(parseInt(parts[1], 10));
+  api('GET', '/api/exams' + (me.role === 'admin' ? '?scope=all' : '')).then(function (d) {
+    listMount('Bộ đề', listPage(examsCfg(d.exams, { actions: [btn('Thêm bộ đề', 'plus', { cls: 'pri', href: '#/exams/new' })] })));
+  }).catch(function (e) { mount(errBox(e)); });
+}
+function examForm(id) {
+  var msg = h('div'), wrap = h('div');
+  mount(wrap);
+  (id ? api('GET', '/api/exams/' + id) : Promise.resolve(null)).then(function (r) {
+    var ex = r && r.exam;
+    var name = h('input', { type: 'text', maxlength: 80, required: true, value: ex ? ex.name : '' }), desc = h('textarea', { maxlength: 300 });
+    var content = h('textarea', { class: 'code', spellcheck: 'false', required: true, 'aria-label': 'Câu hỏi' }), img = imageField(ex ? ex.image : '');
+    desc.value = ex ? ex.description : ''; content.value = ex ? ex.content : EXAMPLE;
+    var f = h('form', { class: 'ail-form', onsubmit: function (e) {
+      e.preventDefault();
+      var body = { name: name.value, description: desc.value, content: content.value }; if (!id || img.changed) body.image = img.value;
+      api(id ? 'PUT' : 'POST', id ? '/api/exams/' + id : '/api/exams', body).then(function () { location.hash = '#/exams'; }).catch(function (x) { msg.replaceChildren(errBox(x)); });
+    } },
+      h('h2', null, id ? 'Sửa bộ đề' : 'Thêm bộ đề'), h('p', { class: 'meta' }, 'Bộ đề là nguồn câu hỏi cho ứng dụng; sửa bộ đề thì ứng dụng chơi bản mới nhất. ' + QHELP),
+      h('label', { class: 'l' }, 'Tên bộ đề', name), h('label', { class: 'l' }, 'Mô tả (không bắt buộc)', desc), img.el, h('label', { class: 'l' }, 'Câu hỏi', content), msg,
+      h('div', { class: 'row' }, h('button', { class: 'ail-btn pri', type: 'submit' }, 'Lưu'), h('a', { class: 'ail-btn', href: '#/exams' }, 'Huỷ')));
+    wrap.replaceChildren(f); name.focus();
+  }).catch(function (e) { wrap.replaceChildren(errBox(e)); });
+}
 function appsView(parts) {
   if (parts[1] === 'new') return appForm(null);
   if (parts[1] && /^\d+$/.test(parts[1])) return appForm(parseInt(parts[1], 10));
@@ -459,8 +553,8 @@ function route() {
   if (!me) return loginView();
   var parts = location.hash.replace('#/', '').split('/');
   curTab = parts[0] || 'models';
-  var views = { models: modelsView, players: playersView, apps: appsView, chat: chatView, admin: adminView };
-  var isList = ['models', 'players', 'apps'].indexOf(curTab) >= 0 && !parts[1];
+  var views = { models: modelsView, players: playersView, exams: examsView, apps: appsView, chat: chatView, admin: adminView };
+  var isList = ['models', 'players', 'exams', 'apps'].indexOf(curTab) >= 0 && !parts[1];
   shell(curTab, isList);
   (views[curTab] || modelsView)(parts);
 }
@@ -566,7 +660,7 @@ function playerForm(id) {
 function appForm(id) {
   var msg = h('div'), wrap = h('div');
   mount(wrap);
-  Promise.all([api('GET', '/api/players?scope=usable'), api('GET', '/api/models?scope=usable'), id ? api('GET', '/api/apps/' + id) : Promise.resolve(null)]).then(function (r) {
+  Promise.all([api('GET', '/api/players?scope=usable'), api('GET', '/api/models?scope=usable'), id ? api('GET', '/api/apps/' + id) : Promise.resolve(null), api('GET', '/api/exams')]).then(function (r) {
     var players = r[0].players.filter(function (p) { return p.status !== 'hidden'; }), models = r[1].models, ex = r[2] && r[2].app;
     var name = h('input', { type: 'text', maxlength: 80, required: true, value: ex ? ex.name : '' });
     var desc = h('input', { type: 'text', maxlength: 300, value: ex ? ex.description : '' });
@@ -577,6 +671,8 @@ function appForm(id) {
     var hold = h('input', { type: 'number', min: 300, max: 5000, step: 100, value: ex ? ex.hold_ms : 800 });
     var share = h('input', { type: 'checkbox', checked: ex && ex.share });
     var content = h('textarea'); content.value = ex ? ex.content : '';
+    var exams = r[3].exams, examNote = h('p', { class: 'meta' }, 'Câu hỏi lấy từ bộ đề. Sửa bộ đề ở trang Bộ đề, ứng dụng sẽ chơi bản mới nhất.');
+    var examSel = h('select', { 'aria-label': 'Bộ đề', onchange: function () { redraw(); } }, [h('option', { value: '' }, '— dán câu hỏi trực tiếp —')].concat(exams.map(function (x) { return h('option', { value: x.id, selected: !!(ex && ex.exam_id === x.id) }, x.name + ' (' + x.count + ' câu)'); })));
     var mapping = ex ? Object.assign({}, ex.mapping) : {};
     function cur() { return players.filter(function (p) { return String(p.id) === player.value; })[0]; }
     function redraw() {
@@ -595,7 +691,8 @@ function appForm(id) {
         })) : h('p', { class: 'meta' }, 'Chọn một mô hình để gắn các ô.'));
       } else map.replaceChildren();
       var needs = man.questions === 'exam' || (man.content && man.content.kind === 'questions');
-      contentWrap.replaceChildren(needs || man.content ? h('label', { class: 'l' }, needs ? 'Câu hỏi' : man.content.label, h('small', null, needs ? QHELP : 'Mỗi dòng một mục (tối đa 120 ký tự).'), content) : '');
+      if (needs) contentWrap.replaceChildren(h('label', { class: 'l' }, 'Bộ đề', examSel), examSel.value ? examNote : h('label', { class: 'l' }, 'Hoặc dán câu hỏi trực tiếp', h('small', null, QHELP), content));
+      else contentWrap.replaceChildren(man.content ? h('label', { class: 'l' }, man.content.label, h('small', null, 'Mỗi dòng một mục (tối đa 120 ký tự).'), content) : '');
     }
     player.onChange(function () { mapping = {}; redraw(); });
     model.onChange(function () { mapping = {}; redraw(); });
@@ -603,7 +700,7 @@ function appForm(id) {
       e.preventDefault();
       var p = cur();
       api(id ? 'PUT' : 'POST', id ? '/api/apps/' + id : '/api/apps', { name: name.value, description: desc.value, playerId: player.value, modelId: p && p.manifest.inputs ? model.value : null,
-        mapping: mapping, content: content.value, sure: parseFloat(sure.value), holdMs: parseInt(hold.value, 10), share: share.checked })
+        mapping: mapping, content: examSel.value ? '' : content.value, examId: examSel.value || null, sure: parseFloat(sure.value), holdMs: parseInt(hold.value, 10), share: share.checked })
         .then(function () { location.hash = '#/apps'; }).catch(function (x) { msg.replaceChildren(errBox(x)); });
     } },
       h('h2', null, id ? 'Sửa ứng dụng' : 'Thêm ứng dụng'),
@@ -640,18 +737,19 @@ function chatView() {
     var row = h('div', { class: 'row', style: 'margin-top:8px' });
     row.appendChild(h('button', { class: 'ail-btn sm', type: 'button', onclick: function () { modal('Xem thử: ' + p.name, previewFrame('/api/chats/' + chatId + '/proposals/' + p.index + '/try')); } }, 'Xem thử'));
     if (p.status === 'pending') {
-      row.appendChild(h('button', { class: 'ail-btn sm pri', type: 'button', onclick: function () { decide(p, 'accept', holder); } }, 'Chấp nhận'));
-      row.appendChild(h('button', { class: 'ail-btn sm bad', type: 'button', onclick: function () { decide(p, 'reject', holder); } }, 'Từ chối'));
+      row.appendChild(h('button', { class: 'ail-btn sm pri', type: 'button', title: 'Lưu game này vào Trình chơi (bản Nháp, Admin duyệt sau)', onclick: function () { decide(p, 'accept', holder); } }, 'Thêm vào Trình chơi'));
+      row.appendChild(h('button', { class: 'ail-btn sm bad', type: 'button', title: 'Bỏ game này, không lưu gì', onclick: function () { decide(p, 'reject', holder); } }, 'Không dùng'));
     } else if (p.status === 'accepted') {
-      row.appendChild(h('span', { class: 'ail-chip ok' }, 'Đã chấp nhận: lưu thành trình chơi Nháp'));
+      row.appendChild(h('span', { class: 'ail-chip ok' }, 'Đã thêm vào Trình chơi (Nháp, chờ Admin duyệt)'));
+      row.appendChild(h('a', { class: 'ail-btn sm pri', href: '#/players' }, 'Mở trong Trình chơi'));
       if (p.playerId) row.appendChild(h('a', { class: 'ail-btn sm', href: '#/players/' + p.playerId }, 'Xem mã'));
-    } else row.appendChild(h('span', { class: 'ail-chip bad' }, p.status === 'rejected' ? 'Đã từ chối' : 'Đã quyết định'));
+    } else row.appendChild(h('span', { class: 'ail-chip bad' }, p.status === 'rejected' ? 'Đã bỏ, không lưu' : 'Đã quyết định'));
     holder.appendChild(row);
     return holder;
   }
   function drawLog() {
     log.replaceChildren();
-    if (!msgs.length) log.appendChild(h('div', { class: 'meta' }, 'Mô tả game bạn muốn: học sinh chơi thế nào, dùng camera hay chỉ chạm, nội dung gì. Trợ lý đề xuất một trình chơi: bạn xem thử và xem các cờ cảnh báo, rồi Chấp nhận (lưu thành Nháp) hoặc Từ chối. Admin duyệt rồi mới công khai.'));
+    if (!msgs.length) log.appendChild(h('div', { class: 'meta' }, 'Mô tả game bạn muốn: học sinh chơi thế nào, dùng camera hay chỉ chạm, nội dung gì. Trợ lý đề xuất một trình chơi: bạn xem thử và xem các cờ cảnh báo, rồi bấm Thêm vào Trình chơi (lưu thành Nháp) hoặc Không dùng. Admin duyệt rồi mới công khai.'));
     msgs.forEach(function (m) {
       var el = h('div', { class: 'm ' + m.role }, m.text);
       if (m.role === 'bot') {

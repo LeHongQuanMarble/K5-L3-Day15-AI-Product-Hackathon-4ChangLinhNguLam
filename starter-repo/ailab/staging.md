@@ -95,6 +95,27 @@ Mỗi cờ cho biết **vì sao** cảnh báo (`reason`), **ở dòng nào** (`l
 
 Một đề xuất chỉ quyết một lần (lần hai trả 409). Sau khi chấp nhận hoặc từ chối, mã html bị bỏ khỏi cuộc trò chuyện.
 
+### Bộ đề và sửa thông tin (tên, mô tả, ảnh)
+
+**Bộ đề** là nguồn câu hỏi dùng lại cho nhiều ứng dụng. Mỗi dòng một câu: `Câu hỏi | Đáp án A | Đáp án B | =B` (Đúng/Sai: `Câu hỏi | =Đúng`). Ứng dụng chọn một bộ đề thay vì dán câu hỏi; **sửa bộ đề thì ứng dụng chơi bản mới nhất**, bộ đề bị xoá thì ứng dụng dùng bản chép lúc lưu. Bộ đề đang có ứng dụng dùng không xoá được (409). Bộ đề của ai người đó thấy, Admin xem hết (`?scope=all`).
+
+| Việc | API (đã đăng nhập) |
+|---|---|
+| Danh sách, tạo bộ đề | `GET /api/exams` · `POST /api/exams` {name, description, image, content} |
+| Xem, sửa nội dung, xoá | `GET` · `PUT` · `DELETE /api/exams/<id>` |
+| Chọn bộ đề cho ứng dụng | `POST /api/apps` hoặc `PUT /api/apps/<id>` với `examId` (bỏ `content`) |
+| **Sửa tên, mô tả, ảnh** của mô hình, trình chơi, ứng dụng, bộ đề | `POST /api/<models\|players\|apps\|exams>/<id>/meta` {name?, description?, image?} |
+
+Ảnh là data URL png, jpeg hoặc webp, tối đa **300 KB** (giao diện nên thu nhỏ còn khoảng 640 px); `image: ""` là bỏ ảnh. Sửa được: đồ của chính mình, hoặc Admin sửa đồ của bất kỳ ai.
+Không sửa được: mô hình có sẵn "Bàn tay" (kể cả Admin), trình chơi mẫu (chỉ Admin sửa thông tin). Sửa tên trình chơi chỉ đổi tên hiển thị, không đổi khối `jl-camera` trong mã.
+DB cũ tự được thêm cột mới khi chạy lại, không mất dữ liệu.
+
+### Dữ liệu và ảnh nền có sẵn
+
+- **6 bộ đề có sẵn của AI Lab** (mỗi bộ 15 câu, mọi người dùng được, chỉ Admin sửa): Toán 12 (Đạo hàm và khảo sát hàm số · Nguyên hàm và tích phân), Tiếng Anh 12 (Ngữ pháp · Từ vựng và giao tiếp), Tin học 12 (Cơ sở dữ liệu và SQL · Mạng máy tính và Internet). Nội dung ở `ailab/seed_exams.json`; **do AI soạn, thầy cô cần kiểm lại trước khi dùng thật**. Thêm bộ đề có sẵn: thêm một mục vào file đó rồi chạy lại server (chỉ thêm khi chưa có bộ đề cùng tên).
+- **Ảnh nền có sẵn** (`ailab/seed_images/*.jpg`, 640×360): ảnh *chụp màn hình thật* của 5 game đã nhập (Cầu Lông 3D, Sút Penalty 3D, Giải cứu thế giới, Chim Bay Nói, Tết 2027) và của game Quiz ABCD mẫu; riêng Vòng quay và mô hình Bàn tay dùng ảnh minh hoạ vì không có màn hình game để chụp. Gắn theo **tên** mỗi lần chạy: mục chưa có ảnh được điền, mục người dùng đã tự đổi ảnh thì giữ nguyên, ảnh có sẵn đổi bản mới thì tự cập nhật.
+- Trợ lý game: nút **Thêm vào Trình chơi** lưu game thành trình chơi *Nháp* (Admin duyệt sau) và hiện nút **Mở trong Trình chơi**; **Không dùng** bỏ đề xuất, không lưu gì.
+
 ### Mô hình Bàn tay (MediaPipe)
 
 Mô hình có sẵn "Bàn tay (MediaPipe)" (nắm tay, xòe tay, không có tay) do AI Lab tự tạo ở lần chạy đầu, không sửa hoặc xoá được. Cần camera và **internet**
