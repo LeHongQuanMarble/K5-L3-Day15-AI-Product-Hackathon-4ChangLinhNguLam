@@ -29,8 +29,8 @@ Mốc bàn giao: 2026-11-27, múi giờ Asia/Bangkok. Commit khảo sát `faa44a
 |---|---|---|---|
 | G0 Chốt thiết kế tích hợp | REVIEW | Điều phối | [G0_DECISIONS.md](G0_DECISIONS.md); chờ review + người dùng trả lời Q1–Q3 |
 | C01 Schema | DONE | Điều phối (tuần tự) | `ailab/chatbot/schemas.py`, `ailab/test_chatbot_schemas.py`; 63/63 test OK; agent review đạt (lần 3) |
-| C02 Hội thoại | REVIEW | Điều phối + Coder A/B/C (subagent) | Sửa 3 lỗi review; 44 test C02, toàn bộ 107/107 OK; test mới chạy trên code cũ: 8 FAIL + 3 ERROR (bắt đúng lỗi); chờ Codex review tổng thể |
-| I01 Web/state | TODO | Điều phối | Chưa có |
+| C02 Hội thoại | DONE | Điều phối + Coder A–E (subagent) | C02_SPEC.md; conversation.py, workflow.py, test_chatbot_conversation.py; 118/118 OK; agent review đạt lần 3 (phạm vi hội thoại) |
+| I01 Web/state | IN_PROGRESS | Điều phối (chốt I01_SPEC.md) | Chưa có |
 | C03 Danh mục/model | TODO | Chưa giao | Chưa có |
 | C04 Exam | TODO | Chưa giao | Chưa có |
 | I02 Lắp ghép | TODO | Điều phối | Chưa có |
@@ -58,7 +58,8 @@ Mốc bàn giao: 2026-11-27, múi giờ Asia/Bangkok. Commit khảo sát `faa44a
 | O11 | Tài liệu nhóm/metric/team còn mẫu | Phối hợp chủ tài liệu; không tự điền số, khóa metric giữ nguyên |
 | O12 | `_chat` giữ giao dịch ghi SQLite trong lúc gọi LLM khi tạo chat mới (server.py:453–470) | Sửa trong I01 theo G0 §4 |
 | O13 | Danh mục mặc định không có game câu hỏi nào tạo App được không cần model ≥4 lớp | Chờ Q1 trong G0 |
-| O15 | Chế độ giả: `TOPIC_CUT` cắt chủ đề ở chữ "có" ("phép cộng có nhớ" → "phép cộng") — mất nghĩa | Sửa nhỏ trong conversation.py ở vòng sau, cần test |
+| O15 | Chế độ giả: `TOPIC_CUT` cắt chủ đề ở chữ "có" | Đã sửa (Coder D) + test C02-34, chờ agent review |
+| O16 | Câu nói loại game không có cụm đổi bị bỏ qua lặng lẽ, bot không nhắc "nói 'đổi sang…'" | Cần sửa workflow.py ở vòng sau (ngoài phạm vi review lần 2) |
 | O14 | `.env` nằm ở git root, `codebase/ai.py` đọc `starter-repo/.env` → server chạy chế độ giả | Chờ Q3 trong G0; không đọc nội dung `.env` |
 
 ## Sở hữu file
@@ -70,6 +71,8 @@ Chưa có coder được khởi chạy hoặc giao file trong phiên bàn giao. 
 | `ailab/chatbot/__init__.py`, `ailab/chatbot/schemas.py`, `ailab/test_chatbot_schemas.py` (file mới) | Điều phối | C01 | 2026-11-27 | DONE |
 | `ailab/chatbot/workflow.py` | Coder A (subagent) | C02 sửa lỗi 1–2 | 2026-11-27 | Bàn giao, điều phối tự review đạt |
 | `ailab/chatbot/conversation.py` | Coder B (subagent) | C02 sửa lỗi 3 | 2026-11-27 | Bàn giao, điều phối tự review đạt |
+| `ailab/chatbot/conversation.py` | Coder D (subagent, Opus) | C02 review lần 2: chủ đề + đổi loại game | 2026-11-27 | Bàn giao (3 vòng), điều phối tự review đạt |
+| `ailab/test_chatbot_conversation.py`, `docs/chatbot/C02_SPEC.md` | Coder E (subagent, Sonnet) | C02 review lần 2: test + spec | 2026-11-27 | DONE |
 | `ailab/test_chatbot_conversation.py`, `docs/chatbot/C02_SPEC.md` | Coder C (subagent, Sonnet) | C02 test hồi quy + spec | 2026-11-27 | Bàn giao, điều phối tự review đạt |
 
 ## Nhật ký quyết định và bằng chứng
@@ -88,3 +91,8 @@ Mỗi quyết định ghi: ID, thời điểm Asia/Bangkok, vấn đề, lựa c
 - 2026-11-27 · Review C02: 3 lỗi (P1 hủy phương án giữ xác nhận; P2 chỉ chuột vẫn chọn hands; P2 vòng quay câu hỏi bị coi là danh sách). Điều phối tái hiện được cả 3 trước khi giao. Giao Coder A (workflow.py) và Coder B (conversation.py) chạy song song bằng subagent; Coder C (test + spec) chờ A/B. C02 giữ REVIEW.
 - 2026-11-27 · Coder A, B bàn giao. Điều phối tự review diff + chạy lại 3 tái hiện trên bản gộp: hết lỗi, 93/93 OK, state đầu vào không đổi. Chấp nhận thêm của A: bỏ cảnh báo audio khi chỉ chuột. Vấn đề mở mới O15 (P3, chế độ giả): `TOPIC_CUT` cắt ở chữ "có" → "phép cộng có nhớ" thành "phép cộng". Giao Coder C (Sonnet) test hồi quy + spec.
 - 2026-11-27 · Coder C bàn giao 14 test C02-20…33 + spec. Điều phối tự review: không test cũ nào bị xoá (khác biệt duy nhất ngoài phần thêm là C đổi file sang CRLF — P3, chưa chuẩn hoá); 107/107 OK; test mới trên code trước sửa → 8 FAIL + 3 ERROR. `git diff --name-status faa44a8` rỗng. Xin người dùng chuyển Codex review tổng thể C02.
+- 2026-11-27 · Commit C01 `d9e7e7a` (chỉ file mới, chưa push). Review C02 lần 2: (1) O15 chủ đề "phép cộng có nhớ" bị cắt; (2) "Tạo game ôn toán lớp 2" → "Đổi sang vòng quay chọn tên học sinh" vẫn hỏi chủ đề (dữ liệu cũ thắng ý định mới). Điều phối tái hiện được cả 2. Giao tuần tự: Coder D (conversation.py) rồi Coder E (test + spec). C02 giữ REVIEW; không commit theo chỉ đạo vòng này.
+- 2026-11-27 · Coder D bàn giao lần 1: lỗi 1 (chủ đề) đạt; lỗi 2 đạt ca tái hiện nhưng điều phối tự review phát hiện hồi quy: game câu hỏi đã rõ bị đổi ngầm sang danh sách khi câu chứa "danh sách từ vựng"/"gọi tên các con vật". Trả lại Coder D: chỉ đổi loại khi có cụm đổi tường minh hoặc đang trả lời câu hỏi loại game.
+- 2026-11-27 · Coder D bàn giao lần 2–3: chặn đổi loại game khi không có cụm đổi tường minh; câu loại game không bị nhận làm chủ đề. Điều phối tự review: các ca review + hồi quy đạt, state đầu vào không đổi; 106/107 (chỉ test_c02_33 dòng đầu, theo quyết định mới). Giao Coder E (Sonnet) test + spec.
+- 2026-11-27 · Coder E bàn giao 11 test C02-34…44 + spec, file test về LF. Điều phối tự review: dòng cũ duy nhất đổi là kỳ vọng dòng đầu test_c02_33 (questions → list, theo quyết định review lần 2); 118/118 OK; test mới trên conversation.py trước sửa → 11 FAIL. Git: so faa44a8 chỉ có file thêm mới. Gửi agent review. Chưa commit (theo chỉ đạo).
+- 2026-11-27 · Agent review xác nhận C02 đạt trong phạm vi hội thoại: 118/118 test, các lỗi review trước không còn tái hiện. C02 → DONE, commit theo quy tắc "commit khi DONE". Bắt đầu I01. Vấn đề mở O16 chuyển theo sang vòng sau.
