@@ -170,6 +170,25 @@ def login(c, username, password):
     return token, u["id"]
 
 
+DEMO_ACCOUNTS = {"admin": "demo_admin", "user": "demo_user"}
+
+
+def demo_login(c, role):
+    """CHỈ cho chế độ DEMO (server bật bằng AILAB_DEMO=1): tạo sẵn tài khoản demo nếu chưa có rồi mở phiên.
+    Mật khẩu là chuỗi ngẫu nhiên không ai biết, nên tài khoản này không đăng nhập được bằng form thường."""
+    if role not in DEMO_ACCOUNTS:
+        raise Err(400, "role", "Vai trò demo: admin hoặc user.")
+    name = DEMO_ACCOUNTS[role]
+    u = c.execute("SELECT id FROM users WHERE username=?", (name,)).fetchone()
+    if not u:
+        c.execute("INSERT INTO users(username,pw,role,created) VALUES(?,?,?,?)", (name, hash_pw(secrets.token_urlsafe(24)), role, time.time()))
+        u = c.execute("SELECT id FROM users WHERE username=?", (name,)).fetchone()
+    token = secrets.token_urlsafe(32)
+    c.execute("INSERT INTO sessions VALUES(?,?,?)", (token, u["id"], time.time() + 7 * 86400))
+    c.commit()
+    return token
+
+
 def user_of(c, token):
     if not token:
         return None

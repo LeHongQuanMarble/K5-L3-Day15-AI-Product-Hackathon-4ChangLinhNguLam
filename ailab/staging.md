@@ -52,6 +52,7 @@ Lần chạy đầu tạo file DB và tài khoản **admin** (mật khẩu lấy
 
 | Biến môi trường | Mặc định | Ý nghĩa |
 |---|---|---|
+| `AILAB_DEMO` | không đặt | `1` = trang đăng nhập có 2 nút "Vào bằng Admin/User demo" (tự tạo `demo_admin`, `demo_user` với mật khẩu ngẫu nhiên). **Chỉ để trình diễn**; không đặt khi chạy thật (API `/api/demo*` trả 404). |
 | `AILAB_HOST` | `127.0.0.1` | Địa chỉ nghe. Muốn máy khác trong mạng vào: `0.0.0.0` |
 | `AILAB_PORT` | `8800` | Cổng |
 | `AILAB_DB` | `ailab/data/ailab.db` | Đường dẫn file SQLite (thư mục được tạo nếu chưa có) |
