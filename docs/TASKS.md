@@ -769,7 +769,7 @@ IN_PROGRESS — bản CP2 đã nộp PR #6; bản CP3 đã khóa snapshot `79822
 
 - [x] `python run.py check` pass ở CP2 (≥10 câu, ≥3 metric đủ `name`, `definition`, `grader`, `threshold`, `why`, không còn dòng `(ví dụ)`) *(CP3 vẫn pass: 30 câu, 6 metric)*.
 - [x] `eval/benchmark.csv` trước CP3 đạt 20–30 câu, bao phủ đủ 8 nhóm tình huống (`ASK_CLARIFY`, `REUSE`, `GENERATE`, `REFUSE`, Question Quality, Compatibility, HTML Safety, HITL).
-- [ ] Định nghĩa metric phân biệt rõ **static validation** (`check_game`/schema) với **runtime testing** và đã được TV1 + TV4 xác nhận freeze trước CP2 19:30 (không sửa sau CP2) *(nội dung đã freeze; chờ TV1 ký xác nhận vào `eval/README.md` mục 3)*.
+- [x] Định nghĩa metric phân biệt rõ **static validation** (`check_game`/schema) với **runtime testing** và đã được TV1 + TV4 xác nhận freeze trước CP2 19:30 (không sửa sau CP2) *(TV1 ký xác nhận 28/11 00:50 tại `spec.md` §9; đã đồng bộ vào `eval/README.md` mục 3: `≥24/30`, Refusal 100%, HITL 0 — không sửa `spec.md` §7 hay `eval/metric_spec.yaml`)*.
 
 **Handoff:**
 

@@ -19,12 +19,12 @@ users:              # số người dùng thật nếu đưa vào dùng — 3 k�
 personas:           # ≥3 kiểu người dùng; share cộng lại = 1
   - name: dung_it
     share: 0.67              # 4/6 phiếu S1–S6 chọn "1–2 lần", làm tròn
-    uses_per_month: 1.5      # trung điểm "1–2 lần": (tự ước tính) — evidence/summary.md §5 ghi file gốc chưa rõ tuần hay tháng
+    uses_per_month: 1.5      # trung điểm "1–2 lần / tháng": (tự ước tính) — TV1 đã làm rõ khung 30 ngày, evidence/survey/questions.md + summary.md §2
     turns_per_session: 1     # (tự ước tính)
     source: "Khảo sát S1–S6, evidence/summary.md §2: '1–2 lần' 4/6; share làm tròn, số lượt/phiên (tự ước tính)."
   - name: dung_vua
     share: 0.17              # 1/6 phiếu chọn "3–5 lần", làm tròn
-    uses_per_month: 4        # trung điểm "3–5 lần": (tự ước tính) vì khung thời gian chưa rõ
+    uses_per_month: 4        # trung điểm "3–5 lần / tháng": (tự ước tính) — cùng khung 30 ngày đã làm rõ ở evidence/survey/questions.md
     turns_per_session: 2     # (tự ước tính)
     source: "Khảo sát S1–S6, evidence/summary.md §2: '3–5 lần' 1/6; share làm tròn, số lượt/phiên (tự ước tính)."
   - name: dung_nhieu
