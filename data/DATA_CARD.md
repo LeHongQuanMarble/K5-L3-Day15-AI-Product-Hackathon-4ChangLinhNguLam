@@ -2,7 +2,7 @@
 
 > T16 · bản CP2 trước **18:30 ngày 27/11/2026** · chấm R4.
 > Snapshot gốc: `main` @ `14dea37` (27/11/2026 17:05); nguồn gốc `790277a` (12:07, AI Lab) và `5be60a2` (12:49, bộ đề/ảnh). Bản CP2 nộp trên nhánh `feat/t16-t17-cp2-data-eval`. Repo: `https://github.com/LeHongQuanMarble/K5-L3-Day15-AI-Product-Hackathon-4ChangLinhNguLam`.
-> Cập nhật CP3 (28/11/2026): khóa Catalog Snapshot tại commit `79822a4` (nhánh TV3 `feat/t12-catalog-composer-tv3`, PR #7 chờ merge) và mở rộng benchmark lên 20 câu trên nhánh `feat/t16-t17-cp3-update`. **Không đổi** `eval/metric_spec.yaml` hay `spec.md` §7 đã freeze CP2.
+> Cập nhật CP3 (28/11/2026): khóa Catalog Snapshot tại commit `79822a4` (nhánh TV3 `feat/t12-catalog-composer-tv3`, **đã merge qua PR #7**) và mở rộng benchmark lên 30 câu trên nhánh `feat/t16-t17-cp3-update`. **Không đổi** `eval/metric_spec.yaml` hay `spec.md` §7 đã freeze CP2.
 > Lát cắt A3: giáo viên mô tả nhu cầu → AI chọn tổ hợp `Model + Player + Question Set` → giáo viên duyệt. **Không có bước chia train/val/test** cho cả 4 dataset dưới đây: bản chạy thử không huấn luyện mô hình. Không commit dữ liệu cá nhân thật, API key hay nguyên file data BTC cấp.
 
 ## Dataset 1 · Catalog AI Lab — Model / Player / Question Set
@@ -45,7 +45,7 @@
 
 | | |
 |---|---|
-| Dùng để làm gì | Chấm 4 nhóm metric đã freeze trong `eval/metric_spec.yaml`; đo routing/catalog, chất lượng bộ đề, an toàn HTML/tương thích và HITL/từ chối. |
+| Dùng để làm gì | Chấm **6 metric** đã freeze trong `eval/metric_spec.yaml` (ánh xạ vào 4 nhóm mục tiêu v2.2); đo routing/catalog, chất lượng bộ đề, an toàn HTML/tương thích và HITL/từ chối. |
 | Từ đâu | 12 câu CP2 (`feat/t16-t17-cp2-data-eval`) giữ nguyên + 8 câu TV4 tự soạn CP3 (`B13`–`B20`) đối chiếu snapshot `79822a4` + 10 câu từ tình huống thật S1–S6 do TV1 cung cấp 27/11 (`B21`–`B30`, xem `docs/HANDOFF-TV4-nguon-nguoi-dung.md`). 10 câu cuối là **tóm tắt tình huống, không phải trích nguyên văn phỏng vấn**. |
 | Xử lý những bước gì | `python run.py check` đọc CSV (6 cột, đếm type/source, kiểm metric); `python run.py eval` tạo `eval/run-N.csv` + `traces/run-N.jsonl`; chấm bằng `python run.py score`. Không sửa `expected` của 12 câu CP2. |
 | Số dòng / số đoạn | **30 câu** = thuong 11 · kho 15 · tu_choi 4 (trong đó 4 câu tấn công an toàn/HITL). Nguồn: `tu_viet` 20 · `nguoi_dung` 10 · `data_that` 0 → **10/30 từ nguồn thật** (`python run.py check` hết warning ≥1/3). |
@@ -56,7 +56,7 @@
 ## Chưa có — không tính vào Data Card CP2/CP3
 
 - `eval/benchmark.csv`: đã đạt **30 câu, 10/30 từ nguồn thật** → hết warning `run.py check`. **Chưa đạt AC T03**: 0 phỏng vấn; khảo sát 6/20 < 20; 5 trích dẫn từ khảo sát đã có nhưng chưa đủ ngưỡng nguồn.
-- `eval/metric_spec.yaml` 4 metric + `spec.md` §7: bản T17 đã freeze CP2, **không sửa**.
+- `eval/metric_spec.yaml` 6 metric + `spec.md` §7: bản T17 đã freeze CP2, **không sửa**.
 - Phỏng vấn giáo viên: `evidence/interviews/` mới có `TEMPLATE.md` → **0 phỏng vấn, 0 trích dẫn từ phỏng vấn** (đã có 5 trích dẫn từ 6 phiếu khảo sát). S1–S6 chỉ là tình huống thật tóm tắt, không thay thế phỏng vấn (T03 · TV1).
 - `ApplicationPlan` contract: T06 đã merge qua PR #11 (`codebase/application_contract.py` + Mock Agent); `codebase/agent.py` vẫn luồng cũ, chờ T08 (TV2) chuyển sang lát cắt chọn tổ hợp.
 - Catalog Snapshot: có tại commit `79822a4` và file `data/catalog_snapshot.json`, **đã merge qua PR #7**. Evaluation Run 1/2 phải dùng đúng hash này, không export lại với DB đã đổi.

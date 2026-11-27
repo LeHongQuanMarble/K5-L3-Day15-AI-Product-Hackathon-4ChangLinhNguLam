@@ -726,7 +726,7 @@ TODO.
 **Acceptance Criteria:**
 
 - [x] `data/DATA_CARD.md` không còn ô placeholder `<...>` hay `...` ở các dataset đang sử dụng *(các dòng "chưa có" được giữ có chủ đích theo ghi chú cuối file)*.
-- [x] Ghi rõ phiên bản **Catalog Snapshot** được dùng cố định cho cả Evaluation Run 1 và Run 2: `79822a4` (`data/catalog_snapshot.json`, PR #7 chờ merge).
+- [x] Ghi rõ phiên bản **Catalog Snapshot** được dùng cố định cho cả Evaluation Run 1 và Run 2: `79822a4` (`data/catalog_snapshot.json`, đã merge qua PR #7 `32a5418`).
 - [ ] 0 trường hợp vi phạm PII hoặc commit file data thô BTC *(chưa có bằng chứng kiểm chéo sau khi T03 bổ sung phỏng vấn)*.
 
 **Handoff:**
@@ -748,17 +748,17 @@ IN_PROGRESS — bản CP2 đã nộp PR #6; bản CP3 đã khóa snapshot `79822
 - Deadline: 27/11/2026 19:00 (CP2) · 28/11/2026 08:00 (CP3)
 - Dependency: T02, T06
 
-**Mục tiêu:** Xây dựng `eval/metric_spec.yaml` (4 nhóm metric, chốt cứng trước CP2 19:30) và bộ câu thử `eval/benchmark.csv` bao phủ đầy đủ các nhánh nghiệp vụ & an toàn của hướng sản phẩm mới.
+**Mục tiêu:** Xây dựng `eval/metric_spec.yaml` (6 metric thuộc 4 nhóm mục tiêu, chốt cứng trước CP2 19:30) và bộ câu thử `eval/benchmark.csv` bao phủ đầy đủ các nhánh nghiệp vụ & an toàn của hướng sản phẩm mới.
 
 **Công việc:**
 
-- [x] Điền hoàn chỉnh `eval/metric_spec.yaml` với 4 nhóm metric kiểm chứng được *(PR #6, giữ nguyên sau CP2 — metric trong file dùng tên ngắn `khong_bia_catalog`, `hoi_lai_khi_thieu`, `tu_choi_an_toan`, `de_xuat_co_duyet`, ánh xạ 4 nhóm đề xuất)*:
+- [x] Điền hoàn chỉnh `eval/metric_spec.yaml` với 6 metric kiểm chứng được *(PR #6, giữ nguyên sau CP2 — metric trong file dùng tên ngắn `khong_bia_catalog`, `hoi_lai_khi_thieu`, `tu_choi_an_toan`, `de_xuat_co_duyet`, cộng 2 metric bổ sung `bo_de_dung_dinh_dang_va_canh_bao`, `html_nhap_dat_hop_dong_va_an_toan`, ánh xạ 4 nhóm đề xuất)*:
   1. `routing_and_catalog_grounding` (chọn đúng `REUSE`/`GENERATE`/`ASK_CLARIFY`/`REFUSE`, không bịa ID Catalog — grader `code`).
   2. `question_set_quality_and_format` (đúng cú pháp module bằng `code`; chất lượng kiến thức/đáp án + cảnh báo AI sinh bằng `nguoi`/tham chiếu).
   3. `compatibility_and_html_safety_guard` (tương thích `Model + Player + Question Set`, `Mouse Fallback`; nhánh `GENERATE` qua `check_game` `jl-camera` + 6 cờ an toàn — phân biệt rõ **static validation** với **runtime testing**).
   4. `hitl_and_refusal_compliance` (100% ca `tu_choi` bị từ chối; 0% bypass HITL).
 - [x] Thống nhất với TV1 ngưỡng chuẩn "đạt" chính thức trước khi freeze CP2 (đề xuất: `Overall Pass Rate ≥ 80%`, `Required Refusal Rate = 100%`, `HITL Bypass Count = 0`) *(đã ghi `spec.md` §7 qua PR #6)*.
-- [x] Xây dựng `eval/benchmark.csv` (xóa 3 dòng mẫu): ≥10 câu trước CP2 (mở rộng 20–30 câu trước CP3, gồm ≥5 câu `kho` và ≥2 câu `tu_choi` tấn công), bao phủ đủ 8 kịch bản: `ASK_CLARIFY`, `REUSE`, `GENERATE`, `REFUSE`, Question Quality, Compatibility, HTML Safety, HITL *(CP3: 20 câu = thuong 6 · kho 10 · tu_choi 4, giữ nguyên 12 câu CP2)*.
+- [x] Xây dựng `eval/benchmark.csv` (xóa 3 dòng mẫu): ≥10 câu trước CP2 (mở rộng 20–30 câu trước CP3, gồm ≥5 câu `kho` và ≥2 câu `tu_choi` tấn công), bao phủ đủ 8 kịch bản: `ASK_CLARIFY`, `REUSE`, `GENERATE`, `REFUSE`, Question Quality, Compatibility, HTML Safety, HITL *(CP3: 30 câu = thuong 11 · kho 15 · tu_choi 4, giữ nguyên 12 câu CP2)*.
 - [x] Chạy `python run.py check` xác nhận không còn lỗi format/thiếu metric.
 
 **Deliverables:**
@@ -767,7 +767,7 @@ IN_PROGRESS — bản CP2 đã nộp PR #6; bản CP3 đã khóa snapshot `79822
 
 **Acceptance Criteria:**
 
-- [x] `python run.py check` pass ở CP2 (≥10 câu, ≥3–4 metric đủ `name`, `definition`, `grader`, `threshold`, `why`, không còn dòng `(ví dụ)`) *(CP3 vẫn pass: 20 câu, 4 metric)*.
+- [x] `python run.py check` pass ở CP2 (≥10 câu, ≥3 metric đủ `name`, `definition`, `grader`, `threshold`, `why`, không còn dòng `(ví dụ)`) *(CP3 vẫn pass: 30 câu, 6 metric)*.
 - [x] `eval/benchmark.csv` trước CP3 đạt 20–30 câu, bao phủ đủ 8 nhóm tình huống (`ASK_CLARIFY`, `REUSE`, `GENERATE`, `REFUSE`, Question Quality, Compatibility, HTML Safety, HITL).
 - [ ] Định nghĩa metric phân biệt rõ **static validation** (`check_game`/schema) với **runtime testing** và đã được TV1 + TV4 xác nhận freeze trước CP2 19:30 (không sửa sau CP2) *(nội dung đã freeze; chờ TV1 ký xác nhận vào `eval/README.md` mục 3)*.
 
@@ -777,7 +777,7 @@ Bàn giao `eval/metric_spec.yaml` và `eval/benchmark.csv` đã freeze cho TV1 (
 
 **Status:**
 
-IN_PROGRESS — metric/§7 đã freeze CP2 qua PR #6; benchmark CP3 đã đạt 20 câu, đã merge qua PR #8; chờ TV4 xác nhận và TV1 bổ sung 4 câu nguồn thật (T03) trước khi bàn giao T18.
+IN_PROGRESS — metric/§7 đã freeze CP2 qua PR #6; benchmark CP3 đã đạt 30 câu, đã merge qua PR #8 và bổ sung 10 câu nguồn thật S1–S6 (`98162d3`); chờ TV4 xác nhận (T03 vẫn chưa đạt AC) trước khi bàn giao T18.
 
 ---
 
@@ -795,9 +795,9 @@ IN_PROGRESS — metric/§7 đã freeze CP2 qua PR #6; benchmark CP3 đã đạt 
 **Công việc:**
 
 - [ ] Chạy `python run.py eval` tạo `eval/run-1.csv` và `traces/run-1.jsonl` (model thật, có token usage thật).
-- [ ] Chấm điểm toàn bộ câu thử theo 4 nhóm metric trong `eval/metric_spec.yaml` (điền cột `pass`, `ghi_chu`), chạy `python run.py score eval/run-1.csv`.
+- [ ] Chấm điểm toàn bộ câu thử theo 6 metric trong `eval/metric_spec.yaml` (điền cột `pass`, `ghi_chu`), chạy `python run.py score eval/run-1.csv`.
 - [ ] Nhờ 1 thành viên khác (TV1 hoặc TV3) chấm chéo độc lập tối thiểu 5 output theo `metric_spec.yaml` và ghi độ khớp vào `eval/README.md` mục 3.
-- [ ] Lập phân tích lỗi Run 1 (phân loại theo 4 nhóm metric, nêu rõ câu trượt & mức độ) gửi TV2 thực hiện T10.
+- [ ] Lập phân tích lỗi Run 1 (phân loại theo 6 metric, nêu rõ câu trượt & mức độ) gửi TV2 thực hiện T10.
 
 **Deliverables:**
 
@@ -807,7 +807,7 @@ IN_PROGRESS — metric/§7 đã freeze CP2 qua PR #6; benchmark CP3 đã đạt 
 
 - [ ] Run 1 chạy bằng model thật (không phải `fake`), lưu nguyên vẹn `eval/run-1.csv` và `traces/run-1.jsonl` kèm Run ID.
 - [ ] Có kết quả chấm chéo ≥5 câu giữa 2 người trong `eval/README.md`.
-- [ ] Phân tích lỗi chỉ rõ nguyên nhân gốc theo 4 nhóm metric để TV2 làm T10 (không xóa câu trượt, không sửa `expected`).
+- [ ] Phân tích lỗi chỉ rõ nguyên nhân gốc theo 6 metric để TV2 làm T10 (không xóa câu trượt, không sửa `expected`).
 
 **Handoff:**
 
@@ -957,7 +957,7 @@ flowchart LR
 1. **Song song ngay từ đầu (CP1 → CP2 19:30):**
    - **T03 (TV1)** chạy độc lập từ đầu để thu thập phỏng vấn/khảo sát thật.
    - **T06 (TV2)** chốt `ApplicationPlan` Contract sớm (không cần chờ toàn bộ T02 xong) để TV2 & TV3 triển khai song song.
-   - **T16 & T17 (TV4)** triển khai song song với AI & Software (đạt bản đầu Data Card + ≥10 câu + 4 metric + freeze chuẩn "đạt" với TV1 trước 19:30).
+   - **T16 & T17 (TV4)** triển khai song song với AI & Software (đạt bản đầu Data Card + ≥10 câu + 6 metric + freeze chuẩn "đạt" với TV1 trước 19:30).
    - **T05 (TV1)** chuẩn bị sớm Slide Outline & khung Pitch; **T20 (TV4)** chuẩn bị sớm `cost/personas.yaml`, bảng giá model và công thức tính chi phí.
 2. **Song song trong chặng Build (CP2 → CP3 10:00 28/11):**
    - **T07 (TV2)** và **T12 (TV3)** chạy song song ngay sau khi T06 chốt Contract.
@@ -969,6 +969,6 @@ flowchart LR
 
 ### Các task đang chặn tiến độ (Current Blockers — cần xử lý ngay)
 
-1. **T17 & T16 (TV4 – KHẨN cho CP2 19:30):** Nhánh `feat/t16-t17-cp2-data-eval` đang mở; cần TV4 xác nhận tiến độ, chốt cứng chuẩn "đạt" §7 với TV1 (đề xuất: `Overall ≥ 80%`, `Refusal = 100%`, `HITL Bypass = 0`) và merge `DATA_CARD.md`, `metric_spec.yaml` (≥3–4 metric), `benchmark.csv` (≥10 câu) trước 19:30.
+1. **T17 & T16 (TV4 – KHẨN cho CP2 19:30):** Nhánh `feat/t16-t17-cp2-data-eval` đang mở; cần TV4 xác nhận tiến độ, chốt cứng chuẩn "đạt" §7 với TV1 (đề xuất: `Overall ≥ 80%`, `Refusal = 100%`, `HITL Bypass = 0`) và merge `DATA_CARD.md`, `metric_spec.yaml` (≥3 metric, hiện 6 metric), `benchmark.csv` (≥10 câu) trước 19:30.
 2. **T06 (TV2 – KHẨN cho CP2 19:30):** Cần TV2 xác nhận enum `REFUSE` trong `ApplicationPlan` Contract v1.0 và hoàn thiện Mock Agent chạy qua `python run.py` cho CP2. *(Đã xong 27/11: mock chạy qua `run.py`, REFUSE đã chốt phía TV2; chờ TV1/TV3 xác nhận.)*
 3. **T03 (TV1 – CP2/CP3):** Cần ghi nhận tiến độ khảo sát/lịch hẹn phỏng vấn thực tế và sớm có số liệu thật cho `evidence/summary.md`, `spec.md` §2 và `cost/personas.yaml` (T20).
