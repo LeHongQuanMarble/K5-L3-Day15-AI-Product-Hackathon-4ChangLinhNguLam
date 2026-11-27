@@ -51,31 +51,31 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 
 ## Phần 2 – Bảng tổng hợp tasks
 
-> Sắp xếp theo Owner. Trạng thái phản ánh đúng thực tế repo tại thời điểm cập nhật; không đánh dấu `DONE` nếu chưa có bằng chứng.
+> Sắp xếp theo Owner. Trạng thái phản ánh đúng thực tế đã kiểm chứng trên `main`; các task của TV2/TV3/TV4 chưa xác minh tiến độ trên branch riêng của Owner đều ghi rõ *(cần Owner xác nhận)* — không đánh đồng code trên một branch với tiến độ toàn team.
 
 | ID | Task | Owner | Priority | CP | Dependency | Deadline | Status |
 |---|---|---|---|---|---|---|---|
-| T01 | Team Registration & Product Definition | TV1 | P0 | CP1 | — | 27/11 16:45 | DONE |
-| T02 | Product Specification & Architecture Alignment | TV1 | P0 | CP2 | T01 | 27/11 19:00 | REVIEW |
-| T03 | User Research & Evidence | TV1 | P0 | CP3 | T01 | 28/11 08:30 | IN_PROGRESS |
-| T04 | Product Acceptance Testing | TV1 | P0 | CP4 | T14, T15 | 28/11 12:30 | TODO |
-| T05 | Demo, Pitch & Checkpoint Submission | TV1 | P0 | CP1–CP4 | T02, T04, T15, T19, T20 | 28/11 14:00 | IN_PROGRESS |
+| T01 | Team Registration & Product Definition | TV1 | P0 | CP1 | — | 27/11 16:45 | DONE *(đã kiểm `run.py check` & merge `main`)* |
+| T02 | Product Specification & Architecture Alignment | TV1 | P0 | CP2 | T01 | 27/11 19:00 | REVIEW *(commit `be69d43`, chờ review & merge)* |
+| T03 | User Research & Evidence | TV1 | P0 | CP2–CP3 | — *(song song từ đầu)* | 28/11 08:30 | IN_PROGRESS |
+| T04 | Product Acceptance Testing | TV1 | P0 | CP3–CP4 | T14 *(nghiệm thu tăng dần)*, T15 | 28/11 12:30 | TODO |
+| T05 | Demo, Pitch & Checkpoint Submission | TV1 | P0 | CP1–CP4 | — *(outline song song; chốt số sau T04, T19, T20)* | 28/11 14:00 | IN_PROGRESS |
 | T21 | Final Submission & Project Closure | TV1 | P0 | Final | T05 | 28/11 23:00 | TODO |
-| T06 | Application Contract & Mock Agent | TV2 | P0 | CP2 | T02 | 27/11 19:00 | IN_PROGRESS |
-| T07 | Real LLM Integration & Usage Tracking | TV2 | P0 | CP3 | T06 | 27/11 21:30 | TODO |
-| T08 | Agent Routing, Question & Module Generation | TV2 | P0 | CP3 | T06, T07, T12 | 28/11 02:00 | TODO |
-| T09 | AI Guardrails & Output Validation | TV2 | P0 | CP3 | T06, T08 | 28/11 06:00 | TODO |
+| T06 | Application Contract & Mock Agent | TV2 | P0 | CP2 | T01 *(chốt Contract sớm, song song T02)* | 27/11 19:00 | IN_PROGRESS *(cần TV2 xác nhận)* |
+| T07 | Real LLM Integration & Usage Tracking | TV2 | P0 | CP3 | T06 *(song song T12)* | 27/11 21:30 | TODO *(cần TV2 xác nhận)* |
+| T08 | Agent Routing, Question & Module Generation | TV2 | P0 | CP3 | T06, T07, T12 | 28/11 02:00 | TODO *(cần TV2 xác nhận)* |
+| T09 | AI Guardrails & Output Validation | TV2 | P0 | CP3 | T06, T08 | 28/11 06:00 | TODO *(cần TV2 xác nhận)* |
 | T10 | AI Improvement After Evaluation Run 1 | TV2 | P0 | CP4 | T18 | 28/11 11:30 | TODO |
-| T11 | Repository & Development Foundation | TV3 | P0 | CP1 | — | 27/11 16:30 | DONE |
-| T12 | Catalog, Tools & Composition Services | TV3 | P0 | CP3 | T06, T11 | 27/11 22:30 | IN_PROGRESS |
-| T13 | Game Runtime & Interaction Compatibility | TV3 | P0 | CP3 | T11, T12 | 28/11 04:00 | IN_PROGRESS |
-| T14 | Web/Backend Integration & HITL | TV3 | P0 | CP3 | T06, T08, T12, T13 | 28/11 08:30 | TODO |
-| T15 | E2E Testing & Demo Recording | TV3 | P0 | CP4 | T09, T14 | 28/11 12:00 | TODO |
-| T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | T02 | 27/11 19:00 (v1) / 28/11 09:00 (full) | TODO |
-| T17 | Benchmark & Metric Specification | TV4 | P0 | CP2–CP3 | T02, T06 | 27/11 19:00 (CP2) / 28/11 08:00 (CP3) | TODO |
+| T11 | Repository & Development Foundation | TV3 | P0 | CP1 | — | 27/11 16:30 | DONE *(root chuẩn BTC, 27/27 unittest pass)* |
+| T12 | Catalog, Tools & Composition Services | TV3 | P0 | CP3 | T06, T11 *(song song T07)* | 27/11 22:30 | IN_PROGRESS *(cần TV3 xác nhận)* |
+| T13 | Game Runtime & Interaction Compatibility | TV3 | P0 | CP3 | T11 *(bắt đầu khi interface ổn định)* | 28/11 04:00 | IN_PROGRESS *(cần TV3 xác nhận)* |
+| T14 | Web/Backend Integration & HITL | TV3 | P0 | CP3 | T06 *(khởi chạy sớm)*, T08, T12, T13 | 28/11 08:30 | TODO *(cần TV3 xác nhận)* |
+| T15 | E2E Testing & Demo Recording | TV3 | P0 | CP3–CP4 | T07, T08, T14 *(CP3)* · T09 *(CP4)* | 28/11 09:30 *(video CP3)* / 12:00 *(CP4)* | TODO |
+| T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | — *(song song AI & Software)* | 27/11 19:00 (v1) / 28/11 09:00 (full) | IN_PROGRESS *(nhánh `feat/t16-t17-cp2-data-eval` – cần TV4 xác nhận)* |
+| T17 | Benchmark & Metric Specification | TV4 | P0 | CP2–CP3 | T02 *(khung)*, T06 *(song song)* | 27/11 19:00 (CP2) / 28/11 08:00 (CP3) | IN_PROGRESS *(nhánh `feat/t16-t17-cp2-data-eval` – cần TV4 xác nhận)* |
 | T18 | Evaluation Run 1 | TV4 | P0 | CP3 | T07, T08, T09, T17 | 28/11 09:15 | TODO |
 | T19 | Evaluation Run 2 & Comparison Report | TV4 | P0 | CP4 | T10, T18 | 28/11 13:00 | TODO |
-| T20 | Cost Simulation & Operational Analysis | TV4 | P0 | CP4 | T03, T07, T19 | 28/11 13:30 | TODO |
+| T20 | Cost Simulation & Operational Analysis | TV4 | P0 | CP4 | T03, T07 *(chuẩn bị sớm)* · T19 *(chốt số cuối)* | 28/11 13:30 | TODO |
 
 ---
 
@@ -663,28 +663,30 @@ TODO.
 
 - Owner: TV3 (Lê Hồng Quân)
 - Priority: P0
-- Checkpoint: CP4
+- Checkpoint: CP3 (Video 30s Real AI trước 10:00 28/11) & CP4 (Full E2E + Video dự phòng)
 - Estimated Effort: 2.0h
-- Deadline: 28/11/2026 12:00 (CP4: 14:30)
-- Dependency: T09, T14
+- Deadline: 28/11/2026 09:30 *(Video 30s CP3)* · 28/11/2026 12:00 *(Full E2E & Video dự phòng CP4)*
+- Dependency: T07, T08, T14 *(CP3 — không chờ Evaluation Run 2)* · T09 *(CP4)*
 
-**Mục tiêu:** Thực thi kiểm thử E2E (phân biệt rõ static validation và runtime testing) trên toàn bộ luồng chính/phụ và quay video demo dự phòng sẵn sàng cho buổi pitch.
+**Mục tiêu:** Quay **Video 30 giây gọi Real AI trước CP3 10:00 ngày 28/11** (bắt buộc theo rubric CP3, không chờ Eval Run 2), đồng thời thực thi kiểm thử E2E (phân biệt rõ static validation và runtime testing) và quay video demo dự phòng cho buổi pitch CP4.
 
 **Công việc:**
 
+- [ ] **Trước CP3 (09:30 ngày 28/11):** Quay **Video 30 giây** bản chạy thử gọi **Real AI** (YouTube "Không công khai" hoặc Google Drive "Bất kỳ ai có đường liên kết", mở kiểm bằng cửa sổ ẩn danh).
 - [ ] Cập nhật & chạy bộ test tự động (`ailab/test_ailab.py`, `ailab/test_agent.py`, `ailab/smoke.sh`) bao phủ cả luồng `REUSE` E2E, `GENERATE` bản nháp + `check_game`, HITL chống bypass và `Mouse Fallback`.
 - [ ] Chạy thử cài đặt từ thư mục sạch theo `README.md` (3 phút) để đảm bảo không lỗi môi trường trên máy demo.
-- [ ] Quay 1 video demo dự phòng (2–3 phút, rõ nét, mở được bằng cửa sổ ẩn danh) trình diễn: `REUSE` E2E + `Mouse Fallback` + 1 ca khó/an toàn (`ASK_CLARIFY`/`GENERATE` nháp/`REFUSE`).
+- [ ] **Trước CP4 (12:00 ngày 28/11):** Quay video demo dự phòng đầy đủ (2–3 phút, mở được bằng cửa sổ ẩn danh) trình diễn: `REUSE` E2E + `Mouse Fallback` + 1 ca khó/an toàn (`ASK_CLARIFY`/`GENERATE` nháp/`REFUSE`).
 
 **Deliverables:**
 
-Kết quả chạy test E2E/smoke pass, video demo dự phòng (link/file sẵn sàng cho T05).
+Link Video 30 giây Real AI (CP3), kết quả chạy test E2E/smoke pass, video demo dự phòng (CP4).
 
 **Acceptance Criteria:**
 
+- [ ] Video 30 giây sử dụng **Real AI** hoàn tất trước **CP3 10:00 ngày 28/11** và mở được ở cửa sổ ẩn danh.
 - [ ] Toàn bộ unittest + smoke test chạy pass 100% trên bản tích hợp mới nhất.
 - [ ] Phân tách rõ bằng chứng kiểm tra static (`check_game`, `validate_application_plan`) và kiểm thử runtime thực tế (mở trình duyệt chơi được, test tắt camera dùng `Mouse Fallback`).
-- [ ] Video dự phòng mở được ở cửa sổ ẩn danh và khớp đúng luồng demo live của T05.
+- [ ] Video dự phòng CP4 mở được ở cửa sổ ẩn danh và khớp đúng luồng demo live của T05.
 
 **Handoff:**
 
@@ -893,49 +895,78 @@ TODO.
 
 ## Phần 4 – Dependency và Critical Path
 
-### Luồng phụ thuộc chính (Critical Path)
+### Luồng triển khai song song & Critical Path
 
 ```mermaid
 flowchart LR
-    T01["T01 Done"] --> T02["T02 Spec & Freeze"]
-    T02 --> T06["T06 Contract & Mock"]
-    T02 --> T17["T17 Benchmark & Metric"]
-    T06 --> T07["T07 Real LLM"]
-    T06 --> T12["T12 Catalog & Composer"]
-    T07 --> T08["T08 Routing, QGen & HTML Draft"]
+    subgraph PARALLEL_START["Khởi chạy song song từ đầu (CP1 → CP2)"]
+        T03["T03 Evidence (TV1)"]
+        T02["T02 Spec & Freeze (TV1)"]
+        T06["T06 Contract & Mock (TV2)"]
+        T16["T16 Data Card (TV4)"]
+        T17["T17 Benchmark & Metrics (TV4)"]
+        T05P["T05 Slide Outline (TV1)"]
+        T20P["T20 Personas & Pricing (TV4)"]
+    end
+
+    subgraph BUILD_PARALLEL["Build song song (CP2 → CP3)"]
+        T07["T07 Real LLM (TV2)"]
+        T12["T12 Catalog & Composer (TV3)"]
+        T13["T13 Runtime & Mouse Fallback (TV3)"]
+        T08["T08 Routing, QGen & HTML Draft (TV2)"]
+        T09["T09 Guardrails (TV2)"]
+        T14["T14 Web/Backend & HITL (TV3)"]
+        T15A["T15 Video 30s Real AI — CP3 (TV3)"]
+        T04A["T04 Nghiệm thu tăng dần (TV1)"]
+    end
+
+    subgraph EVAL_CHAIN["Chuỗi Evaluation bắt buộc (CP3 → CP4)"]
+        T18["T18 Eval Run 1 (TV4)"] --> T10["T10 Improvement (TV2)"] --> T19["T19 Eval Run 2 & Report (TV4)"]
+    end
+
+    T06 --> T07
+    T06 --> T12
+    T06 --> T14
+    T07 --> T08
     T12 --> T08
-    T12 --> T13["T13 Runtime & Mouse Fallback"]
-    T08 --> T09["T09 Guardrails & Validation"]
-    T08 --> T14["T14 Shared Core Web/CLI & HITL"]
+    T12 --> T13
+    T08 --> T09
+    T08 --> T14
     T13 --> T14
-    T09 --> T18["T18 Eval Run 1"]
+    T14 --> T15A
+    T14 --> T04A
+    T09 --> T18
     T17 --> T18
-    T18 --> T10["T10 AI Improvement"]
-    T10 --> T19["T19 Eval Run 2 & Report"]
-    T14 --> T15["T15 E2E & Demo Video"]
-    T09 --> T15
-    T15 --> T04["T04 Product Acceptance"]
-    T19 --> T20["T20 Cost Simulation"]
-    T04 --> T05["T05 Pitch & CP4"]
+    T19 --> T20["T20 Cost Final ≥50 sessions (TV4)"]
+    T20P --> T20
+    T03 --> T20
+    T15A --> T15B["T15 Full E2E & Backup Video (TV3)"]
+    T15B --> T04["T04 Product Acceptance (TV1)"]
+    T04A --> T04
+    T04 --> T05["T05 Pitch & CP4 (TV1)"]
+    T05P --> T05
+    T19 --> T05
     T20 --> T05
-    T05 --> T21["T21 Final"]
+    T05 --> T21["T21 Final 23:59 (TV1)"]
 ```
 
-### Tóm tắt nhịp triển khai (không tạo phụ thuộc tuần tự thừa)
+### Tóm tắt nhịp triển khai song song (tránh chờ đợi tuần tự thừa)
 
-1. **TV1 chốt Scope (T01 Done → T02):** Hoàn tất freeze chuẩn "đạt" §7 & merge `docs/t02-cp2-product-spec` trước **CP2 19:30**.
-2. **TV2 & TV3 thống nhất Contract (T06):** Chốt `ApplicationPlan` v1.0 & chạy Mock Agent (không chờ T12) để mở khóa đồng thời TV3 (T12, T14) và TV4 (T17).
-3. **Song song trước CP3:**
-   - **TV2** triển khai AI Core: `T07` (Real LLM) → `T08` (Routing, Question Gen, bounded HTML Gen) → `T09` (Guardrails).
-   - **TV3** triển khai nền tảng & tích hợp: `T12` (Catalog Tools & Composer) → `T13` (Runtime & Mouse Fallback) → `T14` (Shared Core Web/CLI & HITL).
-   - **TV4** chuẩn bị dữ liệu & đánh giá song song: `T16` (Data Card) + `T17` (Benchmark & Metric Spec freeze ở CP2, mở rộng 20–30 câu trước CP3).
-   - **TV1** thu thập bằng chứng thật song song: `T03` (Phỏng vấn/Khảo sát).
-4. **Hội tụ CP3 → CP4:** Tích hợp E2E (`T14`) → Evaluation Run 1 (`T18`) → Cải tiến có mục tiêu (`T10`) → Evaluation Run 2 (`T19`) → Cost Simulation (`T20`), E2E/Video (`T15`), Acceptance (`T04`) → Demo & Pitch (`T05`) → Final (`T21`).
+1. **Song song ngay từ đầu (CP1 → CP2 19:30):**
+   - **T03 (TV1)** chạy độc lập từ đầu để thu thập phỏng vấn/khảo sát thật.
+   - **T06 (TV2)** chốt `ApplicationPlan` Contract sớm (không cần chờ toàn bộ T02 xong) để TV2 & TV3 triển khai song song.
+   - **T16 & T17 (TV4)** triển khai song song với AI & Software (đạt bản đầu Data Card + ≥10 câu + 4 metric + freeze chuẩn "đạt" với TV1 trước 19:30).
+   - **T05 (TV1)** chuẩn bị sớm Slide Outline & khung Pitch; **T20 (TV4)** chuẩn bị sớm `cost/personas.yaml`, bảng giá model và công thức tính chi phí.
+2. **Song song trong chặng Build (CP2 → CP3 10:00 28/11):**
+   - **T07 (TV2)** và **T12 (TV3)** chạy song song ngay sau khi T06 chốt Contract.
+   - **T13 & phần Web/Backend của T14 (TV3)** bắt đầu ngay khi interface ổn định, không chờ hoàn tất toàn bộ AI Core.
+   - **T04 (TV1)** bắt đầu nghiệm thu tăng dần từng chức năng ngay khi tích hợp được.
+   - **T15 (TV3)** hoàn thành **Video 30 giây gọi Real AI trước CP3 10:00 ngày 28/11** — **không chờ Evaluation Run 2**.
+3. **Chuỗi Evaluation bắt buộc (CP3 → CP4 14:30 28/11):**
+   - `T18 (Eval Run 1)` → `T10 (Improvement)` → `T19 (Eval Run 2 & Comparison Report)` → chốt số liệu cuối cho `T20 (Cost ≥50 sessions)` và `T05 (Slide & Demo CP4)` → `T21 (Final 23:59)`.
 
 ### Các task đang chặn tiến độ (Current Blockers — cần xử lý ngay)
 
-1. **T17 (TV4 – KHẨN cho CP2 19:30):** `eval/benchmark.csv` mới có 3 dòng mẫu và `eval/metric_spec.yaml` đang trống (0 metric). Phải đạt ≥10 câu + chốt cứng 4 metric & chuẩn "đạt" với TV1 trước 19:30 (không được sửa sau CP2).
-2. **T06 (TV2 – KHẨN cho CP2 19:30):** Cần chốt ngay enum `REFUSE` trong `ApplicationPlan` Contract v1.0 và hoàn thiện Mock Agent để TV3 không bị kẹt đầu T12/T14.
-3. **T02 (TV1 – KHẨN cho CP2 19:30):** Chờ xác nhận freeze §7 với TV4 và Contract với TV2/TV3 để merge `docs/t02-cp2-product-spec` vào `main`.
-4. **T16 (TV4 – CP2):** `data/DATA_CARD.md` còn ở dạng template, cần điền bản đầu + Catalog Snapshot trước CP2.
-5. **T03 (TV1 – CP2/CP3):** Chưa có lịch hẹn phỏng vấn trong `evidence/summary.md` (cần điền trước CP2) và chưa có số Baseline thật cho `spec.md` §2 & `cost/personas.yaml` (T20).
+1. **T17 & T16 (TV4 – KHẨN cho CP2 19:30):** Nhánh `feat/t16-t17-cp2-data-eval` đang mở; cần TV4 xác nhận tiến độ, chốt cứng chuẩn "đạt" §7 với TV1 (đề xuất: `Overall ≥ 80%`, `Refusal = 100%`, `HITL Bypass = 0`) và merge `DATA_CARD.md`, `metric_spec.yaml` (≥3–4 metric), `benchmark.csv` (≥10 câu) trước 19:30.
+2. **T06 (TV2 – KHẨN cho CP2 19:30):** Cần TV2 xác nhận enum `REFUSE` trong `ApplicationPlan` Contract v1.0 và hoàn thiện Mock Agent chạy qua `python run.py` cho CP2.
+3. **T03 (TV1 – CP2/CP3):** Cần ghi nhận tiến độ khảo sát/lịch hẹn phỏng vấn thực tế và sớm có số liệu thật cho `evidence/summary.md`, `spec.md` §2 và `cost/personas.yaml` (T20).
