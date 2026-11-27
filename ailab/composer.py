@@ -289,39 +289,50 @@ def compose_app(plan):
         except ComposerError as exc:
             errors.append(str(exc))
 
-    app_exam = {"mode": "generate_new", "exam_id": None, "name": "Bộ đề từ ApplicationPlan",
-                "content": "", "questions": [], "knowledge_review_required": True}
-    ed = raw.get("exam") or {}
-    if not isinstance(ed, dict):
-        ed = {}
-        errors.append("exam phải là dict.")
-    exam_mode = ed.get("mode") or ("reuse_existing" if ed.get("exam_id") not in (None, "") else "generate_new")
-    if exam_mode == "reuse_existing":
-        if ed.get("exam_id") in (None, ""):
-            errors.append("exam.mode=reuse_existing cần exam_id có thật trong Catalog.")
-        else:
-            try:
-                erow = _exam(_load("exams", ed["exam_id"]))
-                app_exam = {"mode": "reuse_existing", "exam_id": int(ed["exam_id"]), "name": erow["name"],
-                            "content": erow["content"], "questions": erow["questions"],
-                            "knowledge_review_required": True}
-            except ComposerError as exc:
-                errors.append(str(exc))
-    elif exam_mode == "generate_new":
-        content = ed.get("content")
-        if not isinstance(content, str) or not content.strip():
-            errors.append("exam.mode=generate_new cần nội dung bộ đề trong exam.content.")
-        else:
-            try:
-                questions = store.parse_questions(content)
-            except store.Err as exc:
-                questions = []
-                errors.append("Bộ đề mới sai cú pháp: %s" % exc.msg)
-            app_exam = {"mode": "generate_new", "exam_id": None,
-                        "name": ed.get("name") or "Bộ đề từ ApplicationPlan", "content": content.strip(),
-                        "questions": questions, "knowledge_review_required": True}
+    # Contract v1.0 (T08/T09 Issue B): player dạng `texts` (vd Vòng quay chọn tên)
+    # không nhận exam. Khi plan không đưa exam, chỉ gán None nếu player KHÔNG yêu cầu
+    # câu hỏi; ngược lại báo lỗi rõ thay vì tự dựng bộ đề rỗng rồi báo lỗi cú pháp.
+    man = (app_player or {}).get("manifest") or {}
+    player_needs_exam = (man.get("questions") == "exam"
+                         or (man.get("content") or {}).get("kind") == "questions")
+    ed = raw.get("exam")
+    if ed is None:
+        if app_player is not None and player_needs_exam:
+            errors.append("Player yêu cầu bộ đề câu hỏi (exam).")
+        app_exam = None
     else:
-        errors.append("exam.mode phải là 'reuse_existing' hoặc 'generate_new'.")
+        app_exam = {"mode": "generate_new", "exam_id": None, "name": "Bộ đề từ ApplicationPlan",
+                    "content": "", "questions": [], "knowledge_review_required": True}
+        if not isinstance(ed, dict):
+            ed = {}
+            errors.append("exam phải là dict.")
+        exam_mode = ed.get("mode") or ("reuse_existing" if ed.get("exam_id") not in (None, "") else "generate_new")
+        if exam_mode == "reuse_existing":
+            if ed.get("exam_id") in (None, ""):
+                errors.append("exam.mode=reuse_existing cần exam_id có thật trong Catalog.")
+            else:
+                try:
+                    erow = _exam(_load("exams", ed["exam_id"]))
+                    app_exam = {"mode": "reuse_existing", "exam_id": int(ed["exam_id"]), "name": erow["name"],
+                                "content": erow["content"], "questions": erow["questions"],
+                                "knowledge_review_required": True}
+                except ComposerError as exc:
+                    errors.append(str(exc))
+        elif exam_mode == "generate_new":
+            content = ed.get("content")
+            if not isinstance(content, str) or not content.strip():
+                errors.append("exam.mode=generate_new cần nội dung bộ đề trong exam.content.")
+            else:
+                try:
+                    questions = store.parse_questions(content)
+                except store.Err as exc:
+                    questions = []
+                    errors.append("Bộ đề mới sai cú pháp: %s" % exc.msg)
+                app_exam = {"mode": "generate_new", "exam_id": None,
+                            "name": ed.get("name") or "Bộ đề từ ApplicationPlan", "content": content.strip(),
+                            "questions": questions, "knowledge_review_required": True}
+        else:
+            errors.append("exam.mode phải là 'reuse_existing' hoặc 'generate_new'.")
 
     if app_player and not errors:
         comp = validate_compatibility(app_player, app_model, app_exam,

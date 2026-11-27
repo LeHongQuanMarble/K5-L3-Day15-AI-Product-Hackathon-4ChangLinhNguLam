@@ -481,7 +481,7 @@ def _handle_reuse(parsed: dict, req: dict, registry: dict, use_live_tools: bool)
             errors=contract_errors,
         )
 
-    if use_live_tools and plan_exam is not None:
+    if use_live_tools:
         comp_app = tools.compose_application(plan)
         if not comp_app.get("ok"):
             note("compose_application từ chối REUSE: %s" % comp_app.get("errors"))
@@ -573,7 +573,7 @@ def _handle_generate(parsed: dict, req: dict, registry: dict, use_live_tools: bo
             errors=contract_errors,
         )
 
-    if use_live_tools and plan_exam is not None:
+    if use_live_tools:
         comp_app = tools.compose_application(plan)
         if not comp_app.get("ok"):
             note("compose_application từ chối GENERATE: %s" % comp_app.get("errors"))

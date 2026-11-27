@@ -157,6 +157,28 @@ class AppComposer(unittest.TestCase):
         p["application_plan"]["player"]["player_id"] = 999
         self.assertFalse(composer.compose_app(p)["ok"])
 
+    def test_text_player_without_exam_is_valid_draft(self):
+        """T08/T09 Issue B: player texts (Vòng quay chọn tên) không cần exam."""
+        p = plan_reuse()
+        ap = p["application_plan"]
+        ap["player"]["player_id"] = 2
+        ap["model"]["model_id"] = None
+        ap["exam"] = None
+        res = composer.compose_app(p)
+        self.assertTrue(res["ok"], res["errors"])
+        self.assertEqual(res["status"], "draft")
+        self.assertIsNone(res["app"]["exam"])
+        self.assertFalse(res["app"]["catalog_written"])
+        self.assertTrue(res["app"]["requires_human_approval"])
+
+    def test_exam_player_without_exam_is_rejected(self):
+        """Quiz ABCD (player questions=exam) vẫn phải bị từ chối khi thiếu exam."""
+        p = plan_reuse()
+        p["application_plan"]["exam"] = None
+        res = composer.compose_app(p)
+        self.assertFalse(res["ok"])
+        self.assertTrue(any("exam" in x.lower() for x in res["errors"]))
+
     def test_generate_is_separate_draft(self):
         res = composer.compose_app(plan_generate())
         self.assertTrue(res["ok"], res["errors"])

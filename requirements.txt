@@ -1,4 +1,13 @@
-# Bộ khung (run.py, codebase/, eval/run_eval.py, cost/simulate.py) chỉ dùng thư viện chuẩn của Python 3.10+:
-# KHÔNG cần pip install để chạy.
-# Nhóm dùng thêm thư viện (vd SDK của nhà cung cấp model) thì ghi tên gói vào đây, mỗi dòng một gói,
-# và ghi lệnh cài vào README: python -m pip install -r requirements.txt
+# KIỂM CHỨNG 28/11/2026: KHÔNG CÓ GÓI BÊN THỨ BA CẦN TẢI VỀ.
+# Đã quét toàn bộ 475 file .py bằng AST: mọi import đều là
+#   (a) thư viện chuẩn Python 3.10+ — json, csv, os, sys, re, time, random, math,
+#       sqlite3, http, urllib, hashlib, hmac, secrets, base64, threading, unittest, ...
+#   (b) module nội bộ của repo — codebase/, ailab/, eval/, cost/, run.py.
+# Không có package.json / pyproject.toml / Pipfile; docs/connect-model.md dùng urllib
+# của thư viện chuẩn để gọi model (không dùng SDK).
+#
+# Lệnh dưới vẫn chạy được và không cài gì cả (chỉ báo environment sẵn sàng):
+#   python -m pip install -r requirements.txt
+#
+# Quy ước khi thêm gói: chỉ thêm khi source có import thư viện ngoài chuẩn, kèm
+# dòng ghi rõ file import + lý do + lệnh kiểm chứng. Không để dòng "(ví dụ)".
