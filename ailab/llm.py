@@ -1,8 +1,9 @@
-"""Chatbot sinh trình chơi HTML từ mô tả của giáo viên.
+"""Chatbot — lớp tương thích của Web UI với Shared Core (T14).
 
-Gọi codebase/ai.py call_model (khung của repo). Nếu model đang ở chế độ giả, chưa nối, hoặc lỗi
--> rơi về chế độ giả của riêng ailab/ (dựng game từ khuôn) và báo rõ "giả" cho giao diện.
-KHÔNG nối provider ở đây, không đọc API key.
+Chế độ thật: `generate()` ủy quyền hoàn toàn cho `codebase.agent.run_agent()` — cùng lõi với
+`python run.py` / eval / `/api/agent`. `ailab/llm.py` KHÔNG tự viết prompt hay routing riêng.
+Chế độ giả (chưa nối model, MODEL_PROVIDER=fake, hoặc lỗi provider): dựng game từ khuôn,
+báo rõ "giả" cho giao diện. KHÔNG nối provider ở đây, không đọc API key.
 """
 import html as htmllib
 import os
@@ -47,31 +48,40 @@ def extract(reply):
 
 def generate(messages):
     """messages: [{role:'user'|'bot', text}], cuối là lượt của giáo viên.
-    Trả {text, html, simulated, model, error?}. html luôn đã qua contract.parse (hoặc None + error)."""
-    call = _real_model()
-    if call is None:
+    Trả {text, html, simulated, model, error?}. html luôn đã qua contract.parse (hoặc None + error).
+
+    T14: chế độ thật gọi Shared Core `agent.run_agent()`; Web UI và `python run.py`
+    dùng chung một luồng routing/guardrail. Chế độ giả giữ nguyên khuôn cũ để demo offline.
+    """
+    if _real_model() is None:
         return fake(messages[-1]["text"])
+    # Import trễ để tránh vòng lặp: ai/store import llm lúc nạp module.
+    import agent  # codebase/agent.py — Shared Core
     prompt = _history_text(messages)
-    last_err = None
-    for attempt in range(2):
-        user = prompt if not last_err else prompt + "\n\n[Hệ thống] Bản trước bị từ chối: %s Hãy sửa và trả lại đầy đủ file." % last_err
-        try:
-            res = call(contract.BRIEF, user)
-        except Exception as e:  # hết lượt, sai key, mất mạng…
-            out = fake(messages[-1]["text"])
-            out["error"] = "Không gọi được model (%s: %s), dùng chế độ giả." % (type(e).__name__, e)
-            return out
-        text, html = extract(res.get("text", ""))
-        if html is None:
-            last_err = "Không thấy khối mã html."
-            continue
-        manifest, err = contract.parse(html)
-        if err:
-            last_err = err[1]
-            continue
-        return {"text": text, "html": html, "simulated": False, "model": res.get("model", "")}
-    return {"text": "Mình chưa viết được file hợp lệ: %s Bạn mô tả lại rõ hơn giúp mình nhé." % last_err,
-            "html": None, "simulated": False, "model": "", "error": last_err}
+    try:
+        env = agent.run_agent({"message": prompt, "session_id": "ailab-chat"})
+    except Exception as e:  # ProviderError / lỗi lõi → báo rõ, không lộ key hay body
+        out = fake(messages[-1]["text"])
+        out["error"] = "Không gọi được lõi AI (%s: %s), dùng chế độ giả." % (type(e).__name__, e)
+        return out
+    if not isinstance(env, dict):
+        out = fake(messages[-1]["text"])
+        out["error"] = "Lõi AI trả kết quả không hợp lệ, dùng chế độ giả."
+        return out
+    plan = env.get("application_plan") if isinstance(env.get("application_plan"), dict) else {}
+    player = plan.get("player") if isinstance(plan.get("player"), dict) else {}
+    html = player.get("html") if player.get("mode") == "generate_new" else None
+    if not isinstance(html, str):
+        html = None
+    if html is not None and contract.parse(html)[1]:
+        html = None
+    out = {"text": env.get("message") or "Đã xử lý yêu cầu.",
+           "html": html, "simulated": bool(env.get("simulated")),
+           "model": os.environ.get("MODEL_NAME", "")}
+    errors = env.get("errors") or []
+    if errors:
+        out["error"] = "; ".join(str(e.get("message", e)) if isinstance(e, dict) else str(e) for e in errors[:3])
+    return out
 
 
 def _title(prompt):

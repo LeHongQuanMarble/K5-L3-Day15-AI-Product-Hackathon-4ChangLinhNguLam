@@ -17,8 +17,17 @@ import time
 from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+# Windows PowerShell dùng cp1252 theo mặc định → in tiếng Việt bị UnicodeEncodeError
+# ngay lúc khởi động. Ép UTF-8 để lệnh `python ailab/server.py` chạy được không cần set-biến.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import agent_bridge  # noqa: E402  (T14: Shared Core + HITL)
 import contract  # noqa: E402
 import llm  # noqa: E402
 import store  # noqa: E402
@@ -126,6 +135,8 @@ class H(BaseHTTPRequestHandler):
             return self._static(path)
         except Err as e:
             self._json(e.status, {"error": e.code, "message": e.msg})
+        except agent_bridge.BridgeError as e:
+            self._json(e.status, {"error": e.code, "message": e.msg})
         except Exception as e:  # lỗi không lường: không lộ chi tiết ra ngoài
             sys.stderr.write("LỖI %s %s: %r\n" % (method, path, e))
             import traceback
@@ -206,6 +217,8 @@ class H(BaseHTTPRequestHandler):
             return self._players(c, method, parts, user)
         if res == "apps":
             return self._apps(c, method, parts, user)
+        if res == "agent":
+            return self._agent(c, method, parts, user)
         if res == "chat" or res == "chats":
             return self._chat(c, method, parts, user)
         if res == "admin":
@@ -426,6 +439,33 @@ class H(BaseHTTPRequestHandler):
                 c.execute("DELETE FROM apps WHERE id=?", (aid,))
                 c.commit()
                 return self._json(200, {"ok": True})
+        raise Err(404, "not_found", "Không thấy.")
+
+    def _agent(self, c, method, parts, user):
+        """T14 — Shared Core Web/CLI + HITL.
+
+        POST /api/agent          → chạy codebase.agent.run_agent(), trả UI projection + trace.
+        POST /api/agent/publish  → cổng phê duyệt: từ chối mọi tự duyệt / DRAFT / REJECTED.
+        POST /api/agent/review   → so plan hiện tại với bản đã duyệt; đổi thì quay về draft.
+        """
+        if method != "POST":
+            raise Err(405, "method", "Chỉ hỗ trợ POST.")
+        body = self._body()
+        if parts == ["agent"]:
+            text = body.get("text") if isinstance(body.get("text"), str) else None
+            payload = text if text is not None else body.get("request", body)
+            if isinstance(payload, str):
+                payload = {"message": payload, "session_id": "web-%d" % user["id"]}
+            if not isinstance(payload, dict):
+                raise Err(400, "bad_request", "Gửi {'text': '...'} hoặc Spec request dict.")
+            # registry=None → agent dùng cùng @tool Catalog như `python run.py` (hành vi đồng nhất).
+            out = agent_bridge.call(payload, case_id="web-%d" % user["id"])
+            return self._json(200, out["ui"] | {"trace": out["trace"]})
+        if parts == ["agent", "publish"]:
+            approval = agent_bridge.publish(body, user, registry=agent_bridge.trusted_registry(c))
+            return self._json(200, approval)
+        if parts == ["agent", "review"]:
+            return self._json(200, agent_bridge.review(body, body.get("approval")))
         raise Err(404, "not_found", "Không thấy.")
 
     def _chat(self, c, method, parts, user):

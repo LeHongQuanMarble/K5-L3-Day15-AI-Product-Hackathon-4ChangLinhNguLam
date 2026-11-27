@@ -63,13 +63,13 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 | T21 | Final Submission & Project Closure | TV1 | P0 | Final | T05 | 28/11 23:00 | TODO |
 | T06 | Application Contract & Mock Agent | TV2 | P0 | CP2 | T01 *(chốt Contract sớm, song song T02)* | 27/11 19:00 | DONE *(PR #11 merge `main` `4e5bdf5`; 25/25 test + `run.py` mock OK; chờ TV1/TV3 xác nhận Contract)* |
 | T07 | Real LLM Integration & Usage Tracking | TV2 | P0 | CP3 | T06 *(song song T12)* | 27/11 21:30 | DONE *(merge `main` `8845a9f`; `gpt-4o-mini` `eval --try` token > 0; 67/67 test)* |
-| T08 | Agent Routing, Question & Module Generation | TV2 | P0 | CP3 | T06, T07, T12 | 28/11 02:00 | TODO *(cần TV2 xác nhận)* |
-| T09 | AI Guardrails & Output Validation | TV2 | P0 | CP3 | T06, T08 | 28/11 06:00 | TODO *(cần TV2 xác nhận)* |
+| T08 | Agent Routing, Question & Module Generation | TV2 | P0 | CP3 | T06, T07, T12 | 28/11 02:00 | DONE *(merge `main` `4364553` PR #12; TV4 kiểm chứng Real AI `eval --try 3` token > 0; Issue B đã sửa `bdb938a`; chờ TV2 ký chéo)* |
+| T09 | AI Guardrails & Output Validation | TV2 | P0 | CP3 | T06, T08 | 28/11 06:00 | DONE *(merge `main` `4364553`; 113/113 test codebase + guardrails chặn REUSE/GENERATE; chờ TV2 ký chéo)* |
 | T10 | AI Improvement After Evaluation Run 1 | TV2 | P0 | CP4 | T18 | 28/11 11:30 | TODO |
 | T11 | Repository & Development Foundation | TV3 | P0 | CP1 | — | 27/11 16:30 | DONE *(root chuẩn BTC, 27/27 unittest pass)* |
 | T12 | Catalog, Tools & Composition Services | TV3 | P0 | CP3 | T06, T11 *(song song T07)* | 27/11 22:30 | DONE *(tools + Composer + Snapshot; 37/37 unittest pass)* |
 | T13 | Game Runtime & Interaction Compatibility | TV3 | P0 | CP3 | T11 *(bắt đầu khi interface ổn định)* | 28/11 04:00 | DONE *(runtime Edge headless thật: fallback 6/6, CSP/sandbox 4/4, 2/2 Player động — `evidence/runtime-smoke.md`)* |
-| T14 | Web/Backend Integration & HITL | TV3 | P0 | CP3 | T06 *(khởi chạy sớm)*, T08, T12, T13 | 28/11 08:30 | TODO *(cần TV3 xác nhận)* |
+| T14 | Web/Backend Integration & HITL | TV3 | P0 | CP3 | T06 *(khởi chạy sớm)*, T08, T12, T13 | 28/11 08:30 | DONE *(TV4 hỗ trợ TV3 28/11: Shared Core `/api/agent` + `llm.generate`, UI `feat/ui-ux-refactor`, cổng HITL HTTP 400/403, `HITL Bypass Count=0`; bằng chứng `docs/T14-integration.md`; chờ TV3 review chéo)* |
 | T15 | E2E Testing & Demo Recording | TV3 | P0 | CP3–CP4 | T07, T08, T14 *(CP3)* · T09 *(CP4)* | 28/11 09:30 *(video CP3)* / 12:00 *(CP4)* | TODO |
 | T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | — *(song song AI & Software)* | 27/11 19:00 (v1) / 28/11 09:00 (full) | IN_PROGRESS *(CP2 đã merge PR #6; CP3 khóa snapshot `79822a4` qua PR #8; Dataset 4 nay 30 câu/10 nguồn thật, TV1 đã ký xác nhận `DATA_CARD.md` lúc 28/11 00:50)* |
 | T17 | Benchmark & Metric Specification | TV4 | P0 | CP2–CP3 | T02 *(khung)*, T06 *(song song)* | 27/11 19:00 (CP2) / 28/11 08:00 (CP3) | DONE *(TV4 xác nhận 28/11: 6 metric freeze PR #6; benchmark 30 câu / 10 nguồn thật, `run.py check` hết warning; TV1 ký freeze ≥24/30 lúc 00:50; biên bản chấm chéo 5 output chuyển sang T18)* |
@@ -657,7 +657,12 @@ Bàn giao hệ thống Web/Backend tích hợp hoàn chỉnh cho TV3 (T15) và T
 
 **Status:**
 
-TODO.
+DONE — TV4 hỗ trợ TV3 ngày 28/11/2026 theo yêu cầu "hoàn thành Task của TV3 và TV4". Bằng chứng:
+`docs/T14-integration.md` (HTTP thật: `/api/agent` 200 trace token > 0; publish 400/403 cho tự
+duyệt & DRAFT/REJECTED; review đổi nội dung → draft), `ailab/agent_bridge.py`,
+`ailab/test_agent_bridge.py` (10 test), `ailab/server.py` + `ailab/llm.py` dùng chung
+`codebase.agent.run_agent()`, UI lấy từ `origin/feat/ui-ux-refactor`. Tổng unittest
+113/113 (codebase) + 159/159 (ailab, `MODEL_PROVIDER=fake`). Chờ TV3 review chéo.
 
 ---
 
