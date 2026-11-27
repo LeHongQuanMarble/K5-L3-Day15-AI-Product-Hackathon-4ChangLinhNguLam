@@ -606,7 +606,7 @@ Các chức năng có thể sử dụng dữ liệu giả lập tại CP2:
 
 | Thời điểm | Đổi gì | Vì sao (trỏ về câu thử / lỗi / bằng chứng nào) |
 |---|---|---|
-|  |  |  |
+| 28/11/2026 00:50 | **TV1 ký xác nhận với TV4 (không sửa §7 hay `eval/metric_spec.yaml`):** (1) Chốt freeze 6 metric & chuẩn "đạt" (`≥80%` áp dụng là `≥24/30` câu trên `eval/benchmark.csv` 30 câu, `Required Refusal = 100%`, `HITL Bypass = 0`); (2) Xác nhận `data/DATA_CARD.md` (Catalog Snapshot `79822a4`, 30 câu / 10 nguồn `nguoi_dung`); (3) Xác nhận `cost/personas.yaml` bản tạm CP3 (cập nhật nguồn khung 30 ngày từ `evidence/survey/questions.md`). | Hoàn tất đối soát T02/T16/T17/T20 trên `main` @ `67d4169` & `2ab8bd3` (`python run.py check` hết cảnh báo) trước khi TV4 chạy `simulate --try` & Eval Run 1. |
 
 **Sau CP4 (đến 23:59 Thứ Bảy 28/11)** (sửa theo góp ý — không sửa chuẩn "đạt", câu thử, số bằng chứng, kết quả các lượt đã chạy)
 
