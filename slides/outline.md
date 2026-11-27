@@ -16,8 +16,12 @@
 
 **Trước khi lên:** tải repo về một máy khác (hoặc thư mục mới), chạy theo mục "Chạy trong 3 phút" của `README.md` · `.env` có trên máy demo, đã gọi thử 1 câu trong vòng 1 giờ trước giờ demo · video dự phòng mở được bằng cửa sổ ẩn danh · biết bản chạy thử sẽ làm gì với **1 câu thử lạ** của giám khảo.
 
-Ai nói trang nào (mỗi người ≥1 phần):
+Ai nói trang nào (mỗi người ≥1 phần — *đề xuất phân công, TV1 xác nhận trước buổi pitch*):
 
 | Trang | Người nói |
 |---|---|
-| | |
+| Trang 1 (Người dùng & pain) · Trang 2 (Vì sao chọn bài này) | TV1 – Nguyễn Hoàng Việt |
+| Trang 3 (Giải pháp & kiến trúc Reuse-first, Generate-if-needed) | TV2 – Hồ Quốc Toản |
+| Trang 4 (Demo live & Mouse Fallback / HITL) | TV3 – Lê Hồng Quân |
+| Trang 5 (Đánh giá thế nào: Run 1 → Run 2) · Trang 6 (Chi phí khi dùng thật) | TV4 – Đào Huy Hoàng |
+| Trang 7 (Kết luận Go/Iterate/Stop) · Trang 8 (Nếu có thêm 1 tuần) | TV1 – Nguyễn Hoàng Việt |

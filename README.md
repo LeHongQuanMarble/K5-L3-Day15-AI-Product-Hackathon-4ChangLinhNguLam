@@ -1,35 +1,8 @@
-> Đây là khung repo nộp bài. Điền mọi chỗ `____`, giữ nguyên tên các mục. **Mục 0 xoá đi sau khi tạo repo xong.**
-> Giờ, mốc, luật, rubric: xem `README.md`, `02-guide.md`, `03-rubric.md` trong repo đề (bộ đề BTC phát).
-
-# [Tên nhóm] — [Tên lát cắt]
+# 4ChangLinhNguLam — AI Game Composer (Track A · A3)
 
 **Thành viên, lớp, track:** xem [TEAMS.md](TEAMS.md). **Điền TEAMS.md đúng format**: khi chấm và đánh giá, BTC quét file này để ghép điểm cho từng người.
 
-*Lát cắt = phần nhỏ nhất làm xong được trong hackathon: một người dùng · một việc · một quyết định AI · một kết quả.*
-
----
-
-## 0. Tạo repo nhóm từ khung này *(guide bước 1.0 — xoá mục này khi xong)*
-
-**Hai luật:** repo **mới, công khai (Public)** · tên `K5-Day15-<lớp>-<tên nhóm>`, vd `K5-Day15-L3A-StudyPulse` (tên nhóm viết liền, không dấu). Chép **nội dung bên trong** `starter-repo/` — `README.md`, `run.py` phải nằm ngay ở trang đầu repo.
-
-**(a) Không cần terminal — làm trên web GitHub**
-1. **New repository** → tên theo mẫu → **Public** → không tick thêm gì → tạo.
-2. Trên máy mở thư mục `starter-repo/`, **bật hiện file ẩn** (Mac Finder: `Cmd + Shift + .` · Windows: View → Show → Hidden items) để thấy `.gitignore`, `.env.example`.
-3. Trên repo vừa tạo: **Add file → Upload files** → **kéo thả** tất cả file và thư mục bên trong `starter-repo/` → **Commit changes**. Kéo thả mới giữ được thư mục con; lỗi vì nhiều file quá thì tải từng thư mục.
-4. Kiểm: có `.gitignore` chưa (hay thiếu nhất). Thiếu thì **Add file → Create new file**, tên `.gitignore`, dán nội dung từ máy.
-5. Từ giờ sửa file ngay trên web (biểu tượng bút chì → Commit). Phần code vẫn cần **một** người chạy được trên máy: trước mỗi lượt chạy tải **Code → Download ZIP** về thư mục mới (mang `.env` sang), chạy xong chỉ upload file kết quả và file vừa sửa; trong lúc đang chạy không ai sửa `eval/benchmark.csv` trên web.
-
-**(b) Dùng git**
-```bash
-git clone https://github.com/<tai-khoan>/K5-Day15-L3A-TenNhom.git
-cd K5-Day15-L3A-TenNhom
-cp -R ../duong-dan-toi/starter-repo/. .      # Windows PowerShell: Copy-Item -Recurse -Force ..\duong-dan-toi\starter-repo\* .
-git status                                   # không được có .env, data-btc/
-git add -A && git commit -m "Khung repo từ starter-repo" && git push
-```
-
-**Xong khi:** mở link repo bằng **cửa sổ ẩn danh** thấy được file (link nộp CP1) · đã mời thành viên (Settings → Collaborators) · đã điền `TEAMS.md` và `python run.py check` không báo gì ở phần "Kiểm TEAMS.md".
+*Lát cắt:* Một giáo viên cần tạo trò chơi ôn tập từ yêu cầu giảng dạy; AI phân tích và làm rõ yêu cầu, quyết định tái sử dụng (`REUSE`) hoặc tạo mới (`GENERATE`) module game (`Model + Player`), đồng thời sinh bộ câu hỏi (`Question Set`) phù hợp để giáo viên kiểm duyệt (HITL), có hỗ trợ `Mouse Fallback`.
 
 ---
 
@@ -108,14 +81,13 @@ Nhóm dùng stack khác (Node, Streamlit, notebook…): sửa hàm `run_app()` t
 
 | Thành phần | Thật / Giả | Ghi chú |
 |---|---|---|
-| Lời gọi AI ở quyết định trung tâm | **Thật** (bắt buộc từ CP3) | Model: ____ |
-|  |  |  |
+| Lời gọi AI ở quyết định trung tâm (`codebase/ai.py`) | **Giả ở CP2 · Thật từ CP3** | Hiện đang chế độ giả (`MODEL_PROVIDER=fake`) tại CP2; TV2 nối model thật ở T07 trước CP3 |
+| Nền tảng AI Lab (`ailab/server.py`, `store.py`, `contract.py`) | **Thật** | SQLite Catalog (`Model + Player + 6 bộ đề mẫu`), `check_game` (`jl-camera` + 6 cờ an toàn), `iframe sandbox` |
+| Luồng `ApplicationPlan` & Shared Core Web/CLI | **Đang triển khai (CP2–CP3)** | TV2 (T06–T09) & TV3 (T12–T14) đang đồng bộ `codebase/agent.py` và `ailab/` |
 
 ## Dùng AI vào việc gì
 
-2–3 dòng (bắt buộc): nhóm dùng công cụ AI nào để làm gì, người kiểm lại phần nào. Chi tiết: [docs/ai-usage.md](docs/ai-usage.md). Coding agent đọc [AGENTS.md](AGENTS.md).
-
-____
+Nhóm sử dụng coding/writing assistant (Cursor, Antigravity, LLM) để rà soát tài liệu (`spec.md`, `canvas.md`, `docs/TASKS.md`), rà câu dẫn dắt trong bộ câu hỏi phỏng vấn, hỗ trợ viết code khung và kiểm thử cấu trúc. Mọi quyết định sản phẩm, kiến trúc, tiêu chí đánh giá, bằng chứng người dùng thật và kiểm chứng cuối đều do từng thành viên phụ trách trực tiếp kiểm tra và chịu trách nhiệm giải trình. Chi tiết xem [docs/ai-usage.md](docs/ai-usage.md); quy ước cho coding agent xem [AGENTS.md](AGENTS.md).
 
 ## File mẫu — điền ở bước nào
 

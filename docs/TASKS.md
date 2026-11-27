@@ -56,7 +56,7 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 | ID | Task | Owner | Priority | CP | Dependency | Deadline | Status |
 |---|---|---|---|---|---|---|---|
 | T01 | Team Registration & Product Definition | TV1 | P0 | CP1 | — | 27/11 16:45 | DONE *(đã kiểm `run.py check` & merge `main`)* |
-| T02 | Product Specification & Architecture Alignment | TV1 | P0 | CP2 | T01 | 27/11 19:00 | REVIEW *(commit `be69d43`, chờ review & merge)* |
+| T02 | Product Specification & Architecture Alignment | TV1 | P0 | CP2 | T01 | 27/11 19:00 | REVIEW *(PR #5 đã merge `main`; chờ TV1+TV4 freeze §7 & TV2+TV3 chốt Contract)* |
 | T03 | User Research & Evidence | TV1 | P0 | CP2–CP3 | — *(song song từ đầu)* | 28/11 08:30 | IN_PROGRESS |
 | T04 | Product Acceptance Testing | TV1 | P0 | CP3–CP4 | T14 *(nghiệm thu tăng dần)*, T15 | 28/11 12:30 | TODO |
 | T05 | Demo, Pitch & Checkpoint Submission | TV1 | P0 | CP1–CP4 | — *(outline song song; chốt số sau T04, T19, T20)* | 28/11 14:00 | IN_PROGRESS |
@@ -133,10 +133,10 @@ DONE.
 
 **Công việc:**
 
-- [x] Cập nhật `canvas.md` (bổ sung dòng CP2) và `spec.md` (§0–§7, §9, §10) theo hướng `REUSE` E2E + `GENERATE` HTML nháp + sinh bộ đề + HITL 2 lớp + Mouse Fallback.
+- [x] Cập nhật `canvas.md` (bổ sung dòng CP2) và `spec.md` (§0–§7, §9, §10) theo hướng `REUSE` E2E + `GENERATE` HTML nháp + sinh bộ đề + HITL 2 lớp + Mouse Fallback; đối chiếu mã câu thử §5 khớp `B01–B12` trong `eval/benchmark.csv`.
 - [ ] Phối hợp TV2 & TV3 chốt ranh giới `ApplicationPlan` Contract (xác nhận enum `refused` riêng hay ánh xạ `error` kèm mã lỗi từ chối).
 - [ ] Phối hợp TV4 chốt cứng chuẩn "đạt" ở `spec.md` §7 (khớp `eval/metric_spec.yaml`) trước 19:30 CP2.
-- [ ] Merge nhánh `docs/t02-cp2-product-spec` vào `main` trước hạn CP2.
+- [x] Merge nhánh `docs/t02-cp2-product-spec` vào `main` trước hạn CP2 (PR #5 `65d73a8`).
 
 **Deliverables:**
 
@@ -154,7 +154,7 @@ Bàn giao `spec.md` đã thống nhất cho TV2 (T06–T09), TV3 (T12–T14) và
 
 **Status:**
 
-REVIEW (đã commit & push tại `be69d43` trên nhánh `docs/t02-cp2-product-spec`, chờ PR merge vào `main`).
+REVIEW (PR #5 đã merge `main`; `spec.md` §5 đã khớp `B01–B12`; còn chờ TV1+TV4 xác nhận freeze §7 & TV2+TV3 chốt `ApplicationPlan` Contract trước CP2 19:30).
 
 ---
 
