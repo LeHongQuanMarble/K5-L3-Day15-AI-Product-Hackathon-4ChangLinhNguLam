@@ -26,18 +26,18 @@ Data BTC cấp đã dùng (nếu có — không commit nguyên file): Không s�
 
 | Hướng | Bao nhiêu người gặp | Bao nhiêu lần / tháng | Mỗi lần tốn gì | Impact / tháng | Làm kịp không | Chọn? |
 |---|---|---|---|---|---|---|
-| **H1 (Chọn): AI Game Composer — chọn/tạo module game + sinh bộ đề + kiểm duyệt cho buổi ôn tập** | *(Đang thu thập — dự kiến đo từ khảo sát/phỏng vấn)* | *(Đang thu thập)* | Thời gian cấu hình + soạn/ghép bộ đề + kiểm duyệt (phút/trò chơi) | *(Chưa có Baseline thật — sẽ tính sau khi có Evidence)* | **Có (P0)** — tận dụng trực tiếp nền tảng `ailab/` | **Chọn** |
+| **H1 (Chọn): AI Game Composer — chọn/tạo module game + sinh bộ đề + kiểm duyệt cho buổi ôn tập** | 6 tình huống thật S1–S6 (5 vai giáo viên + 1 Lab Coach) do TV1 cung cấp 27/11; **chưa có số người đại diện** | Chưa đo | Thời gian cấu hình + soạn/ghép bộ đề + kiểm duyệt: **Baseline 10–20 phút/trò chơi** *(nguồn: S1)* | Chưa tính vì thiếu tần suất và With Agent | **Có (P0)** — tận dụng trực tiếp nền tảng `ailab/` | **Chọn** |
 | H2 (Loại): Tự động sinh toàn bộ video bài giảng hoàn chỉnh từ slide | *(Chưa đo)* | Thấp (theo chương) | Rất tốn thời gian dựng & soát lỗi kiến thức | Khó kiểm soát lỗi hình/âm trong 10 giờ | Không kịp (API video đắt & chậm, bẫy A3) | Loại |
 | H3 (Loại): Chấm điểm & nhận xét bài tự luận cuối kỳ tự động | *(Chưa đo)* | 1–2 lần / học kỳ | Rủi ro sai điểm số rất cao | Tần suất thấp trong từng buổi học | Chưa tận dụng được nền tảng AI Lab sẵn có | Loại |
 
 - **Phương pháp đo Impact chính:**
   - **Chỉ số:** Thời gian hoàn thành 1 trò chơi ôn tập sẵn sàng dùng trên lớp, bao gồm thời gian cấu hình và kiểm duyệt (**đơn vị: phút/trò chơi**).
   - **So sánh:** *Baseline* (quy trình giáo viên đang dùng) vs *With Agent* (quy trình dùng AI Game Composer) trên cùng yêu cầu giảng dạy và bộ đề tương đương.
-  - **Công thức Impact / tháng:** `Số giáo viên × Số trò chơi / tháng × (Thời gian Baseline − Thời gian With Agent)` *(hiện chưa có số thực tế; sẽ cập nhật đầy đủ nguồn từ phỏng vấn/khảo sát/người dùng thử trước CP3–CP4, không bịa Baseline)*.
+  - **Công thức Impact / tháng:** `Số giáo viên × Số trò chơi / tháng × (Thời gian Baseline − Thời gian With Agent)` *(đã có Baseline 10–20 phút/trò chơi từ tình huống thật S1 do TV1 cung cấp 27/11; **chưa có số giáo viên, tần suất và With Agent nên chưa tính Impact** — không bịa số)*.
 - **Hướng ĐÃ LOẠI + vì sao:**
   - *H2 (Sinh video bài giảng):* Tốn chi phí API và thời gian render lớn, vượt phạm vi 10 giờ (track A3 cảnh báo tránh làm video).
   - *H3 (Chấm điểm tự luận):* Rủi ro sai lệch điểm số cao và không tận dụng được hệ sinh thái AI Lab (`Model + Player + Question Set`) team đã có.
-- **Số lần / tháng của từng kiểu người dùng (dùng cho persona ở §8):** Dự kiến chia 3 nhóm dùng ít / vừa / nhiều *(sẽ cập nhật số từ Evidence trước CP3; nếu thiếu ghi rõ `tự ước tính`)*.
+- **Số lần / tháng của từng kiểu người dùng (dùng cho persona ở §8):** Dự kiến chia 3 nhóm dùng ít / vừa / nhiều. Đã có 5 vai người dùng thật S1–S6 làm cơ sở định nghĩa persona (Tiểu học, CĐ/ĐH, Mầm non, THCS, Lab Coach AI20k); **số lần / tháng chưa đo** — TV4 phải ghi rõ *(tự ước tính)* khi điền `cost/personas.yaml`.
 
 ## §3. Giải pháp tương tự & So sánh phương án *(guide 2.1)*
 

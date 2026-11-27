@@ -3,6 +3,7 @@
 > Điền ở guide bước 1.2, xong trước **CP3 10:00 Thứ Bảy 28/11**. Chấm ở rubric R1.
 > Ba nguồn ngang nhau — tối thiểu **≥1 nguồn đạt ngưỡng**. Mạnh nhất: đào data ra insight → hỏi người dùng để kiểm lại (hoặc ngược lại).
 > **Trạng thái hiện tại (CP2 · 27/11/2026 19:15):** Đã thu thập **6 phản hồi khảo sát thực tế** (`n = 6`, lưu ẩn danh tại `evidence/survey/results.csv`). Vì `n < 10`, chỉ ghi tỉ lệ `x/6`, **không ghi %** và **chưa đạt ngưỡng CP3** (cần ≥20 phiếu khảo sát hoặc ≥3 phỏng vấn sâu).
+> **Cập nhật CP3 (27/11/2026):** thêm **6 tình huống thật S1–S6 do TV1 cung cấp** (tóm tắt theo vai, không tên, không trích nguyên văn; xem `docs/HANDOFF-TV4-nguon-nguoi-dung.md` và `eval/benchmark.csv` B21–B30). Đây là nguồn cho cột `source` của benchmark, **không thay thế** 6 phiếu khảo sát hay phỏng vấn; T03 vẫn chưa đạt AC.
 
 ## 1. Nguồn đã dùng
 
@@ -11,6 +12,7 @@
 | Đào data (x/N, %, cách đếm chạy lại được, ≥5 ví dụ) | ☐ *(không sử dụng data thô BTC cho lát cắt A3)* | `evidence/data-mining.md` |
 | Phỏng vấn (≥3 người ngoài nhóm, đúng người dùng) | ☐ *(0/3 — đang triển khai)* | `evidence/interviews/` |
 | Khảo sát (≥20 người ngoài nhóm, đúng người dùng) | ☐ *(6/20 — đang tiếp tục thu thập)* | `evidence/survey/results.csv` |
+| Tình huống thật S1–S6 (tóm tắt, TV1 cung cấp) | ⚠️ *không tính ngưỡng R1* | `docs/HANDOFF-TV4-nguon-nguoi-dung.md` · `eval/benchmark.csv` B21–B30 |
 
 ## 2. Số chính *(dữ liệu sơ bộ từ khảo sát n = 6, không ghi % vì n < 10)*
 
@@ -42,11 +44,11 @@
 4. `"Cần làm tốt khâu chuẩn bị nội dung cho từng Day. Câu hỏi phải thật hay và trọng tâm"` — Phiếu khảo sát `S5` (Lab Coach AI20k)
 5. `"Thời gian soạn"` — Phiếu khảo sát `S2` (Cao đẳng/Đại học)
 
-*(Các ô trả lời mở để trống ở `S1, S3, S6` được giữ nguyên trạng thái trống, không suy diễn.)*
+*(Các ô trả lời mở để trống ở `S1, S3, S6` được giữ nguyên trạng thái trống, không suy diễn. 6 tình huống S1–S6 là bản tóm tắt do TV1 cung cấp, **không được cộng vào 5 trích dẫn nguyên văn ở trên**.)*
 
 ## 4. Các nguồn có khớp nhau không
 
-Hiện mới có 1 nguồn sơ bộ (`evidence/survey/results.csv`, `n = 6`); chưa có nguồn phỏng vấn (`0/3`) để đối chiếu chéo. Sẽ cập nhật sau khi thu thêm khảo sát (đạt ≥20) và/hoặc hoàn tất ≥3 phỏng vấn sâu trước CP3.
+Hiện có 1 nguồn sơ bộ (`evidence/survey/results.csv`, `n = 6`) và 6 tình huống tóm tắt S1–S6 do TV1 cung cấp; hai nguồn này cùng hướng nhưng S1–S6 không phải trích nguyên văn. Chưa có nguồn phỏng vấn (`0/3`) để đối chiếu chéo. Sẽ cập nhật sau khi thu thêm khảo sát (đạt ≥20) và/hoặc hoàn tất ≥3 phỏng vấn sâu trước CP3.
 
 ## 5. Kết luận & Kiểm chứng sơ bộ giả thuyết
 
@@ -63,6 +65,7 @@ Hiện mới có 1 nguồn sơ bộ (`evidence/survey/results.csv`, `n = 6`); ch
   - Cỡ mẫu nhỏ (`n = 6`), **chưa đạt ngưỡng CP3 (≥20)**; phân tán qua 5 nhóm đối tượng khác nhau (Mầm non, Tiểu học, THCS, CĐ/ĐH, Lab Coach — trong đó `S5` là Lab Coach AI20k, không thuần giáo viên phổ thông).
   - Thiếu khung thời gian của cột tần suất trong dữ liệu gốc (chưa ghi rõ "trong 1 tuần" hay "trong 1 tháng"), chưa có bộ câu hỏi gốc trong `evidence/survey/questions.md`, và dữ liệu thời gian ở dạng khoảng nên chưa tính được Baseline phút chính xác.
   - Có `3/6` phiếu (`S1, S3, S6`) bỏ trống các ô chia sẻ mở.
+- **Baseline bổ sung từ S1:** `10–20 phút` chuẩn bị/trò chơi (tóm tắt tình huống thật, khớp khoảng `3/6` phiếu khảo sát chọn `10–<20 phút`); chưa có tần suất/tháng và With Agent nên chưa tính Impact (T20).
 - **Tiến độ CP2 & CP3:**
   - **CP2 (19:30 ngày 27/11):** Đã có bằng chứng đầu thực tế (`n = 6`) và 5 trích dẫn nguyên văn hợp lệ.
   - **CP3 (10:00 ngày 28/11):** Cần thu thêm tối thiểu **14 phiếu khảo sát nữa** (đạt `≥20`) **hoặc** hoàn thành tối thiểu **3 phỏng vấn sâu** (`P1.md`–`P3.md`), kèm `evidence/survey/questions.md`.
