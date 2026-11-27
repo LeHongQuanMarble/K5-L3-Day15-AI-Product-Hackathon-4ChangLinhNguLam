@@ -368,7 +368,7 @@ def catalog_snapshot():
     c = _connect()
     try:
         players = []
-        for r in c.execute("SELECT id,name,description,manifest,status,source,visibility FROM players ORDER BY id"):
+        for r in c.execute("SELECT id,name,description,manifest,status,source,visibility FROM players WHERE source<>'showcase' ORDER BY id"):
             man = _json_value(r["manifest"]) or {}
             players.append({
                 "id": r["id"], "name": r["name"], "description": r["description"],

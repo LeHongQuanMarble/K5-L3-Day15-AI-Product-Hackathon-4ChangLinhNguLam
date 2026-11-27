@@ -1,0 +1,1355 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Giải cứu thế giới</title>
+<script type="application/json" id="jl-camera">
+{"name":"Giải cứu thế giới","description":"Trả lời A, B, C, D (bằng giọng nói, giơ tay hoặc tư thế) để chạy qua ải và cứu thế giới.","kinds":["image","pose","audio"],"questions":"exam","questionTypes":["single"],
+ "inputs":[{"key":"A","label":"A","required":true,"accepts":["action"]},{"key":"B","label":"B","required":true,"accepts":["action"]},
+           {"key":"C","label":"C","required":true,"accepts":["action"]},{"key":"D","label":"D","required":true,"accepts":["action"]}]}
+</script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#0b1530;color:#fff;font-family:ui-monospace,"Cascadia Mono","Courier New",monospace;font-weight:700}
+#app{position:fixed;inset:0}
+.stage{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+/* block-game look: square bevelled panels, white text with a hard dark shadow */
+.qbox,.ans,.slot,.banner,.msg,.bossbar .bar,.xp{box-sizing:border-box}
+.qbox,.msg,.banner{background:rgba(16,16,16,.9);outline:2px solid #000;box-shadow:inset 0 0 0 2px #555}
+.qbox,.ans .choice,.msg,.banner,.hud,.heard,.bossbar .name,.story,.end{text-shadow:2px 2px 0 #3f3f3f}
+/* top: question and the four answers as a menu */
+.top{position:absolute;left:12px;right:12px;top:44px;max-height:36%;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.qbox{flex:0 1 auto;min-height:0;max-height:16vh;overflow:auto;padding:8px 14px;font-size:clamp(14px,2.4vw,24px);line-height:1.35}
+.qbox p{margin:0 0 .4em}.qbox img{max-width:100%;max-height:10vh}
+.answers{flex:0 1 auto;min-height:0;overflow:auto;display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;padding:2px}
+.ans{position:relative;display:flex;align-items:center;gap:10px;padding:4px 10px;background:#707070;outline:2px solid #000;box-shadow:inset 2px 2px 0 #a8a8a8,inset -2px -2px 0 #3c3c3c;color:#e0e0e0}
+.ans .badge{flex:none;display:grid;place-items:center;width:clamp(26px,4.2vh,36px);height:clamp(26px,4.2vh,36px);background:#8b8b8b;box-shadow:inset 2px 2px 0 #c6c6c6,inset -2px -2px 0 #555;color:#fff;font-size:clamp(14px,2.4vh,20px);text-shadow:2px 2px 0 #3f3f3f}
+.ans .choice{font-size:clamp(13px,2.1vw,21px);line-height:1.25}
+.ans .meter{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(0,0,0,.45)}.ans .meter i{display:block;height:100%;background:#7efc20;transition:width .1s linear}
+.ans.hearing{color:#fff;box-shadow:inset 2px 2px 0 #c6c6c6,inset -2px -2px 0 #3c3c3c,inset 0 0 0 4px rgba(126,252,32,.55)}
+.ans.picked{outline-color:#fff;color:#ffffa0}
+.ans.right{background:#4f9a3a;box-shadow:inset 2px 2px 0 #8fd37a,inset -2px -2px 0 #2a5a1c;color:#fff}
+.ans.wrong{background:#a23b3b;box-shadow:inset 2px 2px 0 #de8080,inset -2px -2px 0 #5c1c1c;color:#fff}
+.ans.gone{opacity:.3}
+@media (max-width:640px){.answers{grid-template-columns:1fr;gap:4px}.ans{padding:2px 8px}.ans .choice{font-size:12px}}
+/* boss bar under the top edge, like a boss fight */
+.bossbar{position:absolute;left:12px;right:12px;top:6px;display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none}
+.bossbar .name{font-size:13px}
+.bossbar .bar{width:min(100%,360px);height:10px;background:#222;outline:2px solid #000}
+.bossbar .fill,.xp .fill{height:100%}
+.bossbar .fill{background:#c040c0;box-shadow:inset 0 3px 0 #e684e6}
+/* bottom: hearts, level number, experience bar, hotbar */
+.hud{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:stretch;gap:2px;pointer-events:none}
+.hearts{display:flex;gap:2px;font-size:22px;line-height:1}
+.heart.full{color:#f21313;text-shadow:2px 2px 0 #4a0000,-1px -1px 0 #000}.heart.empty{color:#4a1a1a;text-shadow:1px 1px 0 #000}
+.level{align-self:center;color:#80ff20;font-size:15px;line-height:1;text-shadow:1px 1px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000}
+.xp{height:10px;background:#2a2a2a;outline:2px solid #000}.xp .fill{background:#7efc20;box-shadow:inset 0 3px 0 #b8ff80;width:0%}
+.hotbar{display:flex;background:#8b8b8b;outline:2px solid #000;box-shadow:inset 2px 2px 0 #c6c6c6,inset -2px -2px 0 #555}
+.slot{position:relative;width:48px;height:48px;display:grid;place-items:center;box-shadow:inset 2px 2px 0 #555,inset -2px -2px 0 #c6c6c6;margin:2px}
+.slot .icon{font-size:22px;line-height:1}
+.slot .label{position:absolute;right:3px;bottom:1px;font-size:11px;line-height:1;color:#fff;text-shadow:1px 1px 0 #000}
+.slot.selected{outline:3px solid #fff;z-index:1;background:#a8a8a8}
+.slot[data-slot=coins] .icon{color:#ffd54f}
+.heard{position:absolute;left:12px;bottom:calc(12px + clamp(110px,16vw,190px) * 0.75 + 8px);padding:2px 8px;background:rgba(0,0,0,.55);font-size:15px}
+.heard:empty{display:none}
+@media (max-width:640px){.hud{left:auto;right:8px;transform:none}.slot{width:38px;height:38px}.slot .icon{font-size:18px}.hearts{font-size:18px}.heard{bottom:calc(12px + 110px * 0.75 + 8px)}}
+/* toast, notices, story, endings */
+.banner{position:absolute;right:12px;top:42%;display:flex;gap:10px;align-items:center;max-width:300px;padding:8px 12px;z-index:3;animation:toast .35s ease-out}
+@keyframes toast{from{transform:translateX(120%)}to{transform:none}}
+.banner .icon{flex:none;display:grid;place-items:center;width:40px;height:40px;font-size:24px;background:#8b8b8b;box-shadow:inset 2px 2px 0 #c6c6c6,inset -2px -2px 0 #555}
+.banner .title{display:block;color:#ffff55;font-size:12px}.banner .line{display:block;font-size:14px;line-height:1.25}
+.msg{position:absolute;left:16px;right:16px;margin:0 auto;width:fit-content;max-width:calc(100% - 32px);top:55%;transform:translateY(-50%);padding:14px 20px;font-size:clamp(15px,2.6vw,22px);text-align:center;z-index:4}
+.story,.end{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;text-align:center}
+.story{z-index:7;background-color:#3b2a1a;background-image:linear-gradient(45deg,#2f2013 25%,transparent 25%,transparent 75%,#2f2013 75%),linear-gradient(45deg,#2f2013 25%,transparent 25%,transparent 75%,#2f2013 75%);background-size:32px 32px;background-position:0 0,16px 16px}
+.story-line{font-size:clamp(18px,3.6vw,30px);line-height:1.4;max-width:720px}
+.story-next,.story-next:visited{font:inherit;font-size:clamp(16px,2.6vw,22px);padding:8px 40px;border:0;cursor:pointer;color:#e0e0e0;background:#707070;outline:2px solid #000;box-shadow:inset 2px 2px 0 #a8a8a8,inset -2px -2px 0 #3c3c3c;text-shadow:2px 2px 0 #3f3f3f}
+.story-next:hover,.story-next:focus-visible{outline-color:#fff;color:#ffffa0}
+.end{z-index:6;background:rgba(10,18,45,.9)}
+.end.win{background:rgba(20,70,20,.88)}.end.lose{background:rgba(110,10,10,.85)}
+.end-title{font-size:clamp(24px,5.4vw,44px)}.end.win .end-title{color:#ffff55}.end-sub{font-size:clamp(16px,3.6vw,26px)}.end-score{font-size:clamp(14px,3vw,22px);margin-top:6px}
+/* level meter for a microphone model, in the same corner as the camera picture */
+.vu{position:fixed;left:12px;bottom:12px;width:clamp(110px,16vw,190px);aspect-ratio:4/3;z-index:6;display:flex;align-items:stretch;gap:6px;padding:8px 8px 4px;background:rgba(16,16,16,.92);outline:2px solid #000;box-shadow:inset 0 0 0 2px #555}
+.vubar{flex:1;position:relative;display:flex;flex-direction:column;justify-content:flex-end;background:rgba(255,255,255,.08)}
+.vubar i{display:block;width:100%;background:linear-gradient(0deg,#7efc20 0%,#7efc20 55%,#ffd23f 75%,#ff3b3b 100%);background-size:100% 100%;transition:height .08s linear}
+.vubar span{align-self:center;font-size:12px;line-height:1.4;color:#fff;text-shadow:1px 1px 0 #000}
+[hidden]{display:none!important}
+.mic{position:fixed;left:12px;bottom:12px;width:clamp(110px,16vw,190px);aspect-ratio:4/3;z-index:5;overflow:hidden;background:rgba(0,0,0,.5);outline:2px solid #000}
+.mic canvas{width:100%;height:100%;object-fit:cover}
+</style>
+</head>
+<body>
+<div data-jl-camera class="mic"></div>
+<div id="app"></div>
+<script>(() => {
+  // src/logic.js
+  var WORLD_NAMES = ["R\u1EEBng", "Bi\u1EC3n", "Sa m\u1EA1c"];
+  var CASTLE = "L\xE2u \u0111\xE0i";
+  var KEYS = ["A", "B", "C", "D"];
+  var GAP_MAX = 3;
+  function planWorlds(n) {
+    if (n <= 0) return [];
+    if (n < 3) return [{ name: CASTLE, count: n, boss: n }];
+    const worlds = Math.min(4, Math.floor(n / 3));
+    const base = Math.floor(n / worlds);
+    const extra = n % worlds;
+    return Array.from({ length: worlds }, (_, i) => {
+      const count = base + (i < extra ? 1 : 0);
+      return { name: i === worlds - 1 ? CASTLE : WORLD_NAMES[i], count, boss: Math.min(3, count) };
+    });
+  }
+  function forkSeconds(combo, slow = false) {
+    return Math.max(5, 8 - 0.5 * combo) + (slow ? 3 : 0);
+  }
+  function createRun(questions, opts = {}) {
+    var _a;
+    const rand = opts.rand || Math.random;
+    const worlds = planWorlds(questions.length);
+    const startOf = [];
+    worlds.reduce((at, w, i) => {
+      startOf[i] = at;
+      return at + w.count;
+    }, 0);
+    const startHearts = (_a = opts.hearts) != null ? _a : 3;
+    let idx = 0, hearts = startHearts, combo = 0, gap = GAP_MAX, correct = 0, rescued = 0;
+    let shield = false, slowNext = false, fiftyNext = false, over = false;
+    let hidden = [];
+    const boss = worlds.map(() => ({ right: 0 }));
+    const rescuedAt = [];
+    const worldOf = (i) => {
+      let w = 0;
+      while (w + 1 < worlds.length && i >= startOf[w + 1]) w++;
+      return w;
+    };
+    const inBoss = (i) => {
+      const w = worldOf(i);
+      return i - startOf[w] >= worlds[w].count - worlds[w].boss;
+    };
+    function enter() {
+      hidden = [];
+      if (fiftyNext && idx < questions.length) {
+        fiftyNext = false;
+        const wrong = questions[idx].choices.map((c) => c.key).filter((k) => k !== questions[idx].answer);
+        while (hidden.length < 2 && wrong.length) hidden.push(wrong.splice(Math.floor(rand() * wrong.length), 1)[0]);
+      }
+    }
+    return {
+      current() {
+        if (over || idx >= questions.length) return null;
+        const w = worldOf(idx), isBoss = inBoss(idx);
+        return { q: questions[idx], world: w, inBoss: isBoss, boss: isBoss ? { hits: boss[w].right, total: worlds[w].boss } : null, hidden, slow: slowNext };
+      },
+      answer(key) {
+        const cur = this.current();
+        if (!cur || key !== null && !KEYS.includes(key)) return { kind: "ignored" };
+        let kind, shielded = false, award = null, caught = false, worldDone = null;
+        if (key === cur.q.answer) {
+          kind = "ok";
+          combo++;
+          correct++;
+          gap = Math.min(GAP_MAX, gap + 0.5);
+          if (cur.inBoss) boss[cur.world].right++;
+          if (combo === 3 && !shield) {
+            shield = true;
+            award = "shield";
+          } else if (combo === 5) {
+            slowNext = true;
+            award = "slow";
+          } else if (combo === 7) {
+            fiftyNext = true;
+            award = "fifty";
+          }
+        } else if (key === null) {
+          kind = "silent";
+          combo = 0;
+          gap -= 0.5;
+        } else {
+          kind = "wrong";
+          combo = 0;
+          if (shield) {
+            shield = false;
+            shielded = true;
+          } else gap -= 1;
+        }
+        if (cur.slow) slowNext = false;
+        if (gap <= 0) {
+          caught = true;
+          hearts--;
+          gap = GAP_MAX;
+        }
+        if (hearts <= 0) over = true;
+        const w = worlds[cur.world];
+        if (idx === startOf[cur.world] + w.count - 1) {
+          const rescuedIt = boss[cur.world].right >= Math.ceil(w.boss * 2 / 3);
+          if (rescuedIt) {
+            rescued++;
+            rescuedAt[cur.world] = true;
+          }
+          worldDone = { index: cur.world, rescued: rescuedIt, last: cur.world === worlds.length - 1 };
+        }
+        idx++;
+        enter();
+        return { kind, shielded, hearts, combo, gap, award, caught, worldDone, over };
+      },
+      nextWorld() {
+        return worldOf(Math.min(idx + 1, Math.max(0, questions.length - 1)));
+      },
+      heal() {
+        if (hearts > 0 && hearts < startHearts) hearts++;
+        return hearts;
+      },
+      summary() {
+        const last2 = worlds.length - 1;
+        const princess = last2 >= 0 && !!rescuedAt[last2];
+        return { correct, total: questions.length, hearts, rescued, worlds: worlds.length, princess, keys: rescued - (princess ? 1 : 0) };
+      }
+    };
+  }
+
+  // src/bridge.js
+  var ABCD = "ABCD";
+  function filterPlayable(questions) {
+    const playable = (questions || []).filter((q) => q && q.type === "single" && Array.isArray(q.choices) && q.choices.map((c) => c.key).join("") === ABCD);
+    return { playable, skipped: (questions || []).length - playable.length };
+  }
+  function connect(win, hooks) {
+    let finished = false;
+    function finishOnce(summary) {
+      if (finished) return;
+      finished = true;
+      win.parent.postMessage({ type: "finish", correct: summary.correct, total: summary.total }, "*");
+    }
+    win.addEventListener("message", (e) => {
+      const d = e && e.data;
+      if (!d || typeof d !== "object" || e.source !== win.parent) return;
+      if (d.type === "camera.init") {
+        const { playable, skipped } = filterPlayable(d.questions);
+        const run = createRun(playable);
+        finished = false;
+        hooks.onInit(run, { skipped, locale: d.locale === "en" ? "en" : "vi", source: d.source === "mic" ? "mic" : "camera" });
+        if (playable.length === 0) finishOnce(run.summary());
+      } else if (d.type === "camera.result") hooks.onResult(d.input);
+      else if (d.type === "camera.status") hooks.onStatus(d.state, d.source);
+      else if (d.type === "camera.frame" && hooks.onFrame) hooks.onFrame(d.scores || {});
+    });
+    win.parent.postMessage({ type: "ready" }, "*");
+    return { send: (m) => win.parent.postMessage(m, "*"), finishOnce };
+  }
+
+  // src/story.js
+  var INTRO = [
+    "Vua B\xF3ng T\u1ED1i \u0111\xE3 b\u1EAFt C\xF4ng ch\xFAa M\xE2y v\xE0 nh\u1ED1t trong l\xE2u \u0111\xE0i.",
+    "Th\u1EBF gi\u1EDBi m\u1EA5t h\u1EBFt m\xE0u s\u1EAFc.",
+    "Hi\u1EC7p s\u0129 Bi l\xEAn \u0111\u01B0\u1EDDng! Tr\u1EA3 l\u1EDDi \u0111\xFAng \u0111\u1EC3 v\u01B0\u1EE3t qua m\u1ECDi th\u1EED th\xE1ch."
+  ];
+  var ENDING_WIN = ["C\xF4ng ch\xFAa M\xE2y \u0111\u01B0\u1EE3c c\u1EE9u!", "Th\u1EBF gi\u1EDBi l\xEAn m\xE0u tr\u1EDF l\u1EA1i."];
+  var ENDING_LOSE = ["C\xF4ng ch\xFAa v\u1EABn \u0111ang ch\u1EDD.", "H\xE3y th\u1EED l\u1EA1i nh\xE9!"];
+  var keyLine = (name) => `Bi l\u1EA5y \u0111\u01B0\u1EE3c Ch\xECa kh\xF3a ${name}!`;
+  var EN_WORLD = { "R\u1EEBng": "Forest", "Bi\u1EC3n": "Sea", "Sa m\u1EA1c": "Desert", "L\xE2u \u0111\xE0i": "Castle" };
+  var EN = {
+    intro: ["The Dark King has captured Princess M\xE2y and locked her in his castle.", "The world has lost its colours.", "Knight Bi sets off! Answer right to get past every challenge."],
+    win: ["Princess M\xE2y is free!", "The colours are back."],
+    lose: ["The princess is still waiting.", "Try again!"],
+    keyLine: (name) => `Bi found the ${EN_WORLD[name] || name} Key!`
+  };
+  var VI = { intro: INTRO, win: ENDING_WIN, lose: ENDING_LOSE, keyLine };
+  var forLocale = (locale) => locale === "en" ? EN : VI;
+
+  // src/ui.js
+  var KEYS2 = ["A", "B", "C", "D"];
+  var SLOTS = [["shield", "\u{1F6E1}", "Khi\xEAn"], ["slow", "\u23F3", "Ch\u1EADm"], ["fifty", "\u{1F52E}", "50:50"]];
+  var MAX_HEARTS = 3;
+  var STATUS_TEXT = {
+    loading: "\u0110ang b\u1EADt micro\u2026",
+    denied: "Ch\u01B0a cho ph\xE9p micro. H\xE3y b\u1EA5m Cho ph\xE9p tr\xEAn tr\xECnh duy\u1EC7t.",
+    "no-camera": "Kh\xF4ng t\xECm th\u1EA5y micro.",
+    "model-failed": "Kh\xF4ng t\u1EA3i \u0111\u01B0\u1EE3c m\xF4 h\xECnh. H\xE3y t\u1EA3i l\u1EA1i trang.",
+    off: "Micro \u0111\xE3 t\u1EAFt. B\u1EADt l\u1EA1i \u0111\u1EC3 ch\u01A1i ti\u1EBFp.",
+    busy: "Micro \u0111ang \u0111\u01B0\u1EE3c d\xF9ng \u1EDF n\u01A1i kh\xE1c."
+  };
+  function createUi(root2, locale = "vi") {
+    const doc = root2.ownerDocument;
+    const mk = (cls, text) => {
+      const n = doc.createElement("div");
+      if (cls) n.setAttribute("class", cls);
+      if (text != null) n.textContent = text;
+      return n;
+    };
+    const hide = (n) => n.setAttribute("hidden", "");
+    const show = (n) => n.removeAttribute("hidden");
+    const hud = mk("hud");
+    const heartsRow = mk("hearts"), level = mk("level", "0"), xp = mk("xp"), xpFill = mk("fill"), hotbar = mk("hotbar");
+    xp.appendChild(xpFill);
+    [heartsRow, level, xp, hotbar].forEach((n) => hud.appendChild(n));
+    const bossbar = mk("bossbar");
+    const bossName = mk("name"), bossBarBg = mk("bar"), bossFill = mk("fill");
+    bossBarBg.appendChild(bossFill);
+    bossbar.appendChild(bossName);
+    bossbar.appendChild(bossBarBg);
+    hide(bossbar);
+    const qbox = mk("qbox");
+    const answers = mk("answers");
+    const rows = KEYS2.map((k) => {
+      const r = mk("ans");
+      r.setAttribute("data-key", k);
+      answers.appendChild(r);
+      return r;
+    });
+    const board = mk("top");
+    board.appendChild(qbox);
+    board.appendChild(answers);
+    const vu = mk("vu");
+    hide(vu);
+    const vuBars = KEYS2.map((k) => {
+      const b = mk("vubar");
+      b.setAttribute("data-key", k);
+      b.innerHTML = '<i style="height:0%"></i><span>' + k + "</span>";
+      vu.appendChild(b);
+      return b;
+    });
+    const heardBox = mk("heard");
+    const msg = mk("msg");
+    msg.setAttribute("role", "status");
+    msg.setAttribute("aria-live", "polite");
+    hide(msg);
+    const banner = mk("banner");
+    hide(banner);
+    const storyBox = mk("story");
+    hide(storyBox);
+    const end = mk("end");
+    hide(end);
+    [board, bossbar, hud, vu, heardBox, banner, msg, storyBox, end].forEach((n) => root2.appendChild(n));
+    let active = null;
+    const stopStory = () => {
+      if (active) {
+        active.stop();
+        active = null;
+      }
+    };
+    const row = (k) => rows[KEYS2.indexOf(k)];
+    const texts = () => forLocale(locale);
+    return {
+      setLocale(l) {
+        locale = l === "en" ? "en" : "vi";
+      },
+      /** 'mic' shows the level meter; 'camera' (an image or pose model) leaves the camera picture the page draws. */
+      setSource(kind) {
+        if (kind === "mic") show(vu);
+        else hide(vu);
+      },
+      /** Back to an empty board: a new run must never play under an old ending or story. */
+      reset() {
+        stopStory();
+        qbox.innerHTML = "";
+        rows.forEach((r) => {
+          r.setAttribute("class", "ans");
+          r.innerHTML = "";
+        });
+        heardBox.textContent = "";
+        xpFill.setAttribute("style", "width:0%");
+        hide(end);
+        hide(storyBox);
+        hide(banner);
+        hide(msg);
+        hide(bossbar);
+        hide(vu);
+      },
+      showQuestion(html, choices, hidden = []) {
+        qbox.innerHTML = html;
+        rows.forEach((r, i) => {
+          const c = choices.find((x) => x.key === KEYS2[i]);
+          r.setAttribute("class", "ans" + (hidden.includes(KEYS2[i]) ? " gone" : ""));
+          r.innerHTML = '<span class="badge">' + KEYS2[i] + '</span><span class="choice">' + (c ? c.html : "") + '</span><span class="meter"><i style="width:0%"></i></span>';
+        });
+        heardBox.textContent = "";
+        xpFill.setAttribute("style", "width:0%");
+      },
+      /** What the audio model hears right now: a bar on each answer, and the one it is sure of (>= 50%) is marked. null clears it. */
+      live(scores) {
+        let best = null, top = 0.5;
+        KEYS2.forEach((k) => {
+          const v = scores && scores[k] > 0 ? Math.min(1, scores[k]) : 0;
+          if (v >= top) {
+            best = k;
+            top = v;
+          }
+        });
+        rows.forEach((r, i) => {
+          const v = scores && scores[KEYS2[i]] > 0 ? Math.min(1, scores[KEYS2[i]]) : 0;
+          const bar = r.querySelector(".meter i");
+          if (bar) bar.setAttribute("style", "width:" + Math.round(v * 100) + "%");
+          if (KEYS2[i] === best) r.classList.add("hearing");
+          else r.classList.remove("hearing");
+          vuBars[i].querySelector("i").setAttribute("style", "height:" + Math.round(v * 100) + "%");
+        });
+      },
+      /** fraction = time left; the bar fills as Bi gets closer to the cliff. */
+      timer(fraction) {
+        xpFill.setAttribute("style", "width:" + Math.round((1 - Math.max(0, Math.min(1, fraction))) * 100) + "%");
+      },
+      heard(key) {
+        rows.forEach((r) => r.classList.remove("picked"));
+        if (!key) {
+          heardBox.textContent = "";
+          return;
+        }
+        row(key).classList.add("picked");
+        heardBox.textContent = (locale === "en" ? "You said: " : "B\u1EA1n n\xF3i: ") + key;
+      },
+      reveal(correct, chosen) {
+        row(correct).classList.add("right");
+        if (chosen && chosen !== correct) row(chosen).classList.add("wrong");
+      },
+      hud({ hearts, combo, coins, power, keys = 0 }) {
+        heartsRow.textContent = "";
+        const total = Math.max(MAX_HEARTS, hearts);
+        for (let i = 0; i < total; i++) heartsRow.appendChild(mk(i < hearts ? "heart full" : "heart empty", i < hearts ? "\u2665" : "\u2661"));
+        level.textContent = String(combo);
+        hotbar.textContent = "";
+        const slot = (id, icon, label, selected) => {
+          const s = mk("slot" + (selected ? " selected" : ""));
+          s.setAttribute("data-slot", id);
+          s.appendChild(mk("icon", icon));
+          s.appendChild(mk("label", label));
+          hotbar.appendChild(s);
+        };
+        SLOTS.forEach(([id, icon, label]) => slot(id, icon, label, power === id));
+        slot("keys", "\u{1F5DD}", String(keys), false);
+        slot("coins", "\u25C6", String(coins), false);
+      },
+      boss(info) {
+        if (!info) {
+          hide(bossbar);
+          return;
+        }
+        bossName.textContent = info.name;
+        bossFill.setAttribute("style", "width:" + Math.round(Math.max(0, Math.min(1, info.hp)) * 100) + "%");
+        show(bossbar);
+      },
+      message(text) {
+        if (text) {
+          msg.textContent = text;
+          show(msg);
+        } else {
+          msg.textContent = "";
+          hide(msg);
+        }
+      },
+      /** An achievement toast: an icon and a line of text. */
+      banner(text, icon = "\u{1F3C6}") {
+        if (!text) {
+          banner.textContent = "";
+          hide(banner);
+          return;
+        }
+        banner.textContent = "";
+        banner.appendChild(mk("icon", icon));
+        const t = mk("txt");
+        t.appendChild(mk("title", locale === "en" ? "Achievement!" : "Th\xE0nh t\u1EF1u!"));
+        t.appendChild(mk("line", text));
+        banner.appendChild(t);
+        show(banner);
+      },
+      story(lines, done) {
+        stopStory();
+        let i = 0, finished = false;
+        const line = mk("story-line", lines[0]);
+        const next = doc.createElement("button");
+        next.setAttribute("type", "button");
+        next.setAttribute("class", "story-next");
+        next.textContent = locale === "en" ? "Next" : "Ti\u1EBFp";
+        storyBox.textContent = "";
+        storyBox.appendChild(line);
+        storyBox.appendChild(next);
+        show(storyBox);
+        const onKey = (e) => {
+          if (e.target && e.target.tagName === "BUTTON") return;
+          if (e.key === "Enter") advance();
+        };
+        function advance() {
+          if (finished) return;
+          i++;
+          if (i < lines.length) {
+            line.textContent = lines[i];
+            return;
+          }
+          finished = true;
+          hide(storyBox);
+          doc.removeEventListener("keydown", onKey);
+          if (active) active = null;
+          done();
+        }
+        next.addEventListener("click", advance);
+        doc.addEventListener("keydown", onKey);
+        active = { stop() {
+          finished = true;
+          doc.removeEventListener("keydown", onKey);
+        } };
+        return { advance };
+      },
+      ending(s, win) {
+        const t = texts();
+        end.textContent = "";
+        end.setAttribute("class", "end " + (win ? "win" : "lose"));
+        (win ? t.win : t.lose).forEach((l, i) => end.appendChild(mk(i ? "end-sub" : "end-title", l)));
+        end.appendChild(mk("end-score", (locale === "en" ? "Right " : "\u0110\xFAng ") + s.correct + "/" + s.total + (locale === "en" ? " questions" : " c\xE2u") + " \xB7 \u{1F5DD} " + s.keys + " \xB7 " + s.rescued + "/" + s.worlds));
+        show(end);
+      }
+    };
+  }
+
+  // src/level.js
+  var STRETCH = 36;
+  var EMPTY_HEAD = 6;
+  var FAR = 12;
+  var REBASE = STRETCH + FAR;
+  var STONES = [
+    { key: "A", x: 3, h: 2 },
+    { key: "B", x: 5, h: 4 },
+    { key: "C", x: 7, h: 3 },
+    { key: "D", x: 9, h: 5 }
+  ];
+  var KINDS = [["slime", "bat"], ["slime", "bat"], ["spiky", "bat"], ["slime", "spiky", "bat"]];
+  function rng(seed) {
+    let a = seed >>> 0 || 1;
+    return () => {
+      a = a + 1831565813 >>> 0;
+      let t = a;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function buildStretch(seed, world) {
+    const r = rng(seed * 31 + world * 7919 + 1);
+    const int = (a, b) => a + Math.floor(r() * (b - a + 1));
+    const lo = EMPTY_HEAD + 1, hi = STRETCH - 2;
+    const steps = [];
+    for (let i = 0, n = int(1, 4); i < n; i++) steps.push({ x: int(lo, hi - 3), w: int(1, 2), h: 1 });
+    const platforms = [];
+    for (let i = 0, n = int(2, 3); i < n; i++) platforms.push({ x: int(lo + i * 10, Math.min(hi - 3, lo + i * 10 + 4)), w: 3, y: int(3, 4) });
+    const coins = [];
+    for (const p of platforms) for (let k = 0; k < 3; k++) coins.push({ x: p.x + k + 0.5, y: p.y + 1 });
+    for (let i = 0, n = int(4, 8); i < n; i++) {
+      const x = lo + i * 3.6 + r() * 1.5;
+      if (!steps.some((s) => x >= s.x && x < s.x + s.w)) coins.push({ x, y: 1.2 });
+    }
+    const seen = /* @__PURE__ */ new Set();
+    const unique = coins.filter((c) => {
+      const k = c.x + "," + c.y;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    while (unique.length < 8) unique.push({ x: lo + 0.25 + unique.length * 3, y: 1.2 });
+    const kinds = KINDS[world % KINDS.length];
+    const enemies = [];
+    for (let i = 0, n = int(2, 5); i < n; i++) {
+      const kind = kinds[int(0, kinds.length - 1)];
+      const x0 = int(lo, hi - 4);
+      enemies.push({ id: "e" + i, kind, x0, x1: x0 + 3, y: kind === "bat" ? 3 : 0, speed: 0.4 + r() * 0.4 });
+    }
+    return { ground: [{ x0: 0, x1: STRETCH }], steps, platforms, coins: unique, enemies };
+  }
+  function arc(from, to, t) {
+    const apex = Math.max(from.y, to.y) + 2.6 + 0.3 * Math.abs(to.x - from.x);
+    const mid = (from.y + to.y) / 2;
+    return {
+      x: from.x + (to.x - from.x) * t,
+      y: from.y + (to.y - from.y) * t + 4 * (apex - mid) * t * (1 - t)
+    };
+  }
+
+  // src/render.js
+  var tileFor = (w, h) => Math.min(h / 15, w / 14);
+  var WORLDS = [
+    { sky: ["#6fcf7f", "#d8f5c9"], hill: "#2e7d32", ground: "#6d4c41", grass: "#43a047", hazard: "\u{1FAB5}" },
+    { sky: ["#4fc3f7", "#e1f5fe"], hill: "#0277bd", ground: "#8d6e63", grass: "#26a69a", hazard: "\u{1F30A}" },
+    { sky: ["#ffb74d", "#ffe0b2"], hill: "#ef6c00", ground: "#a1887f", grass: "#d4a037", hazard: "\u{1F525}" },
+    { sky: ["#9575cd", "#d1c4e9"], hill: "#4527a0", ground: "#4e342e", grass: "#6a1b9a", hazard: "\u{1F47B}" }
+  ];
+  var GRAY = { sky: ["#4a4f5c", "#7a7f8c"], hill: "#3a3e48", ground: "#454545", grass: "#5a5a5a" };
+  var BOSS = { forest: "\u{1F417}", sea: "\u{1F419}", desert: "\u{1F982}", king: "\u{1F479}" };
+  var ICON = { shield: "\u{1F6E1}", slow: "\u23F3", fifty: "\u{1F52E}" };
+  var hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  var toHex = (rgb) => "#" + rgb.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
+  var mixHex = (a, b, k) => {
+    const x = hex(a), y = hex(b);
+    return toHex(x.map((v, i) => v + (y[i] - v) * k));
+  };
+  var mix = mixHex;
+  var shade = (c, f) => mixHex(c, f > 0 ? "#ffffff" : "#000000", Math.abs(f));
+  var hash = (a, b) => {
+    let x = Math.imul(a * 374761393 + b * 668265263 + 1, 1274126177);
+    x = (x ^ x >>> 13) >>> 0;
+    return x % 1e3 / 1e3;
+  };
+  function createRenderer(canvas2) {
+    const ctx = canvas2.getContext("2d");
+    let w = 0, h = 0, t = 0, seg = null, ghost = null, lastBoss = null, dist = 0, lastFork = { crumbled: null, hidden: [] }, prevFork = lastFork, lastChallenge = null, prevChallenge = null;
+    let shownWorld = null, prevWorld = 0, blend = 1, shownColor = null;
+    function resize() {
+      const dpr = globalThis.devicePixelRatio || 1;
+      w = canvas2.clientWidth;
+      h = canvas2.clientHeight;
+      canvas2.width = Math.round(w * dpr);
+      canvas2.height = Math.round(h * dpr);
+      if (ctx.setTransform) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function frame(s, dt) {
+      if (!w || w !== canvas2.clientWidth || h !== canvas2.clientHeight) resize();
+      t += dt;
+      const T = tileFor(w, h), gy = h * 0.9, viewW = w / T;
+      const hero = s.sim;
+      if (shownWorld == null) {
+        shownWorld = s.world;
+        shownColor = s.color;
+      }
+      if (s.world !== shownWorld) {
+        prevWorld = shownWorld;
+        shownWorld = s.world;
+        blend = 0;
+      }
+      blend = Math.min(1, blend + dt / 5);
+      shownColor += (s.color - shownColor) * Math.min(1, dt * 1.5);
+      const c = shownColor;
+      const cur = WORLDS[s.world % WORLDS.length], old = WORLDS[prevWorld % WORLDS.length];
+      const pal = {
+        sky: [mixHex(old.sky[0], cur.sky[0], blend), mixHex(old.sky[1], cur.sky[1], blend)],
+        hill: mixHex(old.hill, cur.hill, blend),
+        ground: mixHex(old.ground, cur.ground, blend),
+        grass: mixHex(old.grass, cur.grass, blend),
+        hazard: cur.hazard
+      };
+      const col = (k) => mix(GRAY[k], pal[k], c);
+      const X = (wx) => (wx - cam) * T, Y = (wy) => gy - wy * T;
+      const cam = hero.x - viewW * 0.25;
+      if (seg != null && s.segment !== seg) {
+        ghost = lastBoss ? { kind: lastBoss, t: 0 } : null;
+        dist += REBASE;
+        prevFork = lastFork;
+        prevChallenge = lastChallenge;
+      }
+      seg = s.segment;
+      lastBoss = s.boss ? s.boss.kind : null;
+      lastFork = { crumbled: hero.crumbled, hidden: s.hidden };
+      lastChallenge = s.challenge || null;
+      const gx = (wx) => wx + dist;
+      const colHex = (k) => mix(GRAY[k], pal[k], c);
+      for (let i = 0; i < 5; i++) {
+        ctx.fillStyle = mix(mix(GRAY.sky[0], pal.sky[0], c), mix(GRAY.sky[1], pal.sky[1], c), i / 4);
+        ctx.fillRect(0, gy * i / 5, w, gy / 5 + 1);
+      }
+      const stepW = Math.max(4, T * 0.5);
+      for (let layer = 0; layer < 2; layer++) {
+        ctx.fillStyle = mix(GRAY.hill, pal.hill, c * (layer ? 1 : 0.7));
+        ctx.globalAlpha = layer ? 1 : 0.5;
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        for (let px = 0; px <= w; px += stepW) {
+          const u2 = Math.floor((px + (cam + dist) * T * (0.2 + layer * 0.15)) / stepW);
+          const hh = Math.round((1.4 + layer * 0.8 + Math.sin(u2 * 0.33 + layer * 2) * (0.6 + layer * 0.3)) * 2) / 2;
+          ctx.lineTo(px, gy - T * hh);
+          ctx.lineTo(px + stepW, gy - T * hh);
+        }
+        ctx.lineTo(w, gy);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      const dirt = (px, py, bw, bh, base, key, row, grass) => {
+        ctx.fillStyle = base;
+        ctx.fillRect(px, py, bw, bh);
+        for (let n = 0; n < 4; n++) {
+          const r = hash(key * 7 + n, row);
+          if (r < 0.4) continue;
+          ctx.fillStyle = shade(base, r > 0.7 ? 0.12 : -0.14);
+          ctx.fillRect(px + Math.floor(hash(key, row * 5 + n) * 3) * (bw / 4), py + Math.floor(hash(row, key * 3 + n) * 3) * (bh / 4), bw / 4, bh / 4);
+        }
+        if (grass) {
+          ctx.fillStyle = grass;
+          ctx.fillRect(px, py, bw, Math.max(3, Math.round(bh * 0.3)));
+          ctx.fillStyle = shade(grass, -0.15);
+          ctx.fillRect(px + Math.floor(hash(key, 3) * 3) * (bw / 4), py, bw / 4, Math.max(2, Math.round(bh * 0.14)));
+        }
+        ctx.fillStyle = shade(base, -0.28);
+        ctx.fillRect(px + bw - 1, py, 1, bh);
+        ctx.fillRect(px, py + bh - 1, bw, 1);
+      };
+      const groundAt = (i) => {
+        const g = gx(i);
+        if (g < 0) return true;
+        return (g % REBASE + REBASE) % REBASE < STRETCH;
+      };
+      const i0 = Math.floor(cam) - 2, i1 = Math.ceil(cam + viewW) + 2;
+      for (let i = i0 - 3; i <= i1; i++) {
+        if (!(groundAt(i - 2) && groundAt(i + 3)) || hash(gx(i), 99) < 0.9) continue;
+        const tx = Math.round(X(i)), trunk = mix(GRAY.ground, "#6b4a2b", c), leaf = shade(colHex("grass"), -0.18);
+        ctx.fillStyle = trunk;
+        ctx.fillRect(tx, Math.round(gy - T * 2.4), Math.round(T * 0.55), Math.round(T * 2.4));
+        ctx.fillStyle = shade(trunk, -0.25);
+        ctx.fillRect(tx + Math.round(T * 0.4), Math.round(gy - T * 2.4), Math.round(T * 0.15), Math.round(T * 2.4));
+        for (let r = 0; r < 2; r++) for (let q = 0; q < 3 + r * 2; q++) dirt(Math.round(tx - T * (0.5 + r) + q * T * 0.55 + (r ? 0 : T * 0.5)), Math.round(gy - T * (3.3 - r * 0.7)), Math.round(T * 0.55), Math.round(T * 0.7), leaf, gx(i) * 5 + q, r, null);
+      }
+      const rows = Math.ceil((h - gy) / T) + 1;
+      for (let i = i0; i <= i1; i++) {
+        const bx = Math.round(X(i)), bw = Math.round(X(i + 1)) - bx;
+        if (groundAt(i)) for (let r = 0; r < rows; r++) dirt(bx, Math.round(gy + r * T), bw, Math.round(T), r ? colHex("ground") : colHex("ground"), gx(i), r, r ? null : colHex("grass"));
+        else {
+          ctx.fillStyle = "#16161f";
+          ctx.fillRect(bx, gy, bw + 1, T);
+          ctx.fillStyle = "#0a0a10";
+          ctx.fillRect(bx, gy + T, bw + 1, h - gy);
+        }
+      }
+      const furniture = (st, off, live) => {
+        for (const p of st.steps) for (let k = 0; k < p.w; k++) dirt(Math.round(X(off + p.x + k)), Math.round(Y(p.h)), Math.round(T), Math.round(T * p.h), colHex("ground"), gx(off + p.x + k) + 31, 1, colHex("grass"));
+        for (const p of st.platforms) for (let k = 0; k < p.w; k++) dirt(Math.round(X(off + p.x + k)), Math.round(Y(p.y)), Math.round(T), Math.round(T * 0.6), colHex("ground"), gx(off + p.x + k) + 57, 2, colHex("grass"));
+        st.coins.forEach((co, i) => {
+          if (live && hero.collected.has(i)) return;
+          const sx = X(off + co.x), sy = Y(co.y), cw = Math.max(T * 0.07, T * 0.3 * Math.abs(Math.cos(t * 3 + i))), ch = T * 0.34;
+          ctx.fillStyle = "#c79a00";
+          ctx.fillRect(sx - cw / 2 - 1, sy - ch / 2 - 1, cw + 2, ch + 2);
+          ctx.fillStyle = "#ffd54f";
+          ctx.fillRect(sx - cw / 2, sy - ch / 2, cw, ch);
+          ctx.fillStyle = "#fff3b0";
+          ctx.fillRect(sx - cw / 2, sy - ch / 2, Math.max(1, cw * 0.35), ch * 0.5);
+        });
+      };
+      furniture(s.stretch, 0, true);
+      if (s.nextStretch) furniture(s.nextStretch, REBASE, false);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      const drawEnemy = (e, wx) => {
+        const sx = X(wx), sy = Y(e.y);
+        if (e.kind === "slime") {
+          const bh = T * (e.squashed ? 0.28 : 0.7), bw = T * 0.8;
+          ctx.fillStyle = "#4d7a24";
+          ctx.fillRect(sx - bw / 2 - 2, sy - bh - 2, bw + 4, bh + 2);
+          ctx.fillStyle = "#7cb342";
+          ctx.fillRect(sx - bw / 2, sy - bh, bw, bh);
+          if (!e.squashed) {
+            ctx.fillStyle = "#10200a";
+            ctx.fillRect(sx - T * 0.25, sy - T * 0.5, T * 0.13, T * 0.13);
+            ctx.fillRect(sx + T * 0.12, sy - T * 0.5, T * 0.13, T * 0.13);
+            ctx.fillRect(sx - T * 0.1, sy - T * 0.25, T * 0.2, T * 0.08);
+          }
+        } else if (e.kind === "spiky") {
+          ctx.fillStyle = e.squashed ? "#5a5a5a" : "#8d8d8d";
+          ctx.fillRect(sx - T * 0.4, sy - T * (e.squashed ? 0.14 : 0.35), T * 0.8, T * (e.squashed ? 0.14 : 0.35));
+          if (!e.squashed) for (let i = 0; i < 4; i++) {
+            ctx.fillStyle = "#c9c9c9";
+            ctx.fillRect(sx - T * 0.38 + i * T * 0.2, sy - T * 0.62, T * 0.14, T * 0.27);
+            ctx.fillRect(sx - T * 0.35 + i * T * 0.2, sy - T * 0.78, T * 0.08, T * 0.16);
+          }
+        } else {
+          const flap = Math.sin(t * 14 + e.x) * T * 0.16;
+          ctx.fillStyle = "#4a2c6b";
+          ctx.fillRect(sx - T * 0.16, sy - T * 0.14, T * 0.32, T * 0.26);
+          ctx.fillRect(sx - T * 0.55, sy - T * 0.1 - flap, T * 0.39, T * 0.1);
+          ctx.fillRect(sx + T * 0.16, sy - T * 0.1 - flap, T * 0.39, T * 0.1);
+          ctx.fillStyle = "#ff5252";
+          ctx.fillRect(sx - T * 0.1, sy - T * 0.08, T * 0.06, T * 0.06);
+          ctx.fillRect(sx + T * 0.04, sy - T * 0.08, T * 0.06, T * 0.06);
+        }
+      };
+      for (const e of hero.enemies) drawEnemy(e, e.x);
+      if (s.nextStretch) for (const e of s.nextStretch.enemies) drawEnemy({ ...e, squashed: false }, REBASE + e.x0);
+      const heroOn = hero.phase === "jump2";
+      const drawStones = (off, fork, live) => {
+        for (const st of STONES) {
+          const hidden = fork.hidden.includes(st.key), broken = fork.crumbled === st.key, ruin = hidden || broken;
+          const sx = X(off + STRETCH + st.x - 0.8), top = ruin ? Y(st.h * 0.35) : Y(st.h), cell = T * 0.8;
+          const cobble = ruin ? "#5f5a52" : "#8b8b8b";
+          for (let r = 0, y = top; y < h; r++, y += cell) for (let q = 0; q < 2; q++) dirt(Math.round(sx + q * cell), Math.round(y), Math.round(cell), Math.round(cell), cobble, gx(off + st.x) * 3 + q, r, null);
+          if (!ruin) {
+            ctx.fillStyle = "#c6c6c6";
+            ctx.fillRect(sx, top, T * 1.6, Math.max(3, T * 0.12));
+          }
+          if (ruin) {
+            ctx.font = Math.round(T * 0.9) + "px serif";
+            ctx.fillText(pal.hazard, sx + T * 0.8, top);
+          }
+          ctx.globalAlpha = hidden ? 0.3 : 1;
+          ctx.fillStyle = "#c6c6c6";
+          ctx.fillRect(sx + T * 0.8 - T * 0.5, Y(st.h) + T * 0.18, T, T * 0.94);
+          ctx.fillStyle = "#1b1b1b";
+          ctx.fillRect(sx + T * 0.8 - T * 0.45, Y(st.h) + T * 0.23, T * 0.9, T * 0.84);
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold " + Math.round(T * 0.66) + "px ui-monospace, monospace";
+          ctx.textBaseline = "middle";
+          ctx.fillText(st.key, sx + T * 0.8, Y(st.h) + T * 0.67);
+          ctx.textBaseline = "alphabetic";
+          ctx.globalAlpha = 1;
+          if (live && s.heard === st.key) {
+            ctx.fillStyle = "#ffd54f";
+            ctx.font = Math.round(T * 0.8) + "px system-ui";
+            ctx.fillText("\u25BC", sx + T * 0.8, Y(st.h) - T * (0.6 + 0.2 * Math.sin(t * 8)));
+          }
+        }
+      };
+      if (s.segment > 1) drawStones(-REBASE, prevFork, false);
+      drawStones(0, { crumbled: hero.crumbled, hidden: s.hidden }, true);
+      const wrap = (txt, maxW, maxLines) => {
+        const words = String(txt).split(/\s+/).filter(Boolean), out = [];
+        let line = "";
+        for (const wd of words) {
+          const next = line ? line + " " + wd : wd;
+          if (ctx.measureText(next).width <= maxW || !line) line = next;
+          else {
+            out.push(line);
+            line = wd;
+          }
+        }
+        if (line) out.push(line);
+        if (out.length > maxLines) {
+          out.length = maxLines;
+          out[maxLines - 1] = out[maxLines - 1].replace(/.{0,2}$/, "") + "\u2026";
+        }
+        return out;
+      };
+      const drawSigns = (off, ch, fork) => {
+        const sf = Math.max(10, Math.round(T * 0.26));
+        ctx.font = sf + "px system-ui";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        for (const st of STONES) {
+          if (fork.hidden.includes(st.key) || fork.crumbled === st.key) continue;
+          const lines = wrap(ch.choices[st.key] || "", T * 1.75, 3);
+          if (!lines.length) continue;
+          const bh = lines.length * sf * 1.2 + 8, cx = X(off + STRETCH + st.x), by = Y(st.h) - T * 0.25 - bh;
+          ctx.fillStyle = "rgba(255,255,255,.93)";
+          ctx.fillRect(cx - T * 0.95, by, T * 1.9, bh);
+          ctx.fillStyle = "#102a5c";
+          lines.forEach((l, i) => ctx.fillText(l, cx, by + 4 + sf * (i + 0.95) * 1.2));
+        }
+      };
+      if (T >= 36) {
+        if (s.segment > 1 && prevChallenge) drawSigns(-REBASE, prevChallenge, prevFork);
+        if (s.challenge && hero.x > STRETCH - 14) {
+          const f = Math.max(11, Math.round(T * 0.3));
+          ctx.font = f + "px system-ui";
+          const lines = wrap(s.challenge.question, T * 5.6, 4);
+          const bw = T * 6.2, bx = X(STRETCH - 7.4), bh = lines.length * f * 1.3 + 14, by = Y(1.2) - bh;
+          ctx.fillStyle = "#4e342e";
+          ctx.fillRect(bx + T * 0.4, by + bh, T * 0.2, gy - (by + bh));
+          ctx.fillRect(bx + bw - T * 0.6, by + bh, T * 0.2, gy - (by + bh));
+          ctx.fillStyle = "#6d4c41";
+          ctx.fillRect(bx, by, bw, bh);
+          ctx.fillStyle = "#fff";
+          ctx.textAlign = "center";
+          lines.forEach((l, i) => ctx.fillText(l, bx + bw / 2, by + 8 + f * (i + 1) * 1.3 - 4));
+          drawSigns(0, s.challenge, { crumbled: hero.crumbled, hidden: s.hidden });
+        }
+      }
+      if (hero.award && heroOn) {
+        ctx.font = Math.round(T * 0.9) + "px serif";
+        ctx.fillText(ICON[hero.award] || "\u{1F381}", X(hero.x), Y(hero.y + 2.4 + Math.sin(t * 5) * 0.2));
+      }
+      if (s.boss) {
+        const bx = X(REBASE + 2.5);
+        ctx.font = Math.round(T * 2.6) + "px serif";
+        ctx.fillText(BOSS[s.boss.kind] || "\u{1F479}", bx, Y(0) - Math.sin(t * 3) * 5);
+        if (s.boss.kind === "king") {
+          ctx.font = Math.round(T * 1.4) + "px serif";
+          ctx.fillText("\u{1F478}", X(REBASE + 6), Y(0));
+          ctx.fillText("\u{1F512}", X(REBASE + 6), Y(0));
+        }
+        if ((s.fx === "wrong" || s.fx === "silent") && s.fxT < 0.8) {
+          const u2 = s.fxT / 0.8;
+          ctx.fillStyle = "#ff7043";
+          ctx.fillRect(bx + (X(hero.x) - bx) * u2 - T * 0.18, Y(1.2 + Math.sin(u2 * Math.PI)) - T * 0.18, T * 0.36, T * 0.36);
+        }
+      } else if (s.items.princess) {
+        ctx.font = Math.round(T * 1.4) + "px serif";
+        ctx.fillText("\u{1F478}", X(REBASE + 4), Y(0));
+        ctx.fillText("\u2728", X(REBASE + 4.8), Y(1.6 + Math.sin(t * 4) * 0.2));
+      }
+      if (ghost) {
+        ghost.t += dt;
+        if (ghost.t > 1.5) ghost = null;
+        else {
+          ctx.globalAlpha = 1 - ghost.t / 1.5;
+          ctx.font = Math.round(T * 2.6) + "px serif";
+          ctx.fillText(BOSS[ghost.kind] || "\u{1F479}", X(2.5 + 9 * ghost.t), Y(0.5 + 6 * ghost.t - 4 * ghost.t * ghost.t));
+          ctx.globalAlpha = 1;
+        }
+      }
+      const hx = X(hero.x), hy = Y(hero.y), u = T, hurt = s.fx === "wrong" || s.fx === "silent";
+      const step = hero.phase === "walk" ? Math.sin(hero.x * 6) * u * 0.12 : 0;
+      if (hero.phase !== "fall" || hero.y > -8) {
+        const hurtNow = hurt && s.fxT < 0.6;
+        ctx.fillStyle = "#263238";
+        ctx.fillRect(hx - u * 0.26 + step, hy - u * 0.32, u * 0.24, u * 0.32);
+        ctx.fillRect(hx + u * 0.02 - step, hy - u * 0.32, u * 0.24, u * 0.32);
+        ctx.fillStyle = hurtNow ? "#d84f4f" : "#3f7fd8";
+        ctx.fillRect(hx - u * 0.28, hy - u * 0.84, u * 0.56, u * 0.54);
+        ctx.fillStyle = "#f1c9a5";
+        ctx.fillRect(hx - u * 0.42, hy - u * 0.82, u * 0.14, u * 0.42);
+        ctx.fillRect(hx + u * 0.28, hy - u * 0.82, u * 0.14, u * 0.42);
+        ctx.fillRect(hx - u * 0.25, hy - u * 1.32, u * 0.5, u * 0.48);
+        ctx.fillStyle = "#9aa7b0";
+        ctx.fillRect(hx - u * 0.28, hy - u * 1.38, u * 0.56, u * 0.16);
+        ctx.fillStyle = "#e53935";
+        ctx.fillRect(hx - u * 0.04, hy - u * 1.62, u * 0.1, u * 0.26);
+        ctx.fillStyle = "#1b1b1b";
+        ctx.fillRect(hx - u * 0.14, hy - u * 1.14, u * 0.08, u * 0.08);
+        ctx.fillRect(hx + u * 0.08, hy - u * 1.14, u * 0.08, u * 0.08);
+        ctx.fillStyle = "#e8eef2";
+        ctx.fillRect(hx + u * 0.42, hy - u * 1.12, u * 0.09, u * 0.7);
+        ctx.fillStyle = "#8a6a2a";
+        ctx.fillRect(hx + u * 0.36, hy - u * 0.5, u * 0.21, u * 0.07);
+        if (s.shield) {
+          ctx.strokeStyle = "rgba(120,200,255,.9)";
+          ctx.lineWidth = 3;
+          ctx.strokeRect(hx - u * 0.7, hy - u * 1.5, u * 1.4, u * 1.65);
+        }
+      }
+      if (s.items.key) {
+        ctx.font = Math.round(T * 0.9) + "px serif";
+        ctx.fillText("\u{1F5DD}", hx, hy - u * 1.9);
+      }
+      if (s.items.heart) {
+        ctx.font = Math.round(T * 0.9) + "px serif";
+        ctx.fillText("\u2764", hx + u * 0.9, hy - u * 1.6);
+      }
+      const sw = w * (0.03 + (1 - Math.max(0, Math.min(3, s.gap)) / 3) * 0.32);
+      const sg = ctx.createLinearGradient(0, 0, sw, 0);
+      sg.addColorStop(0, "rgba(8,6,20,.95)");
+      sg.addColorStop(1, "rgba(8,6,20,0)");
+      ctx.fillStyle = sg;
+      ctx.fillRect(0, 0, sw, h);
+      if (s.slow) {
+        ctx.fillStyle = "rgba(255,255,255,.15)";
+        ctx.fillRect(0, 0, w, h);
+      }
+      if (s.fx && s.fxT < 0.5) {
+        ctx.globalAlpha = 0.3 * (1 - s.fxT / 0.5);
+        ctx.fillStyle = s.fx === "ok" ? "#9cffb4" : "#ff5252";
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalAlpha = 1;
+      }
+    }
+    return { frame, resize, heroScreenX: () => w * 0.25 };
+  }
+
+  // src/sim.js
+  var TICK = 1 / 120;
+  var smooth = (u) => {
+    const c = Math.max(0, Math.min(1, u));
+    return c * c * (3 - 2 * c);
+  };
+  var tri = (u) => 1 - Math.abs(2 * (u - Math.floor(u)) - 1);
+  function createSim() {
+    let q = null, phase = "idle", clock = 0, acc = 0, bounceT = 9, v = 0, landed = false;
+    let x = 0, y = 0, res = null, stone = null, award = null, crumbled = null, pending = [];
+    let collected = /* @__PURE__ */ new Set(), squashed = /* @__PURE__ */ new Set(), arcCoins = /* @__PURE__ */ new Set();
+    const enemyX = (e) => e.x0 + (e.x1 - e.x0) * tri(clock * e.speed);
+    function baseY(px) {
+      let h = 0;
+      for (const s of q.stretch.steps) if (px >= s.x - 0.3 && px <= s.x + s.w + 0.3) h = Math.max(h, s.h);
+      for (const p of q.stretch.platforms) h = Math.max(h, p.y * smooth(px - (p.x - 1)) * smooth(p.x + p.w + 1 - px));
+      return h;
+    }
+    const bounce = () => bounceT < 0.3 ? 1.2 * Math.sin(Math.PI * bounceT / 0.3) : 0;
+    const coinsAlong = (tag, a, b, t, ev) => {
+      for (const k of [1, 2, 3]) if (t >= k / 4 && !arcCoins.has(tag + k)) {
+        arcCoins.add(tag + k);
+        const p = arc(a, b, k / 4);
+        ev.push({ t: "coin", x: STRETCH + p.x, y: p.y });
+      }
+    };
+    function tick(ev) {
+      clock += TICK;
+      bounceT += TICK;
+      if (phase === "walk") {
+        x = Math.min(STRETCH, x + v * TICK);
+        y = baseY(x) + bounce();
+        q.stretch.coins.forEach((c, i) => {
+          if (!collected.has(i) && Math.abs(x - c.x) < 0.5 && Math.abs(y - c.y) < 1.5) {
+            collected.add(i);
+            ev.push({ t: "coin", x: c.x, y: c.y });
+          }
+        });
+        for (const e of q.stretch.enemies) {
+          if (squashed.has(e.id)) continue;
+          if (Math.abs(x - enemyX(e)) < 0.7 && Math.abs(y - e.y) < 1.2) {
+            squashed.add(e.id);
+            bounceT = 0;
+            ev.push({ t: "stomp", id: e.id });
+          }
+        }
+        if (x >= STRETCH) {
+          x = STRETCH;
+          y = 0;
+          phase = "edge";
+          ev.push({ t: "edge" });
+        }
+        return;
+      }
+      if (phase !== "cross") return;
+      x += v * TICK;
+      const u = Math.min(FAR, x - STRETCH);
+      if (res.kind === "silent") {
+        y = -7 * Math.sin(Math.PI * u / FAR);
+      } else if (u < stone.x) {
+        const t = u / stone.x;
+        y = arc({ x: 0, y: 0 }, { x: stone.x, y: stone.h }, t).y;
+        if (res.kind === "ok") coinsAlong("a", { x: 0, y: 0 }, { x: stone.x, y: stone.h }, t, ev);
+      } else {
+        if (!landed) {
+          landed = true;
+          ev.push({ t: "land", key: stone.key });
+          if (res.kind === "ok" && res.award) {
+            award = res.award;
+            ev.push({ t: "boxOpen", award });
+          }
+          if (res.kind === "wrong") {
+            crumbled = stone.key;
+            ev.push({ t: "crumble", key: stone.key }, { t: "hurt" });
+          }
+        }
+        const t = (u - stone.x) / (FAR - stone.x);
+        if (res.kind === "ok") {
+          y = arc({ x: stone.x, y: stone.h }, { x: FAR, y: 0 }, t).y;
+          coinsAlong("b", { x: stone.x, y: stone.h }, { x: FAR, y: 0 }, t, ev);
+        } else y = stone.h * (1 - t) - 7 * Math.sin(Math.PI * t) * (1 - 0.3 * t);
+      }
+      if (u >= FAR) {
+        x = REBASE;
+        y = 0;
+        phase = "idle";
+        if (res.kind === "ok" && res.boss) ev.push({ t: "bossHit" });
+        ev.push({ t: "done" });
+      }
+    }
+    return {
+      start(query) {
+        q = query;
+        phase = "walk";
+        clock = 0;
+        acc = 0;
+        bounceT = 9;
+        landed = false;
+        v = STRETCH / query.seconds;
+        x = 0;
+        y = 0;
+        res = null;
+        stone = null;
+        award = null;
+        crumbled = null;
+        pending = [];
+        collected = /* @__PURE__ */ new Set();
+        squashed = /* @__PURE__ */ new Set();
+        arcCoins = /* @__PURE__ */ new Set();
+      },
+      step(dt) {
+        const ev = pending.splice(0);
+        if (!q) return ev;
+        acc += dt;
+        while (acc + 1e-9 >= TICK) {
+          acc -= TICK;
+          tick(ev);
+        }
+        return ev;
+      },
+      resolve(r) {
+        if (phase !== "edge") return;
+        res = r;
+        landed = false;
+        if (r.kind === "silent") pending.push({ t: "hurt" });
+        else stone = STONES.find((s) => s.key === (r.kind === "ok" ? r.correct : r.chosen)) || STONES[0];
+        phase = "cross";
+      },
+      hiddenStones() {
+        return q ? q.hidden.slice() : [];
+      },
+      state() {
+        const shown = phase !== "cross" ? phase : res.kind === "silent" ? "fall" : !landed ? "jump" : res.kind === "ok" ? "jump2" : "fall";
+        return {
+          phase: shown,
+          x,
+          y,
+          facing: 1,
+          collected,
+          squashed,
+          crumbled,
+          award,
+          progress: q ? Math.min(1, x / STRETCH) : 0,
+          enemies: q ? q.stretch.enemies.map((e) => ({ id: e.id, kind: e.kind, x: enemyX(e), y: e.y, squashed: squashed.has(e.id) })) : []
+        };
+      }
+    };
+  }
+
+  // src/flow.js
+  var KEYS3 = ["A", "B", "C", "D"];
+  var PAUSED = /* @__PURE__ */ new Set(["loading", "denied", "no-camera", "model-failed", "off", "busy"]);
+  var BOSS2 = ["forest", "sea", "desert"];
+  var BOSS_NAME = ["Th\u1EE7 l\u0129nh R\u1EEBng", "Th\u1EE7 l\u0129nh Bi\u1EC3n", "Th\u1EE7 l\u0129nh Sa m\u1EA1c"];
+  var KING = "Vua B\xF3ng T\u1ED1i";
+  var BANNER_SECONDS = 2.2;
+  var WORLD_COLOR_AT = 4;
+  var colourFor = (right) => Math.min(1, 0.55 + 0.45 * right / WORLD_COLOR_AT);
+  var plain = (html, text) => text && text.trim() || String(html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  var NO_ITEMS = () => ({ box: null, heart: false, key: false, princess: false });
+  function createFlow({ ui: ui2, finish, seed = 1 }) {
+    let run, sim, phase, locale, status, storyCtl, cur, lane, combo, coins, power, shield, gap, fx, fxT, outcome, qn, wait;
+    let stretch, nextStretch, world, worldRight, rescued, items, finished, keys, names, bannerLeft;
+    function reset() {
+      run = null;
+      sim = createSim();
+      phase = "idle";
+      locale = "vi";
+      storyCtl = null;
+      cur = null;
+      lane = null;
+      combo = 0;
+      coins = 0;
+      power = null;
+      shield = false;
+      gap = 3;
+      fx = null;
+      fxT = 0;
+      outcome = null;
+      qn = 0;
+      wait = 0;
+      stretch = buildStretch(seed, 0);
+      nextStretch = buildStretch(seed + 1, 0);
+      world = 0;
+      worldRight = 0;
+      rescued = [];
+      items = NO_ITEMS();
+      finished = false;
+      keys = 0;
+      names = [];
+      bannerLeft = 0;
+    }
+    reset();
+    const paused = () => PAUSED.has(status);
+    const hud = (hearts) => ui2.hud({ hearts, combo, coins, power: power || (shield ? "shield" : null), keys });
+    function bossBar() {
+      if (!ui2.boss) return;
+      const last2 = run && world === run.summary().worlds - 1;
+      ui2.boss(cur && cur.boss && phase !== "end" && !items.princess ? { name: last2 ? KING : BOSS_NAME[world % BOSS_NAME.length], hp: 1 - cur.boss.hits / cur.boss.total } : null);
+    }
+    function showStatus() {
+      if (phase !== "walk" && phase !== "story") return;
+      ui2.message(paused() ? STATUS_TEXT[status] : null);
+    }
+    function startQuestion() {
+      cur = run.current();
+      if (!cur) {
+        endGame();
+        return;
+      }
+      if (cur.world !== world || qn === 0) {
+        world = cur.world;
+        worldRight = 0;
+      }
+      stretch = buildStretch(seed + qn, world);
+      nextStretch = buildStretch(seed + qn + 1, run.nextWorld());
+      qn++;
+      lane = null;
+      fx = null;
+      fxT = 0;
+      if (cur.hidden.length && power === "fifty") power = null;
+      sim.start({ stretch, seconds: forkSeconds(combo, cur.slow), hidden: cur.hidden, boss: cur.inBoss });
+      phase = "walk";
+      ui2.showQuestion(cur.q.html, cur.q.choices, cur.hidden);
+      ui2.heard(null);
+      hud(run.summary().hearts);
+      bossBar();
+      showStatus();
+    }
+    function resolveNow() {
+      const o = run.answer(lane);
+      if (o.kind === "ignored") {
+        endGame();
+        return;
+      }
+      outcome = o;
+      phase = "resolve";
+      fx = o.kind;
+      fxT = 0;
+      gap = o.gap;
+      combo = o.combo;
+      if (o.kind === "ok") {
+        coins += combo >= 3 ? 20 : 10;
+        worldRight++;
+        if (cur.boss) cur = { ...cur, boss: { ...cur.boss, hits: cur.boss.hits + 1 } };
+      }
+      if (o.award === "shield") shield = true;
+      else if (o.award) power = o.award;
+      if (o.shielded) shield = false;
+      if (cur.slow && power === "slow") power = null;
+      sim.resolve({ kind: o.kind, chosen: lane, correct: cur.q.answer, award: o.award, boss: cur.inBoss });
+      ui2.reveal(cur.q.answer, lane);
+      hud(o.hearts);
+      bossBar();
+    }
+    function afterResolve() {
+      const o = outcome, wd = o.worldDone;
+      if (wd) {
+        names = names.length ? names : planWorlds(run.summary().total).map((w) => w.name);
+        const t = forLocale(locale);
+        if (wd.rescued) {
+          rescued[wd.index] = true;
+          if (wd.last) {
+            items.princess = true;
+            bossBar();
+            ui2.banner(t.win[0], "\u{1F478}");
+          } else {
+            keys++;
+            items.key = true;
+            items.heart = true;
+            hud(run.heal());
+            ui2.banner(t.keyLine(names[wd.index]), "\u{1F5DD}");
+          }
+        } else ui2.banner(locale === "en" ? "Not rescued yet, try again later" : "Ch\u01B0a c\u1EE9u \u0111\u01B0\u1EE3c, th\u1EED l\u1EA1i sau nh\xE9", "\u2694");
+        bannerLeft = BANNER_SECONDS;
+      }
+      if (outcome.over || !run.current()) {
+        phase = "banner";
+        wait = wd ? BANNER_SECONDS : 0.6;
+        return;
+      }
+      startQuestion();
+    }
+    function endGame() {
+      phase = "end";
+      const s = run.summary();
+      ui2.message(null);
+      ui2.banner(null);
+      if (ui2.boss) ui2.boss(null);
+      ui2.ending(s, s.princess);
+      if (!finished) {
+        finished = true;
+        finish(s);
+      }
+    }
+    return {
+      init(newRun, info) {
+        reset();
+        run = newRun;
+        locale = info.locale === "en" ? "en" : "vi";
+        if (ui2.setLocale) ui2.setLocale(locale);
+        if (ui2.reset) ui2.reset();
+        if (ui2.setSource) ui2.setSource(info.source);
+        ui2.message(null);
+        ui2.banner(null);
+        if (!run.current()) {
+          phase = "empty";
+          ui2.message(locale === "en" ? "This quiz has no A-D question to play." : info.skipped ? "B\u1ED9 \u0111\u1EC1 n\xE0y ch\u01B0a c\xF3 c\xE2u A\u2013D \u0111\u1EC3 ch\u01A1i." : "B\u1ED9 \u0111\u1EC1 ch\u01B0a c\xF3 c\xE2u h\u1ECFi.");
+          return;
+        }
+        phase = "story";
+        hud(run.summary().hearts);
+        storyCtl = ui2.story(forLocale(locale).intro, () => {
+          if (phase === "story") startQuestion();
+        });
+        showStatus();
+      },
+      result(key) {
+        if (!KEYS3.includes(key)) return;
+        if (phase === "story") {
+          if (storyCtl) storyCtl.advance();
+          return;
+        }
+        if (phase !== "walk" || paused()) return;
+        lane = key;
+        ui2.heard(key);
+      },
+      /** The audio model's scores for A..D (about 10 a second): shown while Bi can still be answered, cleared otherwise. */
+      frame(scores) {
+        if (ui2.live) ui2.live(phase === "walk" && !paused() ? scores : null);
+      },
+      status(s, source) {
+        status = s;
+        if (source && ui2.setSource) ui2.setSource(source);
+        showStatus();
+      },
+      tick(dt) {
+        if (fx) fxT += dt;
+        if (bannerLeft > 0 && (bannerLeft -= dt) <= 0) {
+          ui2.banner(null);
+          items = { ...items, key: false, heart: false };
+        }
+        if (phase === "walk") {
+          if (paused()) return;
+          for (const e of sim.step(dt)) {
+            if (e.t === "coin") coins++;
+            else if (e.t === "stomp") coins += 5;
+            else if (e.t === "edge") {
+              resolveNow();
+              break;
+            }
+          }
+          if (phase === "walk") ui2.timer(1 - sim.state().progress);
+          else hud(outcome.hearts);
+        } else if (phase === "resolve") {
+          for (const e of sim.step(dt)) {
+            if (e.t === "coin") coins++;
+            else if (e.t === "done") {
+              afterResolve();
+              break;
+            }
+          }
+        } else if (phase === "banner") {
+          wait -= dt;
+          if (wait <= 0) endGame();
+        }
+      },
+      renderState() {
+        const total = run ? run.summary().worlds : 1;
+        return {
+          world,
+          worldName: run ? (names.length ? names : planWorlds(run.summary().total).map((w) => w.name))[world] || "" : "",
+          segment: qn,
+          sim: sim.state(),
+          stretch,
+          nextStretch,
+          color: rescued[world] ? 1 : colourFor(worldRight),
+          gap,
+          boss: cur && cur.boss && phase !== "end" && !items.princess ? { hp: 1 - cur.boss.hits / cur.boss.total, kind: world === total - 1 ? "king" : BOSS2[world % BOSS2.length] } : null,
+          hidden: cur ? cur.hidden : [],
+          heard: lane,
+          shield,
+          slow: !!(cur && cur.slow && phase === "walk"),
+          challenge: cur ? { question: plain(cur.q.html, cur.q.text), choices: Object.fromEntries(cur.q.choices.map((c) => [c.key, plain(c.html, c.text)])) } : null,
+          fx,
+          fxT,
+          items: { ...items, box: sim.state().award }
+        };
+      }
+    };
+  }
+
+  // src/main.js
+  var root = document.getElementById("app");
+  var canvas = document.createElement("canvas");
+  canvas.setAttribute("class", "stage");
+  root.appendChild(canvas);
+  var ui = createUi(root);
+  var renderer = createRenderer(canvas);
+  window.addEventListener("resize", () => renderer.resize());
+  var bridge = null;
+  var flow = createFlow({ ui, finish: (summary) => bridge.finishOnce(summary) });
+  bridge = connect(window, {
+    onInit: (run, info) => flow.init(run, info),
+    onResult: (key) => flow.result(key),
+    onStatus: (state, source) => flow.status(state, source),
+    onFrame: (scores) => flow.frame(scores)
+  });
+  var last = 0;
+  function loop(now) {
+    const dt = Math.min(0.1, (now - last) / 1e3 || 0);
+    last = now;
+    flow.tick(dt);
+    renderer.frame(flow.renderState(), dt);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
