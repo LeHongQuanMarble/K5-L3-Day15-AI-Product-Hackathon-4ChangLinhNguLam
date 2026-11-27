@@ -7,7 +7,7 @@
 - Tên nhóm: 4ChangLinhNguLam
 - Lớp: L3A
 - Track: A
-- Link repo: ____
+- Link repo: https://github.com/LeHongQuanMarble/K5-L3-Day15-AI-Product-Hackathon-4ChangLinhNguLam
 
 | STT | Họ và tên | Mã học viên | Vai trò | Phần việc chính |
 |---|---|---|---|---|
