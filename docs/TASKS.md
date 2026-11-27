@@ -71,11 +71,13 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 | T13 | Game Runtime & Interaction Compatibility | TV3 | P0 | CP3 | T11 *(bắt đầu khi interface ổn định)* | 28/11 04:00 | IN_PROGRESS *(cần TV3 xác nhận)* |
 | T14 | Web/Backend Integration & HITL | TV3 | P0 | CP3 | T06 *(khởi chạy sớm)*, T08, T12, T13 | 28/11 08:30 | TODO *(cần TV3 xác nhận)* |
 | T15 | E2E Testing & Demo Recording | TV3 | P0 | CP3–CP4 | T07, T08, T14 *(CP3)* · T09 *(CP4)* | 28/11 09:30 *(video CP3)* / 12:00 *(CP4)* | TODO |
-| T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | — *(song song AI & Software)* | 27/11 19:00 (v1) / 28/11 09:00 (full) | IN_PROGRESS *(CP2 đã merge PR #6; CP3 khóa snapshot `79822a4` + Dataset 4 trên nhánh `feat/t16-t17-cp3-update`, chờ TV4 xác nhận)* |
-| T17 | Benchmark & Metric Specification | TV4 | P0 | CP2–CP3 | T02 *(khung)*, T06 *(song song)* | 27/11 19:00 (CP2) / 28/11 08:00 (CP3) | IN_PROGRESS *(metric freeze PR #6; benchmark CP3 20 câu trên nhánh `feat/t16-t17-cp3-update`, chờ TV4 xác nhận)* |
+| T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | — *(song song AI & Software)* | 27/11 19:00 (v1) / 28/11 09:00 (full) | IN_PROGRESS *(CP2 đã merge PR #6; CP3 khóa snapshot `79822a4` + Dataset 4 đã merge qua PR #8, chờ TV4 xác nhận)* |
+| T17 | Benchmark & Metric Specification | TV4 | P0 | CP2–CP3 | T02 *(khung)*, T06 *(song song)* | 27/11 19:00 (CP2) / 28/11 08:00 (CP3) | IN_PROGRESS *(metric freeze PR #6; benchmark CP3 20 câu đã merge qua PR #8, chờ TV4 xác nhận)* |
 | T18 | Evaluation Run 1 | TV4 | P0 | CP3 | T07, T08, T09, T17 | 28/11 09:15 | TODO |
 | T19 | Evaluation Run 2 & Comparison Report | TV4 | P0 | CP4 | T10, T18 | 28/11 13:00 | TODO |
 | T20 | Cost Simulation & Operational Analysis | TV4 | P0 | CP4 | T03, T07 *(chuẩn bị sớm)* · T19 *(chốt số cuối)* | 28/11 13:30 | TODO |
+
+> **Cập nhật trạng thái ngày 27/11/2026:** chỉ **T01** và **T11** đủ bằng chứng để đánh `DONE` (`run.py check` pass + đã merge `main`, unit test nền tảng pass). Các task còn lại **chưa đánh DONE**: `T02` đã merge PR #5 nhưng ở `REVIEW`, chờ TV1+TV4 ký freeze §7 và TV2+TV3 chốt Contract; `T12`/`T13` code đã merge qua PR #7 nhưng chờ TV3 xác nhận và kiểm thử runtime browser/Mouse Fallback; `T16`/`T17` bản CP3 đã merge qua PR #8 nhưng chờ TV4 xác nhận, TV1 bổ sung 4 câu nguồn thật (T03) và ký chấm chéo; `T14`/`T15`/`T18`–`T20` chưa có bằng chứng chạy thật (Web/HITL, video, Eval Run 1/2, cost simulation). Không tự nâng trạng thái khi chưa có bằng chứng kiểm chứng (bước 6–8 trong phần "Hướng dẫn AI Agent" đầu file).
 
 ---
 
@@ -733,7 +735,7 @@ Bàn giao `data/DATA_CARD.md` và mã phiên bản Catalog Snapshot cho T17, T18
 
 **Status:**
 
-IN_PROGRESS — bản CP2 đã nộp PR #6; bản CP3 đã khóa snapshot `79822a4` và bổ sung Dataset 4, chờ TV4 xác nhận sau khi PR #7 merge.
+IN_PROGRESS — bản CP2 đã nộp PR #6; bản CP3 đã khóa snapshot `79822a4` và bổ sung Dataset 4, đã merge qua PR #8 sau khi PR #7 merge; chờ TV4 xác nhận.
 
 ---
 
@@ -775,7 +777,7 @@ Bàn giao `eval/metric_spec.yaml` và `eval/benchmark.csv` đã freeze cho TV1 (
 
 **Status:**
 
-IN_PROGRESS — metric/§7 đã freeze CP2 qua PR #6; benchmark CP3 đã đạt 20 câu trên nhánh `feat/t16-t17-cp3-update`, chờ TV4 xác nhận và TV1 bổ sung 4 câu nguồn thật (T03) trước khi bàn giao T18.
+IN_PROGRESS — metric/§7 đã freeze CP2 qua PR #6; benchmark CP3 đã đạt 20 câu, đã merge qua PR #8; chờ TV4 xác nhận và TV1 bổ sung 4 câu nguồn thật (T03) trước khi bàn giao T18.
 
 ---
 
