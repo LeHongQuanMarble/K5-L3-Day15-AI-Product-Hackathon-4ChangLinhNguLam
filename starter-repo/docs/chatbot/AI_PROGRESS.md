@@ -31,7 +31,7 @@ Mốc bàn giao: 2026-11-27, múi giờ Asia/Bangkok. Commit khảo sát `faa44a
 | C01 Schema | DONE | Điều phối (tuần tự) | `ailab/chatbot/schemas.py`, `ailab/test_chatbot_schemas.py`; 63/63 test OK; agent review đạt (lần 3) |
 | C02 Hội thoại | DONE | Điều phối + Coder A–E (subagent) | C02_SPEC.md; conversation.py, workflow.py, test_chatbot_conversation.py; 118/118 OK; agent review đạt lần 3 (phạm vi hội thoại) |
 | I01 Web/state | DONE | Backend (Opus) + Frontend (Sonnet) + Kiểm thử (Sonnet) | I01_SPEC.md; 142/142 OK; trình duyệt 21/21 PASS (`evidence/chatbot/I01/RESULTS.md`); agent review đạt lần 3 trong phạm vi tích hợp hội thoại; chưa nghiệm thu AI thật |
-| C03 Danh mục/model | TODO | Chưa giao | Chưa có |
+| C03 Danh mục/model | DONE | Nghiệp vụ (Opus) + Kiểm thử (Sonnet) | C03_SPEC.md; catalog.py, test_chatbot_catalog.py (32 test); 174/174 OK; agent review đạt (tự chạy 174/174, tái hiện độc lập 2 lỗi cũ đã hết); chưa nối web (I02) |
 | C04 Exam | TODO | Chưa giao | Chưa có |
 | I02 Lắp ghép | TODO | Điều phối | Chưa có |
 | F01 PUT App | TODO | Điều phối/chủ backend | Lỗi đã tái hiện; chưa sửa |
@@ -76,6 +76,8 @@ Chưa có coder được khởi chạy hoặc giao file trong phiên bàn giao. 
 | `ailab/chatbot_server.py`, `ailab/chatbot/repository.py` (mới); `workflow.py`, `schemas.py` (chỉ thêm `cancel_plan`) | Coder Backend (Opus) | I01 | 2026-11-27 | DONE |
 | `ailab/web/chatbot.js` (mới) | Coder Frontend (Sonnet) | I01 | 2026-11-27 | DONE |
 | `ailab/test_chatbot_api.py` (mới), bằng chứng trình duyệt `evidence/chatbot/I01/` (mới) | Coder Kiểm thử (Sonnet) | I01 | 2026-11-27 | DONE |
+| `ailab/chatbot/catalog.py` (mới) | Coder nghiệp vụ C03 (Opus) | C03 | 2026-11-27 | DONE |
+| `ailab/test_chatbot_catalog.py` (mới) | Coder kiểm thử C03 (Sonnet) | C03 | 2026-11-27 | DONE |
 | `ailab/test_chatbot_conversation.py`, `docs/chatbot/C02_SPEC.md` | Coder C (subagent, Sonnet) | C02 test hồi quy + spec | 2026-11-27 | Bàn giao, điều phối tự review đạt |
 
 ## Nhật ký quyết định và bằng chứng
@@ -108,3 +110,10 @@ Mỗi quyết định ghi: ID, thời điểm Asia/Bangkok, vấn đề, lựa c
 - 2026-11-27 · FE bàn giao sửa P2: `loading`/`loadErr`/`locked()`, `reqSeq`/`loadSeq`/`applied`, `verOk()`; nút `button.chatbot-retry`. Kiểm cú pháp Chrome OK; chưa chạy kịch bản chậm. Giao Coder Test: bước trình duyệt 17–21 (GET chậm, thứ tự, GET lỗi + thử lại, chuyển chat/chat mới/rời tab khi đang tải) + chạy TRƯỚC/SAU bằng CDP Fetch phục vụ bản chatbot.js cũ, không sửa file repo.
 - 2026-11-27 · Coder Test bàn giao bước 17–21 + chạy trước/sau (CDP Fetch phục vụ chatbot.js cũ). Điều phối tự review: 142/142 OK; bản mới 21/21 PASS; bản cũ FAIL 17 (không khóa, 1 POST lọt), 18b (tin "tin gửi khi đang tải 18b" mất sau khi GET cũ về), 19 (không có "Thử tải lại"); ảnh new_17_loading cho thấy khóa + "Đang tải cuộc trò chuyện…". Không còn tiến trình headless; `ailab/data/ailab.db` không đổi từ 15:32. Gửi agent review.
 - 2026-11-27 · Agent review xác nhận I01 đạt trong phạm vi tích hợp hội thoại (kiểm độc lập 142/142, đối chiếu bản sửa + bằng chứng trình duyệt; chưa nghiệm thu AI thật). I01 → DONE, commit theo quy tắc. Bắt đầu C03.
+- 2026-11-27 · I01 commit `500a718`. Chốt C03_SPEC.md: `load_catalog`, `describe_player`, `select_model`, `auto_mapping`, `validate_mapping`, `route_game`; 19 ca test. C03 chỉ là module (chưa nối workflow/server — I02). Giao song song nghiệp vụ + kiểm thử theo interface đã chốt.
+- 2026-11-27 · C03 bàn giao. Điều phối tự review: 167/167 OK; thử trên DB tạm mặc định: Toán chỉ chuột → generate_new (lý do Quiz cần model image/pose ≥4 lớp); Toán + bàn tay → generate_new (Quiz không đọc hands); vòng quay chọn tên → reuse Vòng quay, không model; chọn Quiz + chỉ chuột → giữ playerId 1, conflict incompatible_model; id 999 → forbidden_resource, playerId None; audio → không chọn model audio. Điểm để review chốt: mã conflict cho lệch loại game đang dùng `unsupported_interaction`. Phát hiện `starter-repo/TEAMS.md` (file gốc) bị sửa lúc 16:27 (thêm 1 dòng thành viên) — không phải coder nào; có thể người dùng tự sửa; không hoàn tác, không đưa vào commit chatbot.
+- 2026-11-27 · Người dùng xác nhận tự sửa `starter-repo/TEAMS.md` → giữ nguyên; không đưa vào commit chatbot.
+- 2026-11-27 · Review C03 lần 1 chưa đạt (2 P2): (1) game không inputs + useModel=false + requestedKinds cũ → conflict thay vì not_needed; (2) auto_mapping tham lam: ô tùy chọn trùng key chiếm lớp duy nhất của ô bắt buộc, ô action/rest lấy mất lớp action của ô chỉ-action. Điều phối tái hiện cả 3 ca, lưu bản trước sửa (scratchpad c03_r1_before), cập nhật C03_SPEC §3.3/§3.4 + ca C03-20…24. Giao nghiệp vụ; kiểm thử sau.
+- 2026-11-27 · Nghiệp vụ bàn giao: luật 1 sửa; `auto_mapping` dùng Kuhn (`_kuhn`, `_match_group`), ô bắt buộc trước, giữ cặp trùng key chỉ khi vẫn ghép đủ. Điều phối tự review: 3 ca review ra đúng; đối chiếu brute-force 4000 ca ngẫu nhiên → 0 ca ghép thiếu ô bắt buộc, không dùng lại lớp, không sửa đầu vào (lần chạy đầu báo lệch do hàm đối chiếu của điều phối sai, đã sửa). 167/167 OK. Giao Coder kiểm thử.
+- 2026-11-27 · Kiểm thử bàn giao 7 test mới (C03-20…24 + thuộc tính 400 ca brute-force). Điều phối tự review: 0 dòng test cũ bị xoá; 174/174 OK; test mới chạy trên catalog.py trước sửa → 5 FAIL (20, 21, 22 thuần, 22 clean_app, thuộc tính). Gửi agent review.
+- 2026-11-27 · Người dùng xác nhận C03 DONE (agent review đạt). Commit theo quy tắc "commit khi DONE" của người dùng; không gồm TEAMS.md và 2 file bàn giao điều phối. Mã xung đột "loại game không hợp" (`unsupported_interaction`) vẫn là điểm mở để chốt trước I02.
