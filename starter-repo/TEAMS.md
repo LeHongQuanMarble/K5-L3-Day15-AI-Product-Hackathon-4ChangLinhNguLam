@@ -4,16 +4,17 @@
 > Giữ nguyên tên file `TEAMS.md` ở thư mục gốc repo, giữ nguyên các dòng `- Tên nhóm:` … và tiêu đề cột của bảng. Chỉ thay chỗ `____`.
 > Kiểm bằng `python run.py check`: phần "Kiểm TEAMS.md" không báo gì là đúng format.
 
-- Tên nhóm: ____
-- Lớp: ____
-- Track: ____
+- Tên nhóm: 4ChangLinhNguLam
+- Lớp: L3A
+- Track: A
 - Link repo: ____
 
 | STT | Họ và tên | Mã học viên | Vai trò | Phần việc chính |
 |---|---|---|---|---|
-| 1 | ____ | ____ | Đội trưởng | ____ |
-| 2 | ____ | ____ | Thành viên | ____ |
-| 3 | ____ | ____ | Thành viên | ____ |
+| 1 | Nguyễn Hoàng Việt | 2A202603487 | Đội trưởng | PM & Product Lead: Product Design, Evidence, Acceptance Testing, CP management |
+| 2 | Hồc Quốc Toản | 2A202603668 | Thành viên | AI Agent Engineer: Agent phân tích, lựa chọn thành phần và nối model thật |
+| 3 | Lê Hồng Quân | 2A202603705 | Thành viên | Software & Integration Engineer: AI Lab, Composition, UI & Mouse Fallback |
+| 4 | Đào Huy Hoàng | 2A202603451 | Thành viên | Data, Evaluation & Cost Engineer: Benchmark, Eval report & Cost simulation |
 
 **Quy tắc điền**
 - **Lớp:** `L3A` hoặc `L3B`. **Track:** một chữ `A` (EdTech), `B` (Y tế), `C` (Du lịch), `D` (Thương mại điện tử), `E` (Tài chính) hoặc `F` (Làn khác). **Link repo:** link GitHub công khai của nhóm.
