@@ -71,8 +71,8 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 | T13 | Game Runtime & Interaction Compatibility | TV3 | P0 | CP3 | T11 *(bắt đầu khi interface ổn định)* | 28/11 04:00 | IN_PROGRESS *(cần TV3 xác nhận)* |
 | T14 | Web/Backend Integration & HITL | TV3 | P0 | CP3 | T06 *(khởi chạy sớm)*, T08, T12, T13 | 28/11 08:30 | TODO *(cần TV3 xác nhận)* |
 | T15 | E2E Testing & Demo Recording | TV3 | P0 | CP3–CP4 | T07, T08, T14 *(CP3)* · T09 *(CP4)* | 28/11 09:30 *(video CP3)* / 12:00 *(CP4)* | TODO |
-| T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | — *(song song AI & Software)* | 27/11 19:00 (v1) / 28/11 09:00 (full) | IN_PROGRESS *(nhánh `feat/t16-t17-cp2-data-eval` – cần TV4 xác nhận)* |
-| T17 | Benchmark & Metric Specification | TV4 | P0 | CP2–CP3 | T02 *(khung)*, T06 *(song song)* | 27/11 19:00 (CP2) / 28/11 08:00 (CP3) | IN_PROGRESS *(nhánh `feat/t16-t17-cp2-data-eval` – cần TV4 xác nhận)* |
+| T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | — *(song song AI & Software)* | 27/11 19:00 (v1) / 28/11 09:00 (full) | IN_PROGRESS *(CP2 đã merge PR #6; CP3 khóa snapshot `79822a4` + Dataset 4 trên nhánh `feat/t16-t17-cp3-update`, chờ TV4 xác nhận)* |
+| T17 | Benchmark & Metric Specification | TV4 | P0 | CP2–CP3 | T02 *(khung)*, T06 *(song song)* | 27/11 19:00 (CP2) / 28/11 08:00 (CP3) | IN_PROGRESS *(metric freeze PR #6; benchmark CP3 20 câu trên nhánh `feat/t16-t17-cp3-update`, chờ TV4 xác nhận)* |
 | T18 | Evaluation Run 1 | TV4 | P0 | CP3 | T07, T08, T09, T17 | 28/11 09:15 | TODO |
 | T19 | Evaluation Run 2 & Comparison Report | TV4 | P0 | CP4 | T10, T18 | 28/11 13:00 | TODO |
 | T20 | Cost Simulation & Operational Analysis | TV4 | P0 | CP4 | T03, T07 *(chuẩn bị sớm)* · T19 *(chốt số cuối)* | 28/11 13:30 | TODO |
@@ -713,9 +713,9 @@ TODO.
 
 **Công việc:**
 
-- [ ] Lập `data/DATA_CARD.md` bản đầu trước CP2: mô tả Dataset 1 (Catalog `Model + Player` Snapshot & `ailab/seed_exams.json` — 6 bộ đề mẫu) và Dataset 2 (Bộ câu thử `eval/benchmark.csv`).
-- [ ] Ghi rõ nguồn gốc, số dòng, ngày lấy/phiên bản, nhãn (`thật` vs `synthetic`), giới hạn dữ liệu và quy tắc không dùng data synthetic làm bằng chứng pain.
-- [ ] Kiểm tra tuân thủ Data Governance: không commit dữ liệu thô `data/preclass/`, không lưu PII trong repo, ghi rõ nguồn ẩn danh `P1, P2...` khi cập nhật bản đầy đủ ở CP3.
+- [x] Lập `data/DATA_CARD.md` bản đầu trước CP2: mô tả Dataset 1 (Catalog `Model + Player` Snapshot & `ailab/seed_exams.json` — 6 bộ đề mẫu) và Dataset 2 (Bộ câu thử `eval/benchmark.csv`) *(PR #6; CP3 bổ sung Dataset 4)*.
+- [x] Ghi rõ nguồn gốc, số dòng, ngày lấy/phiên bản, nhãn (`thật` vs `synthetic`), giới hạn dữ liệu và quy tắc không dùng data synthetic làm bằng chứng pain *(CP3 khóa Catalog Snapshot `79822a4`)*.
+- [ ] Kiểm tra tuân thủ Data Governance: không commit dữ liệu thô `data/preclass/`, không lưu PII trong repo, ghi rõ nguồn ẩn danh `P1, P2...` khi cập nhật bản đầy đủ ở CP3 *(chờ T03: 0 phỏng vấn hiện tại)*.
 
 **Deliverables:**
 
@@ -723,9 +723,9 @@ TODO.
 
 **Acceptance Criteria:**
 
-- [ ] `data/DATA_CARD.md` không còn ô placeholder `<...>` hay `...` ở các dataset đang sử dụng.
-- [ ] Ghi rõ phiên bản **Catalog Snapshot** được dùng cố định cho cả Evaluation Run 1 và Run 2.
-- [ ] 0 trường hợp vi phạm PII hoặc commit file data thô BTC.
+- [x] `data/DATA_CARD.md` không còn ô placeholder `<...>` hay `...` ở các dataset đang sử dụng *(các dòng "chưa có" được giữ có chủ đích theo ghi chú cuối file)*.
+- [x] Ghi rõ phiên bản **Catalog Snapshot** được dùng cố định cho cả Evaluation Run 1 và Run 2: `79822a4` (`data/catalog_snapshot.json`, PR #7 chờ merge).
+- [ ] 0 trường hợp vi phạm PII hoặc commit file data thô BTC *(chưa có bằng chứng kiểm chéo sau khi T03 bổ sung phỏng vấn)*.
 
 **Handoff:**
 
@@ -733,7 +733,7 @@ Bàn giao `data/DATA_CARD.md` và mã phiên bản Catalog Snapshot cho T17, T18
 
 **Status:**
 
-TODO.
+IN_PROGRESS — bản CP2 đã nộp PR #6; bản CP3 đã khóa snapshot `79822a4` và bổ sung Dataset 4, chờ TV4 xác nhận sau khi PR #7 merge.
 
 ---
 
@@ -750,14 +750,14 @@ TODO.
 
 **Công việc:**
 
-- [ ] Điền hoàn chỉnh `eval/metric_spec.yaml` với 4 nhóm metric kiểm chứng được:
+- [x] Điền hoàn chỉnh `eval/metric_spec.yaml` với 4 nhóm metric kiểm chứng được *(PR #6, giữ nguyên sau CP2 — metric trong file dùng tên ngắn `khong_bia_catalog`, `hoi_lai_khi_thieu`, `tu_choi_an_toan`, `de_xuat_co_duyet`, ánh xạ 4 nhóm đề xuất)*:
   1. `routing_and_catalog_grounding` (chọn đúng `REUSE`/`GENERATE`/`ASK_CLARIFY`/`REFUSE`, không bịa ID Catalog — grader `code`).
   2. `question_set_quality_and_format` (đúng cú pháp module bằng `code`; chất lượng kiến thức/đáp án + cảnh báo AI sinh bằng `nguoi`/tham chiếu).
   3. `compatibility_and_html_safety_guard` (tương thích `Model + Player + Question Set`, `Mouse Fallback`; nhánh `GENERATE` qua `check_game` `jl-camera` + 6 cờ an toàn — phân biệt rõ **static validation** với **runtime testing**).
   4. `hitl_and_refusal_compliance` (100% ca `tu_choi` bị từ chối; 0% bypass HITL).
-- [ ] Thống nhất với TV1 ngưỡng chuẩn "đạt" chính thức trước khi freeze CP2 (đề xuất: `Overall Pass Rate ≥ 80%`, `Required Refusal Rate = 100%`, `HITL Bypass Count = 0`).
-- [ ] Xây dựng `eval/benchmark.csv` (xóa 3 dòng mẫu): ≥10 câu trước CP2 (mở rộng 20–30 câu trước CP3, gồm ≥5 câu `kho` và ≥2 câu `tu_choi` tấn công), bao phủ đủ 8 kịch bản: `ASK_CLARIFY`, `REUSE`, `GENERATE`, `REFUSE`, Question Quality, Compatibility, HTML Safety, HITL.
-- [ ] Chạy `python run.py check` xác nhận không còn lỗi format/thiếu metric.
+- [x] Thống nhất với TV1 ngưỡng chuẩn "đạt" chính thức trước khi freeze CP2 (đề xuất: `Overall Pass Rate ≥ 80%`, `Required Refusal Rate = 100%`, `HITL Bypass Count = 0`) *(đã ghi `spec.md` §7 qua PR #6)*.
+- [x] Xây dựng `eval/benchmark.csv` (xóa 3 dòng mẫu): ≥10 câu trước CP2 (mở rộng 20–30 câu trước CP3, gồm ≥5 câu `kho` và ≥2 câu `tu_choi` tấn công), bao phủ đủ 8 kịch bản: `ASK_CLARIFY`, `REUSE`, `GENERATE`, `REFUSE`, Question Quality, Compatibility, HTML Safety, HITL *(CP3: 20 câu = thuong 6 · kho 10 · tu_choi 4, giữ nguyên 12 câu CP2)*.
+- [x] Chạy `python run.py check` xác nhận không còn lỗi format/thiếu metric.
 
 **Deliverables:**
 
@@ -765,9 +765,9 @@ TODO.
 
 **Acceptance Criteria:**
 
-- [ ] `python run.py check` pass ở CP2 (≥10 câu, ≥3–4 metric đủ `name`, `definition`, `grader`, `threshold`, `why`, không còn dòng `(ví dụ)`).
-- [ ] `eval/benchmark.csv` trước CP3 đạt 20–30 câu, bao phủ đủ 8 nhóm tình huống (`ASK_CLARIFY`, `REUSE`, `GENERATE`, `REFUSE`, Question Quality, Compatibility, HTML Safety, HITL).
-- [ ] Định nghĩa metric phân biệt rõ **static validation** (`check_game`/schema) với **runtime testing** và đã được TV1 + TV4 xác nhận freeze trước CP2 19:30 (không sửa sau CP2).
+- [x] `python run.py check` pass ở CP2 (≥10 câu, ≥3–4 metric đủ `name`, `definition`, `grader`, `threshold`, `why`, không còn dòng `(ví dụ)`) *(CP3 vẫn pass: 20 câu, 4 metric)*.
+- [x] `eval/benchmark.csv` trước CP3 đạt 20–30 câu, bao phủ đủ 8 nhóm tình huống (`ASK_CLARIFY`, `REUSE`, `GENERATE`, `REFUSE`, Question Quality, Compatibility, HTML Safety, HITL).
+- [ ] Định nghĩa metric phân biệt rõ **static validation** (`check_game`/schema) với **runtime testing** và đã được TV1 + TV4 xác nhận freeze trước CP2 19:30 (không sửa sau CP2) *(nội dung đã freeze; chờ TV1 ký xác nhận vào `eval/README.md` mục 3)*.
 
 **Handoff:**
 
@@ -775,7 +775,7 @@ Bàn giao `eval/metric_spec.yaml` và `eval/benchmark.csv` đã freeze cho TV1 (
 
 **Status:**
 
-TODO.
+IN_PROGRESS — metric/§7 đã freeze CP2 qua PR #6; benchmark CP3 đã đạt 20 câu trên nhánh `feat/t16-t17-cp3-update`, chờ TV4 xác nhận và TV1 bổ sung 4 câu nguồn thật (T03) trước khi bàn giao T18.
 
 ---
 

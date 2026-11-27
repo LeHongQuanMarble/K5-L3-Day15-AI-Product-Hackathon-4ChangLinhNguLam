@@ -5,14 +5,16 @@
 
 ## 1. Dataset → xử lý
 
-Dataset nào, xử lý gì: tóm 2–3 dòng từ `data/DATA_CARD.md`.
+- Dataset 1 (Catalog AI Lab): 1 model + 2 player + 6 bộ đề/90 câu, snapshot cố định `79822a4` (`data/catalog_snapshot.json`, PR #7 chờ merge). Dùng tra cứu tên/ID thật và kiểm tương thích `Model + Player + Question Set`.
+- Dataset 2/3: 90 câu + 8 ảnh `synthetic` từ `ailab/seed_exams.json`, `ailab/seed_images/`; không chia train/val/test, không dùng làm bằng chứng pain.
+- Dataset 4: `eval/benchmark.csv` 20 câu tự soạn (mục 2); xử lý bằng `run.py check` → `run.py eval` → `run.py score`.
 
 ## 2. Bộ câu thử dựng ra sao
 
-- `eval/benchmark.csv`: __ câu (thuong __ · kho __ · tu_choi __, trong đó __ câu tấn công)
-- Nguồn (`python run.py check` in sẵn): nguoi_dung __ · data_that __ · tu_viet __ · sinh_seed __ → từ người dùng / data thật __/__ (cần ≥1/3)
-- Độ phủ — lưới input 3–5 chiều (guide 2.4 bước 5): __
-- Câu `kho` trỏ về 4 lớp chỗ khó (`spec.md` §5): lớp 1: __ · lớp 2: __ · lớp 3: __ · lớp 4: __
+- `eval/benchmark.csv`: 20 câu (thuong 6 · kho 10 · tu_choi 4, trong đó 4 câu `tu_choi` tấn công an toàn/HITL)
+- Nguồn (`python run.py check` in sẵn): nguoi_dung 0 · data_that 0 · tu_viet 20 · sinh_seed 0 → từ người dùng / data thật 0/20 (cần ≥1/3; chờ T03/TV1)
+- Độ phủ — lưới input 3–5 chiều (guide 2.4 bước 5): môn học/cấp học · thiết bị/camera · nguồn đề (có sẵn/tự soạn) · chế độ (`REUSE`/`GENERATE`) · quyền (giáo viên/Admin). Đủ 8 kịch bản: `ASK_CLARIFY`, `REUSE`, `GENERATE`, `REFUSE`, Question Quality, Compatibility, HTML Safety, HITL.
+- Câu `kho` trỏ về 4 lớp chỗ khó (`spec.md` §5): lớp 1: B07/B13/B15 (không có module phù hợp hoặc bịa/ghép sai) · lớp 2: B05/B06/B19 (thiếu thông tin) · lớp 3: B10/B11/B12/B17/B18/B20 (tấn công/tự duyệt) · lớp 4: B02/B04/B08/B09 (tương thích, định dạng đề, fallback).
 
 ## 3. Metric và cách chấm
 
