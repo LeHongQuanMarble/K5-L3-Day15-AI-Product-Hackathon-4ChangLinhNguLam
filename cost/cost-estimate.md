@@ -6,11 +6,11 @@
 
 ## 1. Đầu vào
 
-- **Persona** (`cost/personas.yaml`): ≥3 kiểu — tỉ lệ, số phiên / người / tháng, số lượt hỏi / phiên. Nguồn: __
-- **Số người dùng thật** 3 kịch bản: thấp __ · cơ sở __ · cao __. Nguồn: __
-- **Giá** ≥2 mức model (từ `further-reading/model-prices.md` của repo đề, có link + ngày xem): __ · __
-- **Tỉ lệ đạt** dùng để tính: __/__ (__%) — lượt `run-__` (lượt 2)
-- Đo token trên model __, tính giá model __ và __
+- **Persona** (`cost/personas.yaml`): 3 kiểu — `dung_it` 0.67 · 1.5 lần/tháng · 1 lượt/phiên; `dung_vua` 0.17 · 4 lần/tháng · 2 lượt/phiên; `dung_nhieu` 0.16 · 11 lần/tháng · 4 lượt/phiên. Nguồn: tỉ lệ từ khảo sát S1–S6 (`evidence/summary.md` §2), số lượt/phiên và mốc `>10` ghi rõ *(tự ước tính)* trong `personas.yaml`.
+- **Số người dùng thật** 3 kịch bản: thấp **100** · cơ sở **300** · cao **1000**. Nguồn: *(tự ước tính)* — repo chưa có số công khai (xem `personas.yaml` dòng `source`); chờ T03 bổ sung thì cập nhật.
+- **Giá** ≥2 mức model: `gpt-4o-mini` vào 0.15 / ra 0.60 USD mỗi 1M token; `gpt-4o` vào 2.50 / ra 10.00 USD mỗi 1M token. Nguồn: https://platform.openai.com/docs/pricing · xem 28/11/2026 (ghi trong `personas.yaml`).
+- **Tỉ lệ đạt** dùng để tính: __/__ (__%) — lượt `run-2` **(chưa có; chạy sau T10/T19 — không dùng tỉ lệ Run 1 thay thế)**.
+- Đo token trên model `gpt-4o-mini`, tính giá model `gpt-4o-mini` và `gpt-4o` (xem mục 5: `simulate --try` đã chạy Real AI, 10 phiên, token > 0).
 
 ## 2. Kết quả mô phỏng
 
@@ -27,9 +27,9 @@ Chi phí / task thành công = chi phí trung bình mỗi phiên ÷ tỉ lệ đ
 
 ## 3. So với impact
 
-- Impact / người / tháng (`spec.md` §2): __
-- Chi phí / người / tháng (cơ sở, model __): __
-- **Kết luận một dòng — đáng làm không:** __
+- Impact / người / tháng (`spec.md` §2): **chưa tính được** — mới có Baseline 10–20 phút/trò chơi (S1), chưa có `With Agent` và số giáo viên/tần suất đo được. Không bịa số để so sánh.
+- Chi phí / người / tháng (cơ sở, model `gpt-4o-mini`): __ *(chờ bảng mục 2 sau Run 2)*
+- **Kết luận một dòng — đáng làm không:** __ *(chờ chi phí / task thành công từ tỉ lệ Run 2)*
 
 ## 4. *(Muốn sâu hơn, không bắt buộc)*
 

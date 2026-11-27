@@ -13,7 +13,7 @@
 | `eval/metric_spec.yaml` (6 metric) | sha256 `435d21…bfe4dc` | __ | __ |
 | `data/catalog_snapshot.json` (`79822a4`) | sha256 `b3e681…9743bb` | __ | __ |
 
-Hash đầy đủ và lệnh lấy lại: xem đầu `eval/grading-sheet.md`. **Không đổi 3 file này giữa hai lượt**; nếu lệch thì dừng và báo TV1, không chấm tiếp. Đã kiểm lại ngay trước Run 1: cả 3 hash khớp bản khóa.
+Hash đầy đủ và lệnh lấy lại: xem đầu `eval/grading-sheet.md`. **Không đổi 3 file này giữa hai lượt**; nếu lệch thì dừng và báo TV1, không chấm tiếp. Đã kiểm lại ngay trước Run 1: cả 3 hash khớp bản khóa. **Kiểm lại lần nữa 28/11 khi chờ T10** (trước khi chạy Run 2): `0236f1…c82c76` / `435d21…bfe4dc` / `b3e681…9743bb` — vẫn khớp; cột Run 2 sẽ điền khi có `run-2.csv`.
 
 ## 1. Kết quả
 

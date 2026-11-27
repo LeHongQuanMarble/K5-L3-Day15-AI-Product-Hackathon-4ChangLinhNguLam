@@ -74,8 +74,8 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 | T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | — *(song song AI & Software)* | 27/11 19:00 (v1) / 28/11 09:00 (full) | IN_PROGRESS *(CP2 đã merge PR #6; CP3 khóa snapshot `79822a4` qua PR #8; Dataset 4 nay 30 câu/10 nguồn thật, TV1 đã ký xác nhận `DATA_CARD.md` lúc 28/11 00:50)* |
 | T17 | Benchmark & Metric Specification | TV4 | P0 | CP2–CP3 | T02 *(khung)*, T06 *(song song)* | 27/11 19:00 (CP2) / 28/11 08:00 (CP3) | DONE *(TV4 xác nhận 28/11: 6 metric freeze PR #6; benchmark 30 câu / 10 nguồn thật, `run.py check` hết warning; TV1 ký freeze ≥24/30 lúc 00:50; biên bản chấm chéo 5 output chuyển sang T18)* |
 | T18 | Evaluation Run 1 | TV4 | P0 | CP3 | T07, T08, T09, T17 | 28/11 09:15 | IN_PROGRESS *(Run 1 xong `run-1@20261128-021031`: 19/30, `tu_choi` 4/4, HITL 0; chưa DONE vì AC chấm chéo ≥5 output chờ TV1 ký)* |
-| T19 | Evaluation Run 2 & Comparison Report | TV4 | P0 | CP4 | T10, T18 | 28/11 13:00 | TODO |
-| T20 | Cost Simulation & Operational Analysis | TV4 | P0 | CP4 | T03, T07 *(chuẩn bị sớm)* · T19 *(chốt số cuối)* | 28/11 13:30 | TODO |
+| T19 | Evaluation Run 2 & Comparison Report | TV4 | P0 | CP4 | T10, T18 | 28/11 13:00 | IN_PROGRESS *(đã xác nhận lại 3 hash khóa không đổi; chờ TV2 xong T10 rồi chạy Run 2 — chưa có `run-2.csv`)* |
+| T20 | Cost Simulation & Operational Analysis | TV4 | P0 | CP4 | T03, T07 *(chuẩn bị sớm)* · T19 *(chốt số cuối)* | 28/11 13:30 | IN_PROGRESS *(personas 3 kiểu/giá 2 mức + `simulate --try` Real AI xong; điền đầu vào `cost/cost-estimate.md`; chờ tỉ lệ Run 2 để chạy ≥50 phiên và tính chi phí/task thành công)* |
 
 > **Cập nhật trạng thái ngày 27/11/2026:** `T01`, `T11`, `T12`, `T13` đủ bằng chứng để đánh `DONE` (`run.py check` pass + đã merge `main`; unit test 37/37 pass; runtime browser headless thật ở `evidence/runtime-smoke.md`). Các task còn lại **chưa đánh DONE**: `T02` đã merge PR #5 nhưng ở `REVIEW`, chờ TV1+TV4 ký freeze §7 và TV2+TV3 chốt Contract; `T16`/`T17` bản CP3 đã merge qua PR #8 và đã được TV4 xác nhận kiểm chứng; đã bổ sung 10 câu `nguoi_dung` từ tình huống thật S1–S6 (merge `98162d3`) nên `run.py check` hết warning (30 câu, 10/30 nguồn thật), **nhưng T03 vẫn chưa đạt AC** (0 phỏng vấn; khảo sát 6/20 < 20; 5 trích dẫn từ khảo sát đã có nhưng chưa đủ ngưỡng nguồn) và chờ ký chấm chéo; `T14`/`T15`/`T18`–`T20` chưa có bằng chứng chạy thật (Web/HITL, video, Eval Run 1/2, cost simulation). Không tự nâng trạng thái khi chưa có bằng chứng kiểm chứng (bước 6–8 trong phần "Hướng dẫn AI Agent" đầu file).
 
@@ -839,7 +839,7 @@ IN_PROGRESS — Run 1 đã chạy thật với `gpt-4o-mini`: `eval/run-1.csv` +
 
 **Công việc:**
 
-- [ ] Xác nhận `eval/benchmark.csv`, `eval/metric_spec.yaml` và Catalog Snapshot không thay đổi so với Run 1.
+- [x] Xác nhận `eval/benchmark.csv`, `eval/metric_spec.yaml` và Catalog Snapshot không thay đổi so với Run 1 *(kiểm lại 28/11: 3 hash khớp bản đã khóa trước Run 1)*.
 - [ ] Chạy `python run.py eval` tạo `eval/run-2.csv` và `traces/run-2.jsonl`, chấm điểm và chạy `python run.py score eval/run-2.csv`.
 - [ ] Hoàn thiện `eval/report.md`: bảng so sánh Run 1 → Run 2 theo từng nhóm metric và tổng thể so với chuẩn "đạt" (`Overall Pass Rate ≥ 80%`, `Required Refusal Rate = 100%`, `HITL Bypass Count = 0`), phân tích ca cải thiện và lỗi còn lại.
 - [ ] Cập nhật kết quả Run 1 / Run 2 + Run ID vào `spec.md` §7.
@@ -860,7 +860,7 @@ Bàn giao tỉ lệ đạt Run 2 cho T20 (tính chi phí/task thành công) và 
 
 **Status:**
 
-TODO.
+IN_PROGRESS — đã xác nhận lại ngay trước khi chờ T10: `eval/benchmark.csv` `0236f1…c82c76`, `eval/metric_spec.yaml` `435d21…bfe4dc`, `data/catalog_snapshot.json` `b3e681…9743bb` — **đều khớp Run 1**. Chưa có `eval/run-2.csv`/`traces/run-2.jsonl`: dependency T10 (TV2 sửa 11 câu trượt, bảng lỗi tại `eval/report.md` mục 2–3) chưa có trên `main`. Không tự chạy Run 2 bằng AI core cũ vì kết quả sẽ trùng Run 1 và không phản ánh cải tiến. Chưa DONE.
 
 ---
 
@@ -877,8 +877,8 @@ TODO.
 
 **Công việc:**
 
-- [ ] Điền `cost/personas.yaml` (≥3 persona giáo viên, 3 kịch bản quy mô `low`/`base`/`high`, ≥2 mức giá model trả phí có link & ngày xem); ghi rõ nguồn từ `evidence/summary.md` (T03) hoặc đánh dấu `*(tự ước tính)*` nếu thiếu.
-- [ ] Chạy kiểm khung `python run.py simulate --try` (10 phiên trước CP3) và chạy chính thức `python run.py simulate` (≥50 phiên, `seed: 42`, model thật) tạo `cost/simulate-N.csv` và `cost/simulate-N-summary.md`.
+- [x] Điền `cost/personas.yaml` (≥3 persona giáo viên, 3 kịch bản quy mô `low`/`base`/`high`, ≥2 mức giá model trả phí có link & ngày xem); ghi rõ nguồn từ `evidence/summary.md` (T03) hoặc đánh dấu `*(tự ước tính)*` nếu thiếu *(đã xong từ CP3; TV1 ký freeze 28/11 00:50)*.
+- [ ] Chạy kiểm khung `python run.py simulate --try` (10 phiên trước CP3) **đã xong** (`simulate-try@20261128-004848`, Real AI, 0 lỗi); chạy chính thức `python run.py simulate --rate-from eval/run-2.csv` (≥50 phiên, `seed: 42`, model thật) tạo `cost/simulate-N.csv` và `cost/simulate-N-summary.md` — **chờ T19**.
 - [ ] Chép bảng mô phỏng vào `cost/cost-estimate.md`, tính **chi phí / task thành công** (`chi phí trung bình mỗi phiên ÷ tỉ lệ đạt Run 2`) và phân tích rõ lợi ích tiết kiệm token của chiến lược **Reuse-first** so với luôn `GENERATE`.
 - [ ] Cập nhật `spec.md` §8 và kết luận 1 dòng Go/Iterate/Stop so với Impact/người/tháng ở `spec.md` §2.
 
@@ -898,7 +898,7 @@ Bàn giao bảng chi phí & kết luận kinh tế cho TV1 (T05 – slide trang 
 
 **Status:**
 
-TODO.
+IN_PROGRESS — `cost/personas.yaml` đã đầy đủ 3 persona / 3 quy mô / 2 mức giá có link + ngày xem, không còn dòng *(ví dụ)*; `python run.py simulate --try` đã chạy Real AI 10 phiên (`simulate-try@20261128-004848`, token > 0, 0 lỗi) ghi tại `cost/cost-estimate.md` mục 5. Đã điền sẵn phần đầu vào mục 1 (giữ nguyên ghi chú nguồn/tự ước tính). **Chưa chạy `python run.py simulate` ≥50 phiên** vì AC bắt buộc chia cho tỉ lệ đạt Run 2 (T19) — chưa có; bảng mục 2 và kết luận mục 3 vẫn để trống, không dùng 100% hay tỉ lệ Run 1 thay thế. Chưa DONE.
 
 ---
 
