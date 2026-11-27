@@ -11,14 +11,14 @@
 |---|---|---|
 | Đào data (x/N, %, cách đếm chạy lại được, ≥5 ví dụ) | ☐ *(không sử dụng data thô BTC cho lát cắt A3)* | `evidence/data-mining.md` |
 | Phỏng vấn (≥3 người ngoài nhóm, đúng người dùng) | ☐ *(0/3 — đang triển khai)* | `evidence/interviews/` |
-| Khảo sát (≥20 người ngoài nhóm, đúng người dùng) | ☐ *(6/20 — đang tiếp tục thu thập)* | `evidence/survey/results.csv` |
+| Khảo sát (≥20 người ngoài nhóm, đúng người dùng) | ☐ *(6/20 — đang tiếp tục thu thập)* | `evidence/survey/questions.md` · `evidence/survey/results.csv` |
 | Tình huống thật S1–S6 (tóm tắt, TV1 cung cấp) | ⚠️ *không tính ngưỡng R1* | `docs/HANDOFF-TV4-nguon-nguoi-dung.md` · `eval/benchmark.csv` B21–B30 |
 
 ## 2. Số chính *(dữ liệu sơ bộ từ khảo sát n = 6, không ghi % vì n < 10)*
 
 - **Khảo sát (`evidence/survey/results.csv`, n = 6, thu từ 18:12 đến 18:30 ngày 27/11/2026):**
   - **Phân bố đối tượng:** Tiểu học `2/6` (`S1, S3`) · Mầm non `1/6` (`S4`) · Trung học cơ sở `1/6` (`S6`) · Cao đẳng/Đại học `1/6` (`S2`) · Lab Coach AI20k `1/6` (`S5`).
-  - **Tần suất tạo trò chơi:** `1–2 lần`: `4/6` (`S1, S2, S5, S6`) · `3–5 lần`: `1/6` (`S3`) · `Trên 10 lần`: `1/6` (`S4`).
+  - **Tần suất tạo trò chơi (Câu 2 — trong 30 ngày gần đây / tháng):** `1–2 lần/tháng`: `4/6` (`S1, S2, S5, S6`) · `3–5 lần/tháng`: `1/6` (`S3`) · `Trên 10 lần/tháng`: `1/6` (`S4`). *(Câu 9 – lý do chưa tổ chức: trống `6/6` vì cả 6 người tham gia đều có tổ chức trong 30 ngày qua.)*
   - **Công cụ đang sử dụng (chọn nhiều):** Quizizz/Wayground `5/6` · PowerPoint/Google Slides `4/6` · Kahoot `2/6` · Blooket `1/6` · tạo bot trên tele cho học viên thực hành tấn công `1/6`.
   - **Khoảng thời gian chuẩn bị** *(dữ liệu dạng khoảng — không tính trung bình điểm vì không có giá trị phút cụ thể từng người)*:
     - `Từ 10 đến dưới 20 phút`: `3/6` (`S1, S2, S6`)
@@ -63,12 +63,12 @@ Hiện có 1 nguồn sơ bộ (`evidence/survey/results.csv`, `n = 6`) và 6 tì
   - *Lưu ý trung thực:* Chưa có thử nghiệm thực tế đo thời gian *With Agent*, nên **chưa** kết luận sản phẩm đã tiết kiệm thời gian hay chi phí.
 - **Hạn chế của mẫu khảo sát hiện tại:**
   - Cỡ mẫu nhỏ (`n = 6`), **chưa đạt ngưỡng CP3 (≥20)**; phân tán qua 5 nhóm đối tượng khác nhau (Mầm non, Tiểu học, THCS, CĐ/ĐH, Lab Coach — trong đó `S5` là Lab Coach AI20k, không thuần giáo viên phổ thông).
-  - Thiếu khung thời gian của cột tần suất trong dữ liệu gốc (chưa ghi rõ "trong 1 tuần" hay "trong 1 tháng"), chưa có bộ câu hỏi gốc trong `evidence/survey/questions.md`, và dữ liệu thời gian ở dạng khoảng nên chưa tính được Baseline phút chính xác.
-  - Có `3/6` phiếu (`S1, S3, S6`) bỏ trống các ô chia sẻ mở.
-- **Baseline bổ sung từ S1:** `10–20 phút` chuẩn bị/trò chơi (tóm tắt tình huống thật, khớp khoảng `3/6` phiếu khảo sát chọn `10–<20 phút`); chưa có tần suất/tháng và With Agent nên chưa tính Impact (T20).
+  - Dữ liệu thời gian chuẩn bị (Câu 4) ở dạng khoảng nên chưa tính được Baseline trung bình phút chính xác.
+  - Có `3/6` phiếu (`S1, S3, S6`) bỏ trống các ô trả lời mở (Câu 7, Câu 10); Câu 9 trống `6/6` vì cả 6 người đều đã tổ chức hoạt động trong 30 ngày qua.
+- **Baseline bổ sung từ S1–S6:** Thời gian chuẩn bị `10–<20 phút/trò chơi` (`3/6`: `S1, S2, S6`), `20–<30 phút` (`1/6`), `30–<60 phút` (`1/6`), `≥60 phút` (`1/6`); tần suất đã rõ khung **30 ngày (1 tháng)** (`1–2 / 3–5 / >10 lần/tháng`, TV4 có thể dùng làm cơ sở sơ bộ cho `cost/personas.yaml` và ghi rõ `n = 6` + `tự ước tính` nếu bổ sung); chưa có thời gian *With Agent* nên chưa tính Impact (T20).
 - **Tiến độ CP2 & CP3:**
-  - **CP2 (19:30 ngày 27/11):** Đã có bằng chứng đầu thực tế (`n = 6`) và 5 trích dẫn nguyên văn hợp lệ.
-  - **CP3 (10:00 ngày 28/11):** Cần thu thêm tối thiểu **14 phiếu khảo sát nữa** (đạt `≥20`) **hoặc** hoàn thành tối thiểu **3 phỏng vấn sâu** (`P1.md`–`P3.md`), kèm `evidence/survey/questions.md`.
+  - **CP2 (19:30 ngày 27/11):** Đã có bằng chứng đầu thực tế (`n = 6`), bộ câu hỏi gốc (`evidence/survey/questions.md`) và 5 trích dẫn nguyên văn hợp lệ.
+  - **CP3 (10:00 ngày 28/11):** Cần thu thêm tối thiểu **14 phiếu khảo sát nữa** (đạt `≥20`) **hoặc** hoàn thành tối thiểu **3 phỏng vấn sâu** (`P1.md`–`P3.md`).
 
 ## Lịch hẹn (dùng cho CP2 — chỉ ghi vai và giờ, không tên)
 
