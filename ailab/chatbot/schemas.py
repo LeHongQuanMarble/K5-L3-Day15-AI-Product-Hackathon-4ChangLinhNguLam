@@ -481,8 +481,16 @@ MANIFEST = {
     "content": _obj({"kind": S_, "label": S_, "min": S_, "max": S_}),
     "demo": _obj({"content": _list_of(_obj({"id": S_, "text": S_}))}),
 }
-SOURCE_REF = {"documentId": S_, "kind": S_, "page": S_, "paragraph": S_, "locator": S_, "quote": lambda v: _scalar(v, 500)}
+SOURCE_REF = {
+    "sourceId": lambda v: redact(v) if isinstance(v, str) else None,
+    "start": lambda v: v if _is_int(v) and v >= 0 else None,
+    "end": lambda v: v if _is_int(v) and v >= 0 else None,
+    # Legacy references remain readable; C04 offsets are not inferred from them.
+    "documentId": S_, "kind": S_, "page": S_, "paragraph": S_, "locator": S_,
+    "quote": lambda v: _scalar(v, 500),
+}
 EXAM_QUESTION = {"id": S_, "type": S_, "text": S_, "answer": S_, "explanation": S_, "uncertain": S_, "note": S_,
+                 "aiGenerated": lambda v: v if isinstance(v, bool) else None,
                  "choices": _list_of(_obj({"key": S_, "text": S_})), "sourceRefs": _list_of(_obj(SOURCE_REF))}
 PROPOSAL = {
     "proposalId": S_, "version": S_, "status": S_, "kind": S_, "generationMode": S_, "reason": S_,

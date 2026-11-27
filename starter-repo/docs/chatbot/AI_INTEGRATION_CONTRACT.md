@@ -95,7 +95,9 @@ G0 quyết định cách tương thích `error` cũ đang là string và proposa
 
 HTML mới nằm phía server; lấy srcdoc được secure qua route xem thử có kiểm quyền. Không nhúng HTML/key vào text câu trả lời hoặc public metadata. Nhánh reuse phải có Player thật và giữ nguyên hash HTML.
 
-`ExamQuestion` nội bộ: `{id,type,text,choices:[{key,text}],answer,explanation,sourceRefs:[]}`. `type` chỉ single hoặc truefalse theo runtime. `sourceRefs` trỏ documentId + vị trí đoạn/trang hoặc đánh dấu AI tự sinh, không bịa nguồn. Chuyển sang format văn bản repo bằng hàm duy nhất; ký tự `|`, xuống dòng, lựa chọn rỗng và lựa chọn trùng phải được phát hiện/xử lý rõ, không làm mất nghĩa.
+`ExamQuestion` nội bộ C04: `{id?,type,text,choices:[{key,text}],answer,explanation,sourceRefs:[{sourceId,start,end,quote}],aiGenerated}`. `type` chỉ single hoặc truefalse theo runtime; `aiGenerated` là boolean, câu tự sinh vẫn cần giáo viên kiểm lại. `sourceId` là chuỗi định danh đoạn văn được adapter lọc quyền; `start/end` là offset Python (số nguyên không bool, `0 <= start < end <= len(source.text)`), `quote` phải khớp lát cắt nguồn. Không bịa nguồn hoặc coi tham chiếu khớp là chứng nhận đáp án đúng.
+
+Phản hồi công khai qua `to_public_reply` giữ `aiGenerated` và `sourceRefs[].sourceId/start/end/quote` bằng whitelist. `sourceId` được che chuỗi bí mật; `start/end` chỉ giữ số nguyên không bool, không âm; `aiGenerated` chỉ giữ boolean. Giá trị sai kiểu thành null theo quy ước bộ lọc hiện tại. Giữ tương thích các trường nguồn cũ `documentId/kind/page/paragraph/locator` khi có, không tự đổi chúng thành nguồn C04. Trường lạ/nội bộ bị bỏ, chuỗi được che bí mật; không sửa draft/state gốc. `quote` công khai vẫn giới hạn 500 ký tự và được che bí mật, nên không dùng bản công khai đã cắt/che để kiểm lại offset hoặc xác minh kiến thức. Chuyển sang format văn bản repo bằng hàm duy nhất; ký tự `|`, xuống dòng, lựa chọn rỗng và lựa chọn trùng phải được phát hiện/xử lý rõ, không làm mất nghĩa. Metadata giải thích/nguồn giữ riêng trong draft, không nhúng vào nội dung Exam văn bản hoặc HTML.
 
 `GameResult`:
 

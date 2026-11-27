@@ -64,6 +64,8 @@ Tên hàm/module là đề xuất; coder không tự đổi I/O bên ngoài. M�
 
 ### C04 — Bộ đề và kiểm nội dung
 
+**Theo dõi sau review C04 (2026-11-27):** C04 hiện chỉ chuẩn bị/kiểm câu hỏi có cấu trúc được cấp và chọn Exam có quyền; sinh câu hỏi bằng AI chưa triển khai. Không đánh hoàn thành Exam Generator tổng thể khi module này đạt. Hạng mục tiếp theo còn TODO: chốt interface sinh đề từ yêu cầu/nội dung nguồn đã lọc quyền, tích hợp provider và giới hạn lỗi/retry, giữ metadata nguồn/AI tự sinh, kiểm đầu ra qua C04, trình giáo viên duyệt và có bằng chứng AI thật/nội dung. Phối hợp I02 (luồng duyệt/lưu), C07 (nguồn tài liệu), I03 (nghiệm thu); không coi các task đó đã tự bao phủ chức năng sinh đề.
+
 - File: `ailab/chatbot/exams.py`, `ailab/test_chatbot_exams.py`.
 - Hàm: `prepare_exam(req,sources,existing)->examDraft`; `validate_exam_questions(draft)->checks`; `serialize_exam(draft)->content`; `review_grounding(draft,sources)->findings`.
 - Logic: single/truefalse; 2–6 lựa chọn; đáp án hợp lệ; kiểm rỗng/trùng; nguồn từng câu; parse lại bằng store; không dùng LLM tự chấm làm chứng nhận đúng tuyệt đối.

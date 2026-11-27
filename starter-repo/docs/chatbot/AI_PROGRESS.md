@@ -32,7 +32,7 @@ Mốc bàn giao: 2026-11-27, múi giờ Asia/Bangkok. Commit khảo sát `faa44a
 | C02 Hội thoại | DONE | Điều phối + Coder A–E (subagent) | C02_SPEC.md; conversation.py, workflow.py, test_chatbot_conversation.py; 118/118 OK; agent review đạt lần 3 (phạm vi hội thoại) |
 | I01 Web/state | DONE | Backend (Opus) + Frontend (Sonnet) + Kiểm thử (Sonnet) | I01_SPEC.md; 142/142 OK; trình duyệt 21/21 PASS (`evidence/chatbot/I01/RESULTS.md`); agent review đạt lần 3 trong phạm vi tích hợp hội thoại; chưa nghiệm thu AI thật |
 | C03 Danh mục/model | DONE | Nghiệp vụ (Opus) + Kiểm thử (Sonnet) | C03_SPEC.md; catalog.py, test_chatbot_catalog.py (32 test); 174/174 OK; agent review đạt (tự chạy 174/174, tái hiện độc lập 2 lỗi cũ đã hết); chưa nối web (I02) |
-| C04 Exam | TODO | Chưa giao | Chưa có |
+| C04 Exam | DONE | Coder nghiệp vụ + Coder kiểm thử C04; review độc lập | 216/216 test được reviewer chạy lại; kiểm độc lập metadata public, xung đột manifest hai hướng và bất biến đầu vào đạt. Chỉ module chuẩn bị/kiểm đề; sinh đề AI và tích hợp web vẫn TODO. |
 | I02 Lắp ghép | TODO | Điều phối | Chưa có |
 | F01 PUT App | TODO | Điều phối/chủ backend | Lỗi đã tái hiện; chưa sửa |
 | C05 Game mới | TODO | Chưa giao | Chưa có |
@@ -117,3 +117,19 @@ Mỗi quyết định ghi: ID, thời điểm Asia/Bangkok, vấn đề, lựa c
 - 2026-11-27 · Nghiệp vụ bàn giao: luật 1 sửa; `auto_mapping` dùng Kuhn (`_kuhn`, `_match_group`), ô bắt buộc trước, giữ cặp trùng key chỉ khi vẫn ghép đủ. Điều phối tự review: 3 ca review ra đúng; đối chiếu brute-force 4000 ca ngẫu nhiên → 0 ca ghép thiếu ô bắt buộc, không dùng lại lớp, không sửa đầu vào (lần chạy đầu báo lệch do hàm đối chiếu của điều phối sai, đã sửa). 167/167 OK. Giao Coder kiểm thử.
 - 2026-11-27 · Kiểm thử bàn giao 7 test mới (C03-20…24 + thuộc tính 400 ca brute-force). Điều phối tự review: 0 dòng test cũ bị xoá; 174/174 OK; test mới chạy trên catalog.py trước sửa → 5 FAIL (20, 21, 22 thuần, 22 clean_app, thuộc tính). Gửi agent review.
 - 2026-11-27 · Người dùng xác nhận C03 DONE (agent review đạt). Commit theo quy tắc "commit khi DONE" của người dùng; không gồm TEAMS.md và 2 file bàn giao điều phối. Mã xung đột "loại game không hợp" (`unsupported_interaction`) vẫn là điểm mở để chốt trước I02.
+
+- 2026-11-27 · Phiên Codex: xác nhận lại C03 DONE theo kết quả agent review do người dùng cung cấp: kiểm độc lập 174/174 đạt, hai lỗi cũ không còn tái hiện; phạm vi module, chưa nối web. Không commit/push theo chỉ đạo hiện tại. C04 IN_PROGRESS; hợp đồng chốt tại C04_SPEC.md; nghiệp vụ chỉ exams.py, kiểm thử chỉ test_chatbot_exams.py, điều phối giữ tài liệu.
+
+| File C04 | Agent | Task | Ngày | Trạng thái |
+|---|---|---|---|---|
+| ailab/chatbot/exams.py | c04_business | C04 nghiệp vụ | 2026-11-27 | Bàn giao, REVIEW |
+| ailab/test_chatbot_exams.py | c04_tests | C04 kiểm thử | 2026-11-27 | Bàn giao, REVIEW |
+| docs/chatbot/C04_SPEC.md, C04_REVIEW.md, AI_PROGRESS.md | Điều phối Codex | C04 đặc tả / bằng chứng | 2026-11-27 | REVIEW |
+
+- 2026-11-27 · C04 → REVIEW. Hai coder bàn giao file riêng; điều phối đọc mã và chạy 35/35 C04 + full discovery 209/209 OK (18.857s). Đã sửa cờ examFormat khi count sai và chặn manifest không nhận Exam; thiếu bằng chứng trước/sau cho hai lỗi, ghi rõ trong C04_REVIEW.md. Không gọi AI/không upload/không xác minh kiến thức/không lưu artifact. Workspace đổi ngoài phiên sang HEAD 5e7b4c6; người dùng cho tiếp tục, không hoàn tác file ngoài phạm vi. TEAMS.md/DB thật giữ nguyên hash từ lúc tiếp tục. Không commit/push; chờ review độc lập.
+- 2026-11-27 · Review độc lập C04 chưa đạt: 2 P2 (mất sourceId/start/end/aiGenerated khi public reply; gameKind xung đột manifest bị not_needed). C04 giữ REVIEW. Đã tái hiện cả hai, lưu exams.py/schemas.py trước sửa vào thư mục tạm codex-c04-review1-before. Interface sửa chốt tại C04_SPEC mục Review lần 1 trước giao coder; metadata coder giữ schemas.py + AI_INTEGRATION_CONTRACT.md, nghiệp vụ giữ exams.py, test coder giữ test_chatbot_exams.py sau khi interface ổn định. Điều phối giữ tài liệu tiến độ/spec/review/kế hoạch.
+- Theo dõi O17 / TODO: sinh câu hỏi bằng AI chưa triển khai. C04 chỉ chuẩn bị/kiểm đề có cấu trúc; Exam Generator tổng thể chưa hoàn thành. AI_IMPLEMENTATION_PLAN.md mục C04 ghi hạng mục tiếp theo: interface/provider/provenance/giới hạn lỗi/duyệt giáo viên/bằng chứng AI thật, phối hợp I02/C07/I03.
+
+- 2026-11-27 · Tiếp tục C04 sau merge do người dùng thực hiện: HEAD 42ce3dc, mã tại Git root ailab/, docs tại starter-repo/docs/chatbot/, DB cũ giữ nguyên tại starter-repo/ailab/data/ailab.db. Các coder cũ đều đã dừng; giao lại đường dẫn mới, không dùng stash. Đối chiếu khôi phục: metadata schemas.py + hợp đồng đã sửa đúng, kiểm chuỗi prepare→public giữ sourceId/start/end/aiGenerated. Hai hướng gameKind xung đột manifest còn tái hiện not_needed trước sửa. c04_business chỉ sửa ailab/chatbot/exams.py; c04_metadata_fix giữ schemas.py/hợp đồng và không ghi đè bản khôi phục; c04_tests độc quyền ailab/test_chatbot_exams.py sau khi interface ổn định. spec.md đang có thay đổi ngoài C04, giữ nguyên. C04 vẫn REVIEW.
+
+- 2026-11-27 · C04 gửi lại review sau sửa 2 P2. Metadata khôi phục đã kiểm chuỗi prepare_exam→to_public_reply; exams.py chặn xung đột gameKind/manifest hai hướng trước not_needed. Coder test thêm 7 methods: 42/42 C04, full root điều phối 216/216 OK (24.728s). Test mới trên snapshot trước sửa: 6 FAIL + 6 ERROR theo subtest; bản mới đạt. Git HEAD42ce3dc không đổi, origin/main local96982f5; MDRT so origin/main rỗng, liệt kê untracked/DB cũ riêng trong C04_REVIEW.md. TEAMS/spec/DB hash không đổi. Không commit/push/stash; giữ REVIEW. O17 sinh đề AI, upload và tích hợp web chưa hoàn thành.
