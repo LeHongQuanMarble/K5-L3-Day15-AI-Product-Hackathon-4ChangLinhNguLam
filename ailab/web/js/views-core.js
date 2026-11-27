@@ -9,6 +9,7 @@ import { h, api, ico, btn, errBox, STATUS, fmtStatus, KIND, srcOf, QHELP,
          toast, modal, confirmModal, promptModal, copyText,
          validateQuestionsClient, serializeQuestionsClient } from './dom.js';
 import { listPage, previewFrame, cameraTry, imageField, pickField } from './list-page.js';
+import { kindChooser } from './kindart.js';
 
 var KEYS = 'ABCD';
 
@@ -505,6 +506,8 @@ function modelForm(ctx, id, create) {
     var desc = h('textarea', { maxlength: 300, style: 'min-height:70px' }); desc.value = state.description;
     var kind = h('select', null, Object.keys(KIND).filter(function (k) { return k !== 'hands'; }).map(function (k) { return h('option', { value: k, selected: k === state.kind }, KIND[k]); }));
     var url = h('input', { type: 'text', placeholder: 'https://teachablemachine.withgoogle.com/models/…', value: state.url, required: true });
+    /* Thêm mới: 3 thẻ chọn loại (tái sử dụng từ learning); chọn thẻ thì đặt luôn ô "Loại" bên dưới */
+    var chooser = id ? null : kindChooser(state.kind, function (k) { state.kind = k; kind.value = k; });
     var vis = h('select', null, [['private', 'Riêng tư (chỉ mình tôi)'], ['public', 'Công khai (mọi người dùng được)']].map(function (o) { return h('option', { value: o[0], selected: o[0] === state.visibility }, o[1]); }));
     var outs = h('div'), outMsg = h('div');
     function drawOuts() {
@@ -538,7 +541,8 @@ function modelForm(ctx, id, create) {
         .then(function () { toast(id ? 'Đã lưu mô hình.' : 'Đã thêm mô hình.', 'ok'); location.hash = '#/models'; })
         .catch(function (x) { msg.replaceChildren(errBox(x)); });
     } },
-      h('h2', null, id ? 'Sửa mô hình' : (create ? 'Tạo mô hình' : 'Thêm mô hình')), intro,
+      h('h2', null, id ? 'Sửa mô hình' : (create ? 'Tạo mô hình' : 'Thêm mô hình')), intro, chooser,
+      h('div', { class: 'meta', style: 'margin-top:6px' }, id ? '' : 'Bước 2 · Sau khi bấm “Upload my model” ở Teachable Machine, dán đường dẫn vào đây.'),
       h('label', { class: 'l' }, 'Tên mô hình', name),
       h('label', { class: 'l' }, 'Mô tả (không bắt buộc)', desc),
       h('label', { class: 'l' }, 'Loại', kind, h('small', null, 'Hình ảnh và Tư thế chạy được; Âm thanh mới chỉ lưu, chưa chạy ở bản này.')),
