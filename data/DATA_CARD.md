@@ -46,18 +46,18 @@
 | | |
 |---|---|
 | Dùng để làm gì | Chấm 4 nhóm metric đã freeze trong `eval/metric_spec.yaml`; đo routing/catalog, chất lượng bộ đề, an toàn HTML/tương thích và HITL/từ chối. |
-| Từ đâu | 12 câu CP2 (`feat/t16-t17-cp2-data-eval`) giữ nguyên + 8 câu TV4 tự soạn CP3 (`B13`–`B20`) đối chiếu snapshot `79822a4` và các luật trong `ailab/contract.py`, `ailab/composer.py`. Không có câu phỏng vấn/khảo sát thật. |
+| Từ đâu | 12 câu CP2 (`feat/t16-t17-cp2-data-eval`) giữ nguyên + 8 câu TV4 tự soạn CP3 (`B13`–`B20`) đối chiếu snapshot `79822a4` + 10 câu từ tình huống thật S1–S6 do TV1 cung cấp 27/11 (`B21`–`B30`, xem `docs/HANDOFF-TV4-nguon-nguoi-dung.md`). 10 câu cuối là **tóm tắt tình huống, không phải trích nguyên văn phỏng vấn**. |
 | Xử lý những bước gì | `python run.py check` đọc CSV (6 cột, đếm type/source, kiểm metric); `python run.py eval` tạo `eval/run-N.csv` + `traces/run-N.jsonl`; chấm bằng `python run.py score`. Không sửa `expected` của 12 câu CP2. |
-| Số dòng / số đoạn | **20 câu** = thuong 6 · kho 10 · tu_choi 4 (trong đó 4 câu tấn công an toàn/HITL). Nguồn: `tu_viet` 20 · `nguoi_dung` 0 · `data_that` 0 → **0/20 từ người dùng hoặc data thật**. |
-| Phiên bản / ngày lấy | CP2 @ PR #6 (`6af9bc2`); mở rộng CP3 28/11/2026 trên nhánh `feat/t16-t17-cp3-update`, chờ TV4 xác nhận. |
-| Nhãn | `synthetic` / `tu_viet`. Cách sinh: TV4 soạn theo Catalog Snapshot và 4 lớp chỗ khó trong `spec.md` §5; seed không áp dụng; người kiểm chéo: chưa có (T18). |
-| Giới hạn | Chưa thay 4 câu bằng lời giáo viên hoặc dữ liệu thật (T03/TV1); không dùng làm bằng chứng pain; metric đã freeze CP2 nên chỉ bổ sung expected/pass_criterion, không đổi định nghĩa. |
+| Số dòng / số đoạn | **30 câu** = thuong 11 · kho 15 · tu_choi 4 (trong đó 4 câu tấn công an toàn/HITL). Nguồn: `tu_viet` 20 · `nguoi_dung` 10 · `data_that` 0 → **10/30 từ nguồn thật** (`python run.py check` hết warning ≥1/3). |
+| Phiên bản / ngày lấy | CP2 @ PR #6 (`6af9bc2`); mở rộng CP3 28/11/2026 qua PR #8 (`79822a4`); bổ sung 10 câu nguồn thật S1–S6 ngày 27/11/2026. |
+| Nhãn | `tu_viet` 20 · `nguoi_dung` 10. Cách sinh: 20 câu đầu TV4 soạn theo Catalog Snapshot và 4 lớp chỗ khó trong `spec.md` §5; 10 câu sau tóm tắt từ S1–S6 do TV1 cung cấp. Seed không áp dụng; người kiểm chéo: chưa có (T18). |
+| Giới hạn | 10 câu `nguoi_dung` là tóm tắt, **không phải trích nguyên văn**; **không dùng làm bằng chứng pain cho rubric R1** (T03 vẫn cần ≥3 phỏng vấn hoặc ≥20 phiếu khảo sát). Metric đã freeze CP2 nên chỉ bổ sung expected/pass_criterion, không đổi định nghĩa. |
 
 ## Chưa có — không tính vào Data Card CP2/CP3
 
-- `eval/benchmark.csv`: đã đạt **20 câu** trước CP3 nhưng vẫn **0/20 từ nguồn thật** → chờ T03 (TV1) thay 4 câu bằng `nguoi_dung`/`data_that`.
+- `eval/benchmark.csv`: đã đạt **30 câu, 10/30 từ nguồn thật** → hết warning `run.py check`. **Chưa đạt AC T03**: vẫn 0 phỏng vấn, 0 trích nguyên văn, 0 khảo sát.
 - `eval/metric_spec.yaml` 4 metric + `spec.md` §7: bản T17 đã freeze CP2, **không sửa**.
-- Phỏng vấn giáo viên: `evidence/interviews/` mới có `TEMPLATE.md` → **0 phỏng vấn, 0 trích dẫn** (T03 · TV1).
+- Phỏng vấn giáo viên: `evidence/interviews/` mới có `TEMPLATE.md` → **0 phỏng vấn, 0 trích dẫn** (T03 · TV1). S1–S6 chỉ là tình huống thật tóm tắt, không thay thế phỏng vấn.
 - `ApplicationPlan` JSON mẫu/contract: `codebase/agent.py` hiện vẫn luồng "mô tả game → viết HTML", chưa khớp lát cắt chọn tổ hợp (T06/T08 · TV2; T02 · TV1). Bản nháp Composer TV3 ở PR #7 chờ tích hợp.
 - Catalog Snapshot: đã có tại commit `79822a4` và file `data/catalog_snapshot.json` trên nhánh TV3; **chưa merge vào `main`**. Evaluation Run 1/2 phải dùng đúng hash này sau khi merge, không export lại với DB đã đổi.
 - `data/preclass/`, `data/training-ops/` (data BTC): đã xoá ở HEAD `14dea37`, **không dùng** cho A3, không commit lại.
