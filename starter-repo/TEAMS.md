@@ -12,7 +12,7 @@
 | STT | Họ và tên | Mã học viên | Vai trò | Phần việc chính |
 |---|---|---|---|---|
 | 1 | Nguyễn Hoàng Việt | 2A202603487 | Đội trưởng | PM & Product Lead: Product Design, Evidence, Acceptance Testing, CP management |
-| 2 | Hồc Quốc Toản | 2A202603668 | Thành viên | AI Agent Engineer: Agent phân tích, lựa chọn thành phần và nối model thật |
+| 2 | Hồ Quốc Toản | 2A202603668 | Thành viên | AI Agent Engineer: Agent phân tích, lựa chọn thành phần và nối model thật |
 | 3 | Lê Hồng Quân | 2A202603705 | Thành viên | Software & Integration Engineer: AI Lab, Composition, UI & Mouse Fallback |
 | 4 | Đào Huy Hoàng | 2A202603451 | Thành viên | Data, Evaluation & Cost Engineer: Benchmark, Eval report & Cost simulation |
 
