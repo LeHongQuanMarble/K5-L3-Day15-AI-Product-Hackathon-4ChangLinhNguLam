@@ -2,6 +2,7 @@
 'use strict';
 var id = location.pathname.split('/').pop();
 var frame = document.getElementById('stage'), title = document.getElementById('title'), status = document.getElementById('status'), camBtn = document.getElementById('cam');
+var errBox = document.getElementById('play-error'), errText = document.getElementById('play-error-msg'), retryBtn = document.getElementById('retry');
 var HAND = { // MediaPipe Hand Landmarker từ CDN (staging); bản của JULY tự phục vụ ở /vision/, ở đây chưa có
   lib: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs',
   wasm: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
@@ -16,6 +17,8 @@ var LIBS = {
 function say(t) { status.textContent = t; }
 function toFrame(m, transfer) { frame.contentWindow.postMessage(m, '*', transfer || []); }
 function st(state) { toFrame({ type: 'camera.status', state: state, source: 'camera' }); }
+// Nhắc giáo viên: lỗi camera không chặn lối chơi — fallback chuột luôn bật.
+function mouseHint() { return ' Bạn vẫn có thể chơi trọn vẹn bằng chuột ngay bên dưới.'; }
 function loadScript(src) {
   return new Promise(function (ok, bad) {
     var s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = function () { bad(new Error('Không tải được thư viện: ' + src)); };
@@ -69,8 +72,8 @@ function readHands(now) {
 function startCamera() {
   camBtn.disabled = true; say('Đang bật camera và nạp mô hình…'); st('loading');
   var kind = data.model.kind;
-  if (kind !== 'hands' && !LIBS[kind]) { st('model-failed'); say('Mô hình ' + kind + ' chưa chạy được ở bản này.'); camBtn.disabled = false; return; }
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { st('no-camera'); say('Trình duyệt không cho dùng camera. Cần mở bằng https hoặc localhost.'); camBtn.disabled = false; return; }
+  if (kind !== 'hands' && !LIBS[kind]) { st('model-failed'); say('Mô hình ' + kind + ' chưa chạy được ở bản này.' + mouseHint()); camBtn.disabled = false; return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { st('no-camera'); say('Trình duyệt không cho dùng camera — cần mở trang bằng https hoặc localhost.' + mouseHint()); camBtn.disabled = false; return; }
   navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false }).then(function (s) {
     stream = s;
     video = document.createElement('video'); video.playsInline = true; video.muted = true; video.srcObject = s;
@@ -84,8 +87,11 @@ function startCamera() {
   }).then(function (m) { model = m; running = true; if (handsAsked && kind !== 'hands') loadHands().catch(handsFail); say('Đang chạy'); camBtn.textContent = 'Tắt camera'; camBtn.disabled = false; st('ready'); loop(); })
     .catch(function (err) {
       var denied = err && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
-      st(denied ? 'denied' : (err && err.name === 'NotFoundError' ? 'no-camera' : 'model-failed'));
-      say(denied ? 'Bạn chưa cho phép camera.' : 'Không bật được: ' + (err && err.message || err));
+      var state = denied ? 'denied' : (err && err.name === 'NotFoundError' ? 'no-camera' : 'model-failed');
+      var why = denied ? 'Bạn chưa cho phép trang này dùng camera — hãy chọn “Cho phép” khi trình duyệt hỏi.'
+        : err && err.name === 'NotFoundError' ? 'Không tìm thấy camera trên máy này.'
+        : 'Không bật được camera hoặc nạp mô hình: ' + (err && err.message || err);
+      st(state); say(why + mouseHint());
       stop(true); camBtn.disabled = false;
     });
 }
@@ -93,7 +99,7 @@ function stop(keepStatus) {
   running = false; cancelAnimationFrame(loopId);
   if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); stream = null;
   camBtn.textContent = 'Bật camera';
-  if (!keepStatus) { st('off'); say('Camera đã tắt'); }
+  if (!keepStatus) { st('off'); say('Camera đã tắt — đang chơi bằng chuột.'); }
 }
 var rev = {}; // lớp -> ô
 var cand = null, since = 0, emitted = false, lastPredict = 0, lastFrame = 0, busy = false;
@@ -132,11 +138,28 @@ function predict() {
 camBtn.addEventListener('click', function () { running ? stop() : startCamera(); });
 window.addEventListener('pagehide', function () { stop(true); });
 
-fetch('/api/apps/' + id + '/play', { credentials: 'same-origin' }).then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.message || 'Không mở được.'); return d; }); }).then(function (d) {
-  if (d.unavailable) { title.textContent = 'Chưa chơi được'; say(d.reason); return; }
-  data = d; title.textContent = d.app.name; document.title = d.app.name + ' — AI Lab';
-  Object.keys(d.mapping).forEach(function (k) { rev[d.mapping[k]] = k; });
-  if (d.model) { camBtn.hidden = false; say('Bấm “Bật camera” để bắt đầu.'); }
-  frame.srcdoc = d.srcdoc;
-}).catch(function (e) { title.textContent = 'Không mở được'; say(e.message); });
+// Lỗi tải / chưa chơi được: gập khung chơi, mở vùng lỗi (có nút Thử lại → loadApp chạy lại được).
+function showFail(head, why) {
+  title.textContent = head;
+  if (errText) errText.textContent = why || 'Có lỗi không rõ nguyên nhân.';
+  if (errBox) errBox.hidden = false;
+  frame.hidden = true;
+  say(head + (why ? ' — ' + why : ''));
+}
+function loadApp() {
+  stop(true); // an toàn khi thử lại giữa chừng: tắt camera cũ, không đổi trạng thái của iframe
+  if (errBox) errBox.hidden = true;
+  frame.hidden = false;
+  title.textContent = 'Đang nạp trò chơi…';
+  say('Đang nạp trò chơi…');
+  fetch('/api/apps/' + id + '/play', { credentials: 'same-origin' }).then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.message || 'Không mở được.'); return d; }); }).then(function (d) {
+    if (d.unavailable) { showFail('Chưa chơi được', d.reason); return; }
+    data = d; title.textContent = d.app.name; document.title = d.app.name + ' — AI Lab';
+    Object.keys(d.mapping).forEach(function (k) { rev[d.mapping[k]] = k; });
+    if (d.model) { camBtn.hidden = false; say('Bấm “Bật camera” để bắt đầu.'); }
+    frame.srcdoc = d.srcdoc;
+  }).catch(function (e) { showFail('Không mở được', e.message); });
+}
+if (retryBtn) retryBtn.addEventListener('click', loadApp);
+loadApp();
 })();
