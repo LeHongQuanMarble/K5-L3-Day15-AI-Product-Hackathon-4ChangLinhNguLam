@@ -72,7 +72,7 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 | T14 | Web/Backend Integration & HITL | TV3 | P0 | CP3 | T06 *(khởi chạy sớm)*, T08, T12, T13 | 28/11 08:30 | TODO *(cần TV3 xác nhận)* |
 | T15 | E2E Testing & Demo Recording | TV3 | P0 | CP3–CP4 | T07, T08, T14 *(CP3)* · T09 *(CP4)* | 28/11 09:30 *(video CP3)* / 12:00 *(CP4)* | TODO |
 | T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | — *(song song AI & Software)* | 27/11 19:00 (v1) / 28/11 09:00 (full) | IN_PROGRESS *(CP2 đã merge PR #6; CP3 khóa snapshot `79822a4` qua PR #8; Dataset 4 nay 30 câu/10 nguồn thật, TV1 đã ký xác nhận `DATA_CARD.md` lúc 28/11 00:50)* |
-| T17 | Benchmark & Metric Specification | TV4 | P0 | CP2–CP3 | T02 *(khung)*, T06 *(song song)* | 27/11 19:00 (CP2) / 28/11 08:00 (CP3) | IN_PROGRESS *(6 metric freeze PR #6; benchmark 30 câu / 10 nguồn thật `run.py check` hết warning; TV1 đã ký freeze áp dụng ≥24/30 câu lúc 28/11 00:50)* |
+| T17 | Benchmark & Metric Specification | TV4 | P0 | CP2–CP3 | T02 *(khung)*, T06 *(song song)* | 27/11 19:00 (CP2) / 28/11 08:00 (CP3) | DONE *(TV4 xác nhận 28/11: 6 metric freeze PR #6; benchmark 30 câu / 10 nguồn thật, `run.py check` hết warning; TV1 ký freeze ≥24/30 lúc 00:50; biên bản chấm chéo 5 output chuyển sang T18)* |
 | T18 | Evaluation Run 1 | TV4 | P0 | CP3 | T07, T08, T09, T17 | 28/11 09:15 | TODO |
 | T19 | Evaluation Run 2 & Comparison Report | TV4 | P0 | CP4 | T10, T18 | 28/11 13:00 | TODO |
 | T20 | Cost Simulation & Operational Analysis | TV4 | P0 | CP4 | T03, T07 *(chuẩn bị sớm)* · T19 *(chốt số cuối)* | 28/11 13:30 | TODO |
@@ -777,7 +777,9 @@ Bàn giao `eval/metric_spec.yaml` và `eval/benchmark.csv` đã freeze cho TV1 (
 
 **Status:**
 
-IN_PROGRESS — metric/§7 đã freeze CP2 qua PR #6; benchmark CP3 đã đạt 30 câu, đã merge qua PR #8 và bổ sung 10 câu nguồn thật S1–S6 (`98162d3`); chờ TV4 xác nhận (T03 vẫn chưa đạt AC) trước khi bàn giao T18.
+DONE — **TV4 (thành viên 4) đã đọc và xác nhận 28/11/2026**: metric/§7 freeze CP2 qua PR #6; benchmark CP3 đạt 30 câu, merge PR #8 + 10 câu nguồn thật S1–S6 (`98162d3`); `python run.py check` pass; TV1 ký freeze `≥24/30` lúc 00:50. Bàn giao `eval/metric_spec.yaml` + `eval/benchmark.csv` cho T18.
+
+Lưu ý chuyển tiếp (không làm thay chỗ đã freeze): T03 vẫn chưa đạt AC (0 phỏng vấn, khảo sát 6/20); biên bản chấm chéo 5 output (`eval/README.md` mục 3 · `eval/report.md` mục 5) hoàn tất sau khi có output Run 1 ở T18.
 
 ---
 
