@@ -46,6 +46,11 @@ def answer(text: str) -> dict:
     for step in range(1, MAX_STEPS + 1):
         prompt = user if not last_err else "%s\n\n[Hệ thống] Bản trước bị từ chối: %s Hãy sửa và trả lại đầy đủ file." % (user, last_err)
         reply = call_model(SYSTEM, prompt)
+        if not reply["text"].strip():   # T07: rỗng do bị từ chối / chặn / hết token — không gọi thêm lượt
+            note("dừng: model không trả nội dung ở lượt %d" % step)
+            return {"output": "Model không trả nội dung (có thể bị từ chối, bị chặn hoặc hết token). "
+                              "Bạn diễn đạt lại yêu cầu giúp mình nhé." +
+                              (" Bản trước bị check_game từ chối: %s" % last_err if last_err else "")}
         msg, html = _split(reply["text"])
         if html is None:
             note("dừng: model không viết game (hỏi lại, từ chối, hoặc chưa nối model thật)")

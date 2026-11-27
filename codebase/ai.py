@@ -16,12 +16,18 @@ Chế độ giả (mặc định khi .env chưa có MODEL_PROVIDER, hoặc MODEL
 
 Nối model thật: điền .env (chép từ .env.example), rồi viết nhánh gọi API ở dưới theo docs/connect-model.md
 (có ví dụ OpenAI, Claude, model chạy trên máy, và cách nối nhà cung cấp khác). Không dán API key vào file này.
+
+T07: token đọc strict qua provider_usage.extract_usage; lỗi gọi model là ProviderError (provider, kind,
+status, code) — thông điệp không chứa body phản hồi, header, key hay prompt.
 """
+import http.client
 import json
 import os
+import socket
 import urllib.error
 import urllib.request
 
+from provider_usage import MAX_ERROR_BODY, ProviderError, extract_usage, http_error
 from tracing import model_call
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -50,16 +56,54 @@ SHOW_RAW = False   # True: in nguyên phản hồi của API khi cần tìm tên
 MAX_OUT = 8192     # trả về cả một file game HTML nên cần nhiều token ra hơn ví dụ mẫu (1024)
 
 
-def post_json(url, headers, body, timeout=120):
-    """Gửi POST JSON, trả JSON phản hồi. Chỉ dùng thư viện chuẩn. Lời báo lỗi không kèm key."""
-    req = urllib.request.Request(
-        url, data=json.dumps(body).encode("utf-8"), method="POST",
-        headers=dict({"Content-Type": "application/json"}, **headers))
+def _http_body(e):
+    """Đọc tối đa MAX_ERROR_BODY byte của body HTTPError (+1 byte để biết vượt) chỉ để lấy mã lỗi có cấu trúc.
+    Vượt giới hạn thì trả nguyên phần đã đọc (> giới hạn) — http_error sẽ không parse. Lỗi đọc → rỗng."""
     try:
+        return e.read(MAX_ERROR_BODY + 1) or b""
+    except Exception:
+        return b""
+    finally:
+        try:
+            e.close()
+        except Exception:
+            pass
+
+
+def post_json(url, headers, body, timeout=120, provider=None):
+    """Gửi POST JSON, trả JSON phản hồi (dict). Chỉ dùng thư viện chuẩn.
+    Lỗi thành ProviderError an toàn (không kèm body, header, key, URL); `from None` để traceback không mang body:
+    HTTPError → http_error; OSError (URLError, ConnectionError, timeout) / http.client.HTTPException → network/timeout;
+    ValueError / TypeError / http.client.InvalidURL (URL, header, tên model sai) → config; JSON hỏng → bad_response."""
+    provider = provider or MODEL_PROVIDER
+    err = None
+    try:
+        req = urllib.request.Request(
+            url, data=json.dumps(body).encode("utf-8"), method="POST",
+            headers=dict({"Content-Type": "application/json"}, **headers))
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            data = json.loads(r.read().decode("utf-8"))
+            raw = r.read()
     except urllib.error.HTTPError as e:
-        raise RuntimeError("HTTP %d: %s" % (e.code, e.read().decode("utf-8", "replace")[:300]))
+        err = http_error(provider, e.code, _http_body(e))
+    except urllib.error.URLError as e:
+        timed_out = isinstance(e.reason, (socket.timeout, TimeoutError)) or "timed out" in str(e.reason).lower()
+        err = ProviderError(provider, "timeout" if timed_out else "network")
+    except (socket.timeout, TimeoutError):
+        err = ProviderError(provider, "timeout")
+    except http.client.InvalidURL:          # lớp con của HTTPException — bắt trước
+        err = ProviderError(provider, "config")
+    except (OSError, http.client.HTTPException):
+        err = ProviderError(provider, "network")
+    except (ValueError, TypeError):
+        err = ProviderError(provider, "config")
+    if err is not None:
+        raise err from None
+    try:
+        data = json.loads(raw.decode("utf-8"))
+    except Exception:
+        data = None
+    if not isinstance(data, dict):
+        raise ProviderError(provider, "bad_response") from None
     if SHOW_RAW:
         print(json.dumps(data, ensure_ascii=False, indent=2)[:3000])
     return data
@@ -69,29 +113,60 @@ def _messages(system, user):
     return ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": user}]
 
 
+def _bad(provider, field):
+    return ProviderError(provider, "bad_response", field=field)
+
+
+def _join_texts(provider, texts, field):
+    """Nối các đoạn chữ; mỗi đoạn phải là str (sai kiểu → bad_response). Không có đoạn nào → ""."""
+    for t in texts:
+        if not isinstance(t, str):
+            raise _bad(provider, field)
+    return "".join(texts)
+
+
+# R2: mọi call_* đọc usage TRƯỚC. Phản hồi đúng cấu trúc nhưng không có chữ (từ chối, bị chặn, hết token)
+# → text="" kèm token thật, không ném lỗi (khi có exception, tracing ghi 0 token và token đã tính tiền bị mất).
+# Chỉ phản hồi hỏng cấu trúc / sai kiểu mới là bad_response.
+
 def call_openai(system, user):
     data = post_json("https://api.openai.com/v1/chat/completions", {"Authorization": "Bearer " + API_KEY},
-                     {"model": MODEL_NAME, "messages": _messages(system, user)})
-    u = data["usage"]
-    return {"text": data["choices"][0]["message"]["content"],
-            "tokens_in": u["prompt_tokens"], "tokens_out": u["completion_tokens"]}
+                     {"model": MODEL_NAME, "messages": _messages(system, user)}, provider="openai")
+    tin, tout = extract_usage("openai", data)
+    choices = data.get("choices")
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        raise _bad("openai", "choices")
+    msg = choices[0].get("message")
+    if not isinstance(msg, dict) or "content" not in msg:
+        raise _bad("openai", "choices[0].message.content")
+    content = msg["content"]          # null khi model từ chối (kèm "refusal") hoặc chỉ gọi tool
+    if content is not None and not isinstance(content, str):
+        raise _bad("openai", "choices[0].message.content")
+    return {"text": content or "", "tokens_in": tin, "tokens_out": tout}
 
 
 def call_claude(system, user):
     data = post_json("https://api.anthropic.com/v1/messages",
                      {"x-api-key": API_KEY, "anthropic-version": "2023-06-01"},
                      {"model": MODEL_NAME, "max_tokens": MAX_OUT, "system": system or "",
-                      "messages": [{"role": "user", "content": user}]})
-    text = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
-    u = data["usage"]
-    return {"text": text, "tokens_in": u["input_tokens"], "tokens_out": u["output_tokens"]}
+                      "messages": [{"role": "user", "content": user}]}, provider="anthropic")
+    tin, tout = extract_usage("anthropic", data)
+    blocks = data.get("content")
+    if not isinstance(blocks, list) or not all(isinstance(b, dict) for b in blocks):
+        raise _bad("anthropic", "content")
+    text = _join_texts("anthropic", [b.get("text") for b in blocks if b.get("type") == "text"], "content[].text")
+    return {"text": text, "tokens_in": tin, "tokens_out": tout}
 
 
 def call_ollama(system, user):
     data = post_json("http://localhost:11434/api/chat", {},
-                     {"model": MODEL_NAME, "messages": _messages(system, user), "stream": False}, timeout=300)
-    return {"text": data["message"]["content"],
-            "tokens_in": data.get("prompt_eval_count", 0), "tokens_out": data.get("eval_count", 0)}
+                     {"model": MODEL_NAME, "messages": _messages(system, user), "stream": False}, timeout=300,
+                     provider="ollama")
+    tin, tout = extract_usage("ollama", data)
+    msg = data.get("message")
+    if not isinstance(msg, dict) or not isinstance(msg.get("content"), str):
+        raise _bad("ollama", "message.content")
+    return {"text": msg["content"], "tokens_in": tin, "tokens_out": tout}
 
 
 def call_gemini(system, user):
@@ -101,14 +176,29 @@ def call_gemini(system, user):
     if system:
         body["systemInstruction"] = {"parts": [{"text": system}]}
     data = post_json("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % MODEL_NAME,
-                     {"x-goog-api-key": API_KEY}, body)
-    cands = data.get("candidates") or []
-    if not cands:
-        raise RuntimeError("Gemini không trả câu trả lời: %s" % json.dumps(data.get("promptFeedback", data), ensure_ascii=False)[:300])
-    text = "".join(p.get("text", "") for p in cands[0].get("content", {}).get("parts", []))
-    u = data.get("usageMetadata") or {}
-    return {"text": text, "tokens_in": u.get("promptTokenCount", 0),
-            "tokens_out": u.get("candidatesTokenCount", 0) + u.get("thoughtsTokenCount", 0)}
+                     {"x-goog-api-key": API_KEY}, body, provider="gemini")
+    cands = data.get("candidates")
+    if cands is None or cands == []:
+        # prompt bị chặn: không có câu trả lời nhưng prompt vẫn bị tính token
+        um = data.get("usageMetadata")
+        if isinstance(um, dict) and "promptTokenCount" in um:
+            tin, tout = extract_usage("gemini", data)
+            return {"text": "", "tokens_in": tin, "tokens_out": tout}
+        fb = data.get("promptFeedback")
+        # chỉ nêu blockReason khi là mã an toàn (ProviderError tự lọc bằng regex); không dump JSON
+        raise ProviderError("gemini", "bad_response", code=fb.get("blockReason") if isinstance(fb, dict) else None,
+                            field="candidates")
+    tin, tout = extract_usage("gemini", data)
+    if not isinstance(cands, list) or not isinstance(cands[0], dict):
+        raise _bad("gemini", "candidates")
+    content = cands[0].get("content", {})       # vắng khi finishReason SAFETY / MAX_TOKENS
+    if not isinstance(content, dict):
+        raise _bad("gemini", "candidates[0].content")
+    parts = content.get("parts", [])
+    if not isinstance(parts, list) or not all(isinstance(p, dict) for p in parts):
+        raise _bad("gemini", "candidates[0].content.parts")
+    text = _join_texts("gemini", [p["text"] for p in parts if "text" in p], "candidates[0].content.parts[].text")
+    return {"text": text, "tokens_in": tin, "tokens_out": tout}
 
 
 PROVIDERS = {"openai": call_openai, "anthropic": call_claude, "claude": call_claude,
@@ -127,4 +217,4 @@ def call_model(system: str, user: str) -> dict:
     if not MODEL_NAME or (MODEL_PROVIDER != "ollama" and not API_KEY):
         raise RuntimeError("Thiếu MODEL_NAME hoặc API_KEY trong .env (xem .env.example).")
     r = fn(system, user)
-    return {"text": r["text"], "model": MODEL_NAME, "tokens_in": int(r["tokens_in"]), "tokens_out": int(r["tokens_out"])}
+    return {"text": r["text"], "model": MODEL_NAME, "tokens_in": r["tokens_in"], "tokens_out": r["tokens_out"]}
