@@ -158,7 +158,7 @@ class Edit(unittest.TestCase):
         p = self.st["proposal"]
         st, f = W.confirm_plan(self.st, p["proposalId"], 1, now=1.0)
         self.assertIsNone(f)
-        self.assertEqual(st["confirmations"], {"proposalId": p["proposalId"], "version": 1, "at": 1.0})
+        self.assertEqual(st["confirmations"], {"proposalId": p["proposalId"], "version": 1, "at": 1.0, "scope": "requirements"})
         self.assertEqual(st["proposal"]["status"], "confirmed")
         self.assertNotEqual(st["status"], "ready")
         again, f = W.confirm_plan(st, p["proposalId"], 1, now=2.0)

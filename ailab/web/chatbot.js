@@ -93,12 +93,13 @@ function build(page) {
   }
   function planCard(s) {
     var p = s.proposal, box = h('div', { class: 'cardin' });
-    box.appendChild(h('div', { class: 'ail-row' }, h('strong', null, 'Phương án (phiên bản ' + p.version + ')'), statusChip(p.status)));
+    box.appendChild(h('div', { class: 'ail-row' }, h('strong', null, 'Yêu cầu sơ bộ (phiên bản ' + p.version + ')'), statusChip(p.status)));
+    box.appendChild(h('div', { class: 'note' }, 'Bước này xác nhận yêu cầu. Kế hoạch Player + Model + Exam và game xem thử sẽ cần được kiểm tra, duyệt riêng.'));
     if (p.reason) box.appendChild(h('p', { class: 'ail-desc', style: 'margin:4px 0 8px' }, String(p.reason)));
     if (p.assumptions && p.assumptions.length) box.appendChild(h('div', null, h('div', { style: 'font-weight:500' }, 'Giả định'), list(p.assumptions.map(function (a) { return typeof a === 'string' ? a : (a.text || a.label || JSON.stringify(a)); }))));
     if (p.changes && p.changes.length) box.appendChild(h('div', null, h('div', { style: 'font-weight:500' }, 'Thay đổi'), list(p.changes.map(function (c) { return typeof c === 'string' ? c : (c.label || c.message || JSON.stringify(c)); }))));
     var im = p.interactionModel || {};
-    box.appendChild(h('div', { class: 'meta' }, 'Điều khiển: Chuột: luôn bật' + (im.kind ? ' · ' + im.kind : '')));
+    box.appendChild(h('div', { class: 'meta' }, 'Yêu cầu điều khiển: game phải hỗ trợ chuột' + (im.kind ? ' · mong muốn dùng ' + im.kind : '') + '. Chưa kiểm thử game ở bước này.'));
     var w = p.warnings || [];
     if (w.length) {
       box.appendChild(h('div', { style: 'font-weight:500;margin:6px 0 4px' }, 'Cảnh báo (' + w.length + ')'));
@@ -108,9 +109,9 @@ function build(page) {
     }
     if (p.status === 'awaiting_confirmation') {
       box.appendChild(h('div', { class: 'row', style: 'margin-top:8px' },
-        h('button', { class: 'ail-btn sm pri', type: 'button', disabled: locked(), onclick: function () { act(p, 'confirm_plan'); } }, 'Xác nhận phương án (phiên bản ' + p.version + ')'),
+        h('button', { class: 'ail-btn sm pri', type: 'button', title: 'Chỉ xác nhận yêu cầu sơ bộ, chưa duyệt kế hoạch ứng dụng', disabled: locked(), onclick: function () { act(p, 'confirm_plan'); } }, 'Xác nhận phương án (phiên bản ' + p.version + ')'),
         h('button', { class: 'ail-btn sm bad', type: 'button', disabled: locked(), onclick: function () { act(p, 'cancel_plan'); } }, 'Hủy phương án')));
-    } else if (p.status === 'confirmed') box.appendChild(h('div', { class: 'note' }, 'Bước chuẩn bị game sẽ có ở đợt sau.'));
+    } else if (p.status === 'confirmed') box.appendChild(h('div', { class: 'note' }, 'Đã xác nhận yêu cầu sơ bộ. Chưa duyệt hoặc tạo ứng dụng; bước chuẩn bị game sẽ có ở đợt sau.'));
     else if (p.status === 'cancelled') box.appendChild(h('div', { class: 'note' }, 'Phương án đã hủy, nhắn điều muốn đổi.'));
     return box;
   }

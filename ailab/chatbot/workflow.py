@@ -76,7 +76,7 @@ def _build_proposal(old_proposal, req, catalog, new_id, changes):
     else:
         pid, version = new_id(), 1
     return {
-        "kind": "plan_v2", "proposalId": pid, "version": version, "status": "awaiting_confirmation",
+        "kind": "plan_v2", "scope": "requirements", "proposalId": pid, "version": version, "status": "awaiting_confirmation",
         "generationMode": gp.get("mode") if gp.get("mode") != "auto" else None,  # C03 định tuyến khi auto
         "reason": _summary(req, list_game),
         "assumptions": assumptions,
@@ -106,16 +106,16 @@ def _reply_text(st, intent, model_reply, list_game):
     p = st["proposal"]
     if st["status"] == "needs_revision" or _is_cancelled(p):
         return _cancelled_text(p)
-    lines = ["Phương án (phiên bản %d): %s" % (p["version"], p["reason"])]
+    lines = ["Yêu cầu sơ bộ (phiên bản %d): %s" % (p["version"], p["reason"])]
     if p["changes"]:
         lines.append("Đã đổi: " + "; ".join(p["changes"]))
     lines.append("Giả định: " + " ".join(p["assumptions"]))
     for w in p["warnings"]:
         lines.append("Lưu ý: " + w["message"])
     if st["confirmations"].get("version") == p["version"] and p.get("status") == "confirmed":
-        lines.append("Bạn đã xác nhận phiên bản này.")
+        lines.append("Bạn đã xác nhận yêu cầu phiên bản này; chưa duyệt kế hoạch ứng dụng hoặc Game Preview.")
     else:
-        lines.append("Nếu đúng ý, bấm “Xác nhận phương án”. Muốn đổi gì cứ nhắn tiếp.")
+        lines.append("Nếu đúng ý, bấm “Xác nhận phương án” để xác nhận yêu cầu sơ bộ. Kế hoạch ứng dụng sẽ cần duyệt riêng.")
     return "\n".join(lines)
 
 
@@ -202,6 +202,7 @@ def process_turn(request, state, context=None):
         if old_proposal is None or changed:
             changes = C.diff_requirements(old_req, req) if old_proposal else []
             new["proposal"] = _build_proposal(old_proposal, req, catalog, new_id, changes)
+            new["proposal"]["simulated"] = bool(a["simulated"])
             new["confirmations"] = {}  # phương án đổi -> hủy xác nhận cũ
     list_game = C.is_list_game(req, catalog)
     if intent == "confirm_intent" and new["status"] == "awaiting_confirmation" \
@@ -235,7 +236,8 @@ def confirm_plan(state, proposal_id, version, now=None):
     if st["confirmations"].get("version") == version:
         return st, None  # bấm lại: giữ nguyên, không tăng version
     new = copy.deepcopy(st)
-    new["confirmations"] = {"proposalId": proposal_id, "version": version, "at": now if now is not None else time.time()}
+    new["confirmations"] = {"proposalId": proposal_id, "version": version, "at": now if now is not None else time.time(),
+                            "scope": "requirements"}
     new["proposal"]["status"] = "confirmed"
     new["version"] = st["version"] + 1
     return new, None

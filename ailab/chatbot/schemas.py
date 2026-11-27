@@ -493,7 +493,7 @@ EXAM_QUESTION = {"id": S_, "type": S_, "text": S_, "answer": S_, "explanation": 
                  "aiGenerated": lambda v: v if isinstance(v, bool) else None,
                  "choices": _list_of(_obj({"key": S_, "text": S_})), "sourceRefs": _list_of(_obj(SOURCE_REF))}
 PROPOSAL = {
-    "proposalId": S_, "version": S_, "status": S_, "kind": S_, "generationMode": S_, "reason": S_,
+    "proposalId": S_, "version": S_, "status": S_, "kind": S_, "scope": S_, "simulated": S_, "generationMode": S_, "reason": S_,
     "assumptions": _str_list, "changes": _str_list,
     "player": _obj({"playerId": S_, "name": S_, "plan": S_, "manifest": _obj(MANIFEST), "htmlHash": S_,
                     "status": S_, "source": S_}),

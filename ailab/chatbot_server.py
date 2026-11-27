@@ -21,7 +21,8 @@ from store import Err  # noqa: E402
 
 SCRIPT_TAG = '<script src="/chatbot.js"></script>'
 ACTION_NAMES = ("confirm_plan", "cancel_plan")
-ACTION_TEXT = {"confirm_plan": "Đã xác nhận phương án phiên bản %d.", "cancel_plan": "Đã hủy phương án phiên bản %d."}
+ACTION_TEXT = {"confirm_plan": "Đã xác nhận yêu cầu sơ bộ phiên bản %d; chưa duyệt kế hoạch ứng dụng hoặc Game Preview.",
+               "cancel_plan": "Đã hủy yêu cầu sơ bộ phiên bản %d."}
 
 _schema_lock = threading.Lock()
 _schema_done = set()  # DB_PATH đã ensure_schema trong tiến trình này
@@ -190,10 +191,15 @@ class ChatbotH(server.H):
                 status = 409 if failure["code"] == "stale_version" else 400
                 return self._fail(status, failure, {"stateVersion": version, "chatId": cid})
             text = ACTION_TEXT[action] % req["version"]
-            reply = schemas.to_public_reply(new_state, text, False, "")
+            # A confirmation click does not make a mock-generated proposal real.
+            proposal = new_state.get("proposal") or {}
+            simulated = proposal.get("simulated")
+            if not isinstance(simulated, bool):
+                simulated = True  # unknown provenance on legacy proposals
+            reply = schemas.to_public_reply(new_state, text, simulated, "")
             new_msgs = []
             if new_state["version"] != version:  # bấm lại xác nhận cùng bản: không thêm tin nhắn, không tăng version
-                new_msgs = [{"role": "bot", "text": reply["text"], "simulated": False, "model": "", "kind": "action_v2",
+                new_msgs = [{"role": "bot", "text": reply["text"], "simulated": simulated, "model": "", "kind": "action_v2",
                              "action": action, "status": reply["status"], "stateVersion": reply["stateVersion"]}]
             response = {"chatId": cid, "reply": reply}
             f2, cur = repository.save_turn(c, cid, user, version, new_state, new_msgs, rid, response)

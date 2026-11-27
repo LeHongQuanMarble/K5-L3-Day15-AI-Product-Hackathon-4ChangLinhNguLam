@@ -217,6 +217,10 @@ class ChatbotApiTests(ApiBase):
         s, js, _ = self.act(c, cid, "confirm_plan", pid, 1)
         self.assertEqual(s, 200, js)
         self.assertEqual(js["reply"]["proposal"]["status"], "confirmed")
+        self.assertTrue(js["reply"]["simulated"])
+        self.assertTrue(js["reply"]["proposal"]["simulated"])
+        self.assertEqual(js["reply"]["proposal"]["scope"], "requirements")
+        self.assertIn("chưa duyệt", js["reply"]["text"])
 
     def test_i01_10_cancel_then_confirm(self):
         c = self.user()
