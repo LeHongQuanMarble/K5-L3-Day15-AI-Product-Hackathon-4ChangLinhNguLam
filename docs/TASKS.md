@@ -70,7 +70,7 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 | T12 | Catalog, Tools & Composition Services | TV3 | P0 | CP3 | T06, T11 *(song song T07)* | 27/11 22:30 | DONE *(tools + Composer + Snapshot; 37/37 unittest pass)* |
 | T13 | Game Runtime & Interaction Compatibility | TV3 | P0 | CP3 | T11 *(bắt đầu khi interface ổn định)* | 28/11 04:00 | DONE *(runtime Edge headless thật: fallback 6/6, CSP/sandbox 4/4, 2/2 Player động — `evidence/runtime-smoke.md`)* |
 | T14 | Web/Backend Integration & HITL | TV3 | P0 | CP3 | T06 *(khởi chạy sớm)*, T08, T12, T13 | 28/11 08:30 | DONE *(TV4 hỗ trợ TV3 28/11: Shared Core `/api/agent` + `llm.generate`, UI `feat/ui-ux-refactor`, cổng HITL HTTP 400/403, `HITL Bypass Count=0`; bằng chứng `docs/T14-integration.md`; chờ TV3 review chéo)* |
-| T15 | E2E Testing & Demo Recording | TV3 | P0 | CP3–CP4 | T07, T08, T14 *(CP3)* · T09 *(CP4)* | 28/11 09:30 *(video CP3)* / 12:00 *(CP4)* | TODO |
+| T15 | E2E Testing & Demo Recording | TV3 | P0 | CP3–CP4 | T07, T08, T14 *(CP3)* · T09 *(CP4)* | 28/11 09:30 *(video CP3)* / 12:00 *(CP4)* | IN_PROGRESS *(TV4: test 114+159, smoke 10/10, clean-install 2.1s pass; chờ TV3 quay 2 video + xác nhận ẩn danh — `docs/T15-e2e.md`)* |
 | T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | — *(song song AI & Software)* | 27/11 19:00 (v1) / 28/11 09:00 (full) | IN_PROGRESS *(CP2 đã merge PR #6; CP3 khóa snapshot `79822a4` qua PR #8; Dataset 4 nay 30 câu/10 nguồn thật, TV1 đã ký xác nhận `DATA_CARD.md` lúc 28/11 00:50)* |
 | T17 | Benchmark & Metric Specification | TV4 | P0 | CP2–CP3 | T02 *(khung)*, T06 *(song song)* | 27/11 19:00 (CP2) / 28/11 08:00 (CP3) | DONE *(TV4 xác nhận 28/11: 6 metric freeze PR #6; benchmark 30 câu / 10 nguồn thật, `run.py check` hết warning; TV1 ký freeze ≥24/30 lúc 00:50; biên bản chấm chéo 5 output chuyển sang T18)* |
 | T18 | Evaluation Run 1 | TV4 | P0 | CP3 | T07, T08, T09, T17 | 28/11 09:15 | IN_PROGRESS *(Run 1 xong `run-1@20261128-021031`: 19/30, `tu_choi` 4/4, HITL 0; chưa DONE vì AC chấm chéo ≥5 output chờ TV1 ký)* |
@@ -680,8 +680,8 @@ duyệt & DRAFT/REJECTED; review đổi nội dung → draft), `ailab/agent_brid
 **Công việc:**
 
 - [ ] **Trước CP3 (09:30 ngày 28/11):** Quay **Video 30 giây** bản chạy thử gọi **Real AI** (YouTube "Không công khai" hoặc Google Drive "Bất kỳ ai có đường liên kết", mở kiểm bằng cửa sổ ẩn danh).
-- [ ] Cập nhật & chạy bộ test tự động (`ailab/test_ailab.py`, `ailab/test_agent.py`, `ailab/smoke.sh`) bao phủ cả luồng `REUSE` E2E, `GENERATE` bản nháp + `check_game`, HITL chống bypass và `Mouse Fallback`.
-- [ ] Chạy thử cài đặt từ thư mục sạch theo `README.md` (3 phút) để đảm bảo không lỗi môi trường trên máy demo.
+- [x] Cập nhật & chạy bộ test tự động (`ailab/test_ailab.py`, `ailab/test_agent.py`, `ailab/smoke.sh`) bao phủ cả luồng `REUSE` E2E, `GENERATE` bản nháp + `check_game`, HITL chống bypass và `Mouse Fallback` *(TV4 28/11: 114/114 codebase + 159/159 ailab; smoke 10/10 nhóm "TẤT CẢ QUA"; bằng chứng `docs/T15-e2e.md` mục 1–2)*.
+- [x] Chạy thử cài đặt từ thư mục sạch theo `README.md` (3 phút) để đảm bảo không lỗi môi trường trên máy demo *(TV4 28/11: clone sạch, không `.env`, `run.py check` + `run.py` + server `/health` OK trong **2.1 giây**; `docs/T15-e2e.md` mục 3)*.
 - [ ] **Trước CP4 (12:00 ngày 28/11):** Quay video demo dự phòng đầy đủ (2–3 phút, mở được bằng cửa sổ ẩn danh) trình diễn: `REUSE` E2E + `Mouse Fallback` + 1 ca khó/an toàn (`ASK_CLARIFY`/`GENERATE` nháp/`REFUSE`).
 
 **Deliverables:**
@@ -701,7 +701,7 @@ Bàn giao kết quả test E2E và video dự phòng cho TV1 (T04, T05).
 
 **Status:**
 
-TODO.
+IN_PROGRESS — TV4 hỗ trợ TV3 ngày 28/11/2026: phần test tự động (114/114 + 159/159), smoke E2E HTTP (10/10 nhóm), clean-install (2.1s) đã pass; bằng chứng tách riêng static/runtime tại `docs/T15-e2e.md`. **Chưa DONE**: video 30s Real AI (CP3) và video dự phòng 2–3 phút (CP4) chưa có link, cần TV3 quay và xác nhận mở được ở cửa sổ ẩn danh (kèm cảnh tắt camera dùng Mouse Fallback). Không tự tick DONE khi AC video chưa đầy đủ.
 
 ---
 
