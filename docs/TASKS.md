@@ -73,7 +73,7 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 | T15 | E2E Testing & Demo Recording | TV3 | P0 | CP3–CP4 | T07, T08, T14 *(CP3)* · T09 *(CP4)* | 28/11 09:30 *(video CP3)* / 12:00 *(CP4)* | TODO |
 | T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | — *(song song AI & Software)* | 27/11 19:00 (v1) / 28/11 09:00 (full) | IN_PROGRESS *(CP2 đã merge PR #6; CP3 khóa snapshot `79822a4` qua PR #8; Dataset 4 nay 30 câu/10 nguồn thật, TV1 đã ký xác nhận `DATA_CARD.md` lúc 28/11 00:50)* |
 | T17 | Benchmark & Metric Specification | TV4 | P0 | CP2–CP3 | T02 *(khung)*, T06 *(song song)* | 27/11 19:00 (CP2) / 28/11 08:00 (CP3) | DONE *(TV4 xác nhận 28/11: 6 metric freeze PR #6; benchmark 30 câu / 10 nguồn thật, `run.py check` hết warning; TV1 ký freeze ≥24/30 lúc 00:50; biên bản chấm chéo 5 output chuyển sang T18)* |
-| T18 | Evaluation Run 1 | TV4 | P0 | CP3 | T07, T08, T09, T17 | 28/11 09:15 | TODO |
+| T18 | Evaluation Run 1 | TV4 | P0 | CP3 | T07, T08, T09, T17 | 28/11 09:15 | IN_PROGRESS *(Run 1 xong `run-1@20261128-021031`: 19/30, `tu_choi` 4/4, HITL 0; chưa DONE vì AC chấm chéo ≥5 output chờ TV1 ký)* |
 | T19 | Evaluation Run 2 & Comparison Report | TV4 | P0 | CP4 | T10, T18 | 28/11 13:00 | TODO |
 | T20 | Cost Simulation & Operational Analysis | TV4 | P0 | CP4 | T03, T07 *(chuẩn bị sớm)* · T19 *(chốt số cuối)* | 28/11 13:30 | TODO |
 
@@ -822,7 +822,7 @@ Bàn giao danh sách lỗi Run 1 + Run ID cho TV2 (T10) và ghi số Run 1 vào 
 
 **Status:**
 
-TODO.
+IN_PROGRESS — Run 1 đã chạy thật với `gpt-4o-mini`: `eval/run-1.csv` + `traces/run-1.jsonl`, Run ID `run-1@20261128-021031`, 30/30 câu, 0 lỗi. `python run.py score eval/run-1.csv` → **19/30 (63%)**, `thuong` 7/11, `kho` 8/15, `tu_choi` **4/4**, HITL bypass **0** — **chưa đạt** ngưỡng `≥24/30`. Đã điền `pass`/`ghi_chu` cho cả 30 câu, lập 4 nhóm lỗi/11 câu và bàn giao TV2 (T10) trong `eval/report.md` mục 2–3; 5 output mẫu đã chọn cho chấm chéo (B01/B10/B13/B24/B30). **Chưa DONE**: AC "chấm chéo ≥5 câu giữa 2 người" chờ TV1 ký; không tự nâng trạng thái. Không sửa `expected`, benchmark hay metric.
 
 ---
 
