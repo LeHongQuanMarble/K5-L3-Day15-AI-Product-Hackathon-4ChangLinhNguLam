@@ -17,6 +17,8 @@ from tracing import tool, TOOLS  # noqa: F401  (TOOLS: danh sách công cụ đ�
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ailab"))
 import composer  # noqa: E402  (ailab/composer.py — T12)
 import contract  # noqa: E402  (ailab/contract.py)
+import store  # noqa: E402  (ailab/store.py)
+from chatbot import exams as chatbot_exams  # noqa: E402  (ailab/chatbot/exams.py)
 
 
 @tool
@@ -31,6 +33,13 @@ def check_game(html: str) -> dict:
     return {"ok": True, "error": None, "name": manifest["name"], "flags": contract.scan(html)}
 
 
+def _db_missing_error():
+    """Trả thông báo lỗi nếu SQLite DB chưa tồn tại (tránh tạo file DB rỗng khi đọc)."""
+    if not os.path.exists(store.DB_PATH):
+        return "Catalog chưa khởi tạo. Chạy `bash scripts/staging.sh all` trước khi dùng tools."
+    return None
+
+
 @tool
 def list_players(kind: str = None, questions: str = None, name_contains: str = None, limit: int = 50) -> dict:
     """list_players — tra cứu Player có sẵn trong Catalog để ưu tiên nhánh REUSE.
@@ -38,6 +47,9 @@ def list_players(kind: str = None, questions: str = None, name_contains: str = N
            name_contains (str|None), limit (int, 1–100).
     Output: {"ok": bool, "players": [{"id","name","kinds","inputs","questions","content","status"}], "error": str|None}.
     Không tác động ra ngoài: chỉ đọc Catalog; không lưu, không sửa, không xuất bản."""
+    db_err = _db_missing_error()
+    if db_err:
+        return {"ok": False, "players": [], "error": db_err}
     try:
         snap = composer.catalog_snapshot()
     except composer.ComposerError as exc:
@@ -68,6 +80,9 @@ def get_player(player_id: int) -> dict:
     Input: player_id (int), ID có trong Catalog; không đoán ID.
     Output: {"ok": bool, "player": {"id","name","manifest","html"} hoặc None, "error": str|None}.
     Không tác động ra ngoài: chỉ đọc; trả HTML để tái dùng nguyên vẹn, không ghi đè file gốc."""
+    db_err = _db_missing_error()
+    if db_err:
+        return {"ok": False, "player": None, "error": db_err}
     try:
         row = composer._load("players", player_id)  # nội bộ composer: đọc SQLite, không ghi
     except composer.ComposerError as exc:
@@ -83,6 +98,9 @@ def list_models(kind: str = None, limit: int = 50) -> dict:
     Input: kind (str|None) lọc theo 'hands'/'image'/'pose'/'audio', limit (int, 1–100).
     Output: {"ok": bool, "models": [{"id","name","kind","outputs","url"}], "error": str|None}.
     Không tác động ra ngoài: chỉ đọc Catalog; không nạp model, không lưu, không xuất bản."""
+    db_err = _db_missing_error()
+    if db_err:
+        return {"ok": False, "models": [], "error": db_err}
     try:
         snap = composer.catalog_snapshot()
     except composer.ComposerError as exc:
@@ -117,6 +135,9 @@ def validate_compatibility(player_id: int = None, model_id: int = None, exam_id:
         model_id = (raw.get("model") or {}).get("model_id") if isinstance(raw.get("model"), dict) else None
     if exam_id is None:
         exam_id = (raw.get("exam") or {}).get("exam_id") if isinstance(raw.get("exam"), dict) else None
+    db_err = _db_missing_error()
+    if db_err:
+        return {"ok": False, "reasons": [db_err], "player": "", "model": "", "exam": ""}
     try:
         p = composer._load("players", player_id) if player_id not in (None, "") else None
         m = composer._load("models", model_id) if model_id not in (None, "") else None
@@ -133,4 +154,116 @@ def compose_application(plan: dict) -> dict:
     Output: {"ok": bool, "errors": [str], "app": dict|None, "status": "draft"};
             app gồm Model + Player + Question Set, requires_human_approval=True, catalog_written=False.
     Không tác động ra ngoài: KHÔNG ghi Catalog, KHÔNG lưu DB, KHÔNG tự đặt APPROVED hay xuất bản."""
+    db_err = _db_missing_error()
+    if db_err:
+        return {"ok": False, "errors": [db_err], "app": None, "status": "draft"}
     return composer.compose_app(plan)
+
+
+@tool
+def list_exams(name_contains: str = None, limit: int = 50) -> dict:
+    """list_exams — tra cứu danh sách bộ đề (Question Set) có sẵn trong Catalog kèm số câu thật.
+    Input: name_contains (str|None) lọc theo tên bộ đề, limit (int, 1–100).
+    Output: {"ok": bool, "exams": [{"id","name","description","count"}], "error": str|None}.
+    Không tác động ra ngoài: chỉ đọc Catalog; không lưu, không sửa, không xuất bản."""
+    db_err = _db_missing_error()
+    if db_err:
+        return {"ok": False, "exams": [], "error": db_err}
+    try:
+        snap = composer.catalog_snapshot()
+    except composer.ComposerError as exc:
+        return {"ok": False, "exams": [], "error": str(exc)}
+    try:
+        cap = max(1, min(100, int(limit)))
+    except (TypeError, ValueError):
+        cap = 50
+    out = []
+    for e in snap["exams"]:
+        if name_contains and name_contains.strip().lower() not in (e["name"] or "").lower():
+            continue
+        out.append({k: e.get(k) for k in ("id", "name", "description", "count")})
+        if len(out) >= cap:
+            break
+    return {"ok": True, "exams": out, "error": None}
+
+
+@tool
+def get_exam(exam_id: int) -> dict:
+    """get_exam — lấy nội dung đầy đủ và số câu thật của một bộ đề theo ID trong Catalog.
+    Input: exam_id (int), ID có thật trong Catalog; không đoán ID.
+    Output: {"ok": bool, "exam": {"id","name","description","count","content"} hoặc None, "error": str|None}.
+    Không tác động ra ngoài: chỉ đọc Catalog; không sửa, không xuất bản."""
+    db_err = _db_missing_error()
+    if db_err:
+        return {"ok": False, "exam": None, "error": db_err}
+    try:
+        row = composer._load("exams", exam_id)
+    except composer.ComposerError as exc:
+        return {"ok": False, "exam": None, "error": str(exc)}
+    content = row.get("content") or ""
+    try:
+        count = len(store.parse_questions(content))
+    except store.Err:
+        count = 0
+    return {"ok": True, "exam": {"id": row["id"], "name": row["name"], "description": row.get("description", ""),
+                                 "count": count, "content": content}, "error": None}
+
+
+@tool
+def validate_exam(content: str, player_id: int = None, expected_count: int = None, manifest: dict = None) -> dict:
+    """validate_exam — kiểm tra cú pháp bộ câu hỏi (Question Set) theo luật ailab/store.py parse_questions().
+    Input: content (str) nội dung bộ đề, player_id (int|None) hoặc manifest (dict|None) kiểm tương thích với Player, expected_count (int|None).
+    Output: {"ok": bool, "count": int, "errors": [str], "warnings": [{"code","message","field"}]}.
+    Không tác động ra ngoài: chỉ kiểm tra Rules; luôn trả cảnh báo yêu cầu giáo viên kiểm duyệt kiến thức."""
+    warnings = [{
+        "code": "knowledge_review_required",
+        "message": "Bộ câu hỏi do AI soạn/kiểm tra cú pháp chưa được xác minh kiến thức. Giáo viên bắt buộc kiểm duyệt câu hỏi và đáp án trước khi dùng trên lớp.",
+        "field": "exam.content",
+    }]
+    if not isinstance(content, str) or not content.strip():
+        return {"ok": False, "count": 0, "errors": ["Nội dung bộ đề không được rỗng."], "warnings": warnings}
+    errors = []
+    parsed = []
+    try:
+        store.clean_exam({"name": "Kiểm tra bộ đề", "content": content})
+        parsed = store.parse_questions(content)
+    except store.Err as exc:
+        errors.append(exc.msg)
+        return {"ok": False, "count": 0, "errors": errors, "warnings": warnings}
+    except (ValueError, TypeError) as exc:
+        errors.append("Lỗi định dạng bộ đề: %s" % exc)
+        return {"ok": False, "count": 0, "errors": errors, "warnings": warnings}
+
+    resolved_manifest = manifest if isinstance(manifest, dict) else None
+    if resolved_manifest is None and player_id is not None:
+        db_err = _db_missing_error()
+        if db_err:
+            errors.append(db_err)
+        else:
+            try:
+                prow = composer._load("players", player_id)
+                resolved_manifest = composer._json_value(prow.get("manifest"))
+            except composer.ComposerError as exc:
+                errors.append(str(exc))
+
+    questions = [{
+        "type": q["type"],
+        "text": q["text"],
+        "choices": [{"key": c["key"], "text": c["text"]} for c in q["choices"]],
+        "answer": q["answer"],
+        "explanation": "Structural check",
+        "sourceRefs": [],
+        "aiGenerated": True,
+    } for q in parsed]
+
+    structural = chatbot_exams.validate_exam_questions(
+        {"name": "Kiểm tra bộ đề", "questions": questions},
+        manifest=resolved_manifest,
+        question_count=expected_count,
+    )
+    for item in structural:
+        idx = item.get("questionIndex")
+        prefix = "Câu %d: " % (idx + 1) if isinstance(idx, int) else ""
+        errors.append(prefix + item.get("message", "Lỗi cấu trúc bộ đề."))
+
+    return {"ok": not errors, "count": len(parsed), "errors": errors, "warnings": warnings}

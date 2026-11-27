@@ -154,7 +154,14 @@ def validate_application_plan(plan, registry=None):
             errors.append(issue("invalid_exam", "This Player requires an Exam.", "exam"))
         elif info["gameKind"] != "questions" and exam is not None:
             errors.append(issue("incompatible_exam", "This Player does not receive an Exam.", "exam"))
-        if info["needsModel"] and model is None:
+        mouse_only_ok = (
+            model is None
+            and isinstance(inter, dict)
+            and inter.get("primary") == "mouse"
+            and inter.get("fallback") == "mouse"
+            and inter.get("mouse_always_enabled") is True
+        )
+        if info["needsModel"] and model is None and not mouse_only_ok:
             errors.append(issue("incompatible_model", "This Player requires a Model.", "model"))
         elif not info["needsModel"] and model is not None:
             errors.append(issue("incompatible_model", "This Player does not receive a Model.", "model"))
