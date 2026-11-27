@@ -6,6 +6,8 @@
 
 Repo nộp bài hackathon AI20K của nhóm: một bản chạy thử AI cho **một lát cắt** (xem `spec.md` §4), kèm bằng chứng, bộ câu thử và mô phỏng chi phí. Mọi câu trả lời phải chạy được bằng các lệnh dưới đây.
 
+> **Phân công nhiệm vụ & tiêu chí nghiệm thu:** Đọc `docs/TASKS.md` (phiên bản v2.2) để xem phạm vi, dependency và hướng dẫn thực hiện theo từng `Task ID` trước khi triển khai.
+
 ## Lệnh
 
 ```
