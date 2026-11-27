@@ -1,0 +1,49 @@
+{
+ "time": "2026-11-27 16:15",
+ "chrome": "Chrome/158.0.8127.88",
+ "python": "3.13.7",
+ "rows": [
+  [
+   17,
+   "GET chậm 4s, mở chat có sẵn: thấy 'Đang tải', ô nhập + Gửi disabled, gõ/Gửi/Ctrl+Enter không POST; tải xong mở khóa, đủ tin",
+   "FAIL",
+   "old_17_loading.png, old_17_loaded.png",
+   "khi chờ: loading=False ta_disabled=False send_disabled=False; POST đã gửi=1; sau tải: ta_disabled=False send_disabled=False đủ tin=True"
+  ],
+  [
+   18,
+   "POST trực tiếp trong lúc GET chậm đang chờ: sau GET UI không lùi (thấy tin mới), gửi tiếp OK không 409",
+   "PASS",
+   "old_18_after_get.png, old_18_next_send.png",
+   "server v3->v4 (POST trực tiếp trong lúc GET chờ); sau GET UI có tin mới=True; gửi tiếp: server v4, tin 8->10, không 409/err=True"
+  ],
+  [
+   "18b",
+   "GET chậm trả bản chụp CŨ: cố gửi trong lúc chờ -> không có tin nào bị ghi đè/mất",
+   "FAIL",
+   "old_18b_waiting.png, old_18b_after_get.png",
+   "UI cho gửi trong lúc chờ (POST=1); sau khi GET (ảnh chụp cũ) về, tin vừa gửi còn trong log=False"
+  ],
+  [
+   19,
+   "GET trả 500 một lần: div.err + 'Thử tải lại', ô nhập khóa; bấm thử lại -> mở khóa, đủ tin",
+   "FAIL",
+   "old_19_error.png, old_19_retried.png",
+   "sau GET 500: nút 'Thử tải lại'=False, div.err=True, ô nhập khóa=False; sau thử lại: mở khóa=True, đủ tin=False"
+  ],
+  [
+   20,
+   "Trong lúc GET chậm: 'Cuộc trò chuyện mới' dùng được ngay, chuyển chat khác không bị đè, rời tab Mô hình rồi quay lại",
+   "PASS",
+   "old_20a_new_during_load.png, old_20b_switch_chat.png, old_20c_tab_back.png",
+   "a(chat mới)=True [ta_disabled=False loading=False hash=#/chat]; b(chuyển chat)=True [hash=#/chat/2]; c(rời tab/quay lại)=True"
+  ],
+  [
+   21,
+   "Không có lỗi console JS / exception trong toàn bộ kịch bản",
+   "PASS",
+   "-",
+   "0 lỗi"
+  ]
+ ]
+}

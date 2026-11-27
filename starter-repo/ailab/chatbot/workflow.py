@@ -119,6 +119,18 @@ def _reply_text(st, intent, model_reply, list_game):
     return "\n".join(lines)
 
 
+def _cancel(st):
+    """Hủy phương án đang có (dùng chung cho reject_intent và cancel_plan): proposal cancelled, xác nhận cũ hết hiệu lực,
+    status needs_revision, KHÔNG đổi requirements, version +1."""
+    new = copy.deepcopy(st)
+    new["proposal"]["status"] = "cancelled"
+    new["confirmations"] = {}
+    new["status"] = "needs_revision"
+    new["questions"] = []
+    new["version"] = st["version"] + 1
+    return new
+
+
 def process_turn(request, state, context=None):
     """Một lượt tin nhắn. -> (new_state, reply_text, meta). meta = {failure, simulated, model, calls}.
 
@@ -158,12 +170,7 @@ def process_turn(request, state, context=None):
             else:
                 text_out += "Bạn muốn làm game ôn bài gì?"
             return st, text_out, _meta(a)
-        new = copy.deepcopy(st)
-        new["proposal"]["status"] = "cancelled"
-        new["confirmations"] = {}
-        new["status"] = "needs_revision"
-        new["questions"] = []
-        new["version"] = st["version"] + 1
+        new = _cancel(st)
         return new, _cancelled_text(new["proposal"]), _meta(a)
 
     if intent == "new_request" and (st["proposal"] or any(old_req.get(k) for k in ("subject", "topic", "gradeOrAudience"))):
@@ -232,3 +239,19 @@ def confirm_plan(state, proposal_id, version, now=None):
     new["proposal"]["status"] = "confirmed"
     new["version"] = st["version"] + 1
     return new, None
+
+
+def cancel_plan(state, proposal_id, version):
+    """Hủy tường minh (nút "Hủy phương án") đúng proposalId + version. -> (new_state, failure|None).
+    Sai id -> invalid_input; đã hủy hoặc sai version -> stale_version; đúng -> như nhánh reject_intent."""
+    st = S.normalize_state(state)
+    p = st["proposal"]
+    if not p or p.get("proposalId") != proposal_id:
+        return st, S.make_error("invalid_input", "cancel", "Không thấy phương án này trong cuộc trò chuyện.")
+    if _is_cancelled(p):
+        return st, S.make_error("stale_version", "cancel", "Phương án này đã bị hủy rồi.",
+                                details={"expectedVersion": version, "currentVersion": p.get("version")})
+    if p.get("version") != version:
+        return st, S.make_error("stale_version", "cancel", "Phương án đã đổi. Hãy xem bản mới nhất rồi thao tác lại.",
+                                details={"expectedVersion": version, "currentVersion": p.get("version")})
+    return _cancel(st), None

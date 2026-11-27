@@ -1,0 +1,54 @@
+# I01 - Kết quả kiểm tra trình duyệt thật
+
+- Lệnh (bản mới trong repo): `python evidence/chatbot/I01/browser_check.py`
+- Lệnh (bản cũ để so sánh): `python evidence/chatbot/I01/browser_check.py --old-js <đường dẫn chatbot.js cũ>` (CDP `Fetch.fulfillRequest` phục vụ bản cũ thay bản repo, KHÔNG sửa file repo)
+- Chạy bằng Chrome headless 1280x900 (CDP tự viết, thư viện chuẩn); server `python ailab/chatbot_server.py`, DB tạm, `MODEL_PROVIDER=fake` (fake-rules, không phải AI thật); Windows 11
+- Đăng nhập: `fetch('/api/register')` trong trang rồi reload. 'Mở thẳng URL' = navigate tới `/?v=N#/chat...` (tải trang mới).
+- Ca GET chậm: ghi đè `window.fetch` (sau khi trang tải, trước khi bấm chọn chat) trễ 4s cho `GET /api/chats/<id>`; GET 500: trả Response 500 giả một lần; bước 18b trễ PHẢN HỒI (bản chụp cũ), các ca khác trễ trước khi gửi request.
+
+## Trước sửa (chatbot.js cũ)
+
+Ngày giờ: 2026-11-27 16:15; Chrome Chrome/158.0.8127.88; Python 3.13.7
+
+| Bước | Nội dung | Kết quả | Ảnh | Ghi chú |
+|---|---|---|---|---|
+| 17 | GET chậm 4s, mở chat có sẵn: thấy 'Đang tải', ô nhập + Gửi disabled, gõ/Gửi/Ctrl+Enter không POST; tải xong mở khóa, đủ tin | FAIL | old_17_loading.png, old_17_loaded.png | khi chờ: loading=False ta_disabled=False send_disabled=False; POST đã gửi=1; sau tải: ta_disabled=False send_disabled=False đủ tin=True |
+| 18 | POST trực tiếp trong lúc GET chậm đang chờ: sau GET UI không lùi (thấy tin mới), gửi tiếp OK không 409 | PASS | old_18_after_get.png, old_18_next_send.png | server v3->v4 (POST trực tiếp trong lúc GET chờ); sau GET UI có tin mới=True; gửi tiếp: server v4, tin 8->10, không 409/err=True |
+| 18b | GET chậm trả bản chụp CŨ: cố gửi trong lúc chờ -> không có tin nào bị ghi đè/mất | FAIL | old_18b_waiting.png, old_18b_after_get.png | UI cho gửi trong lúc chờ (POST=1); sau khi GET (ảnh chụp cũ) về, tin vừa gửi còn trong log=False |
+| 19 | GET trả 500 một lần: div.err + 'Thử tải lại', ô nhập khóa; bấm thử lại -> mở khóa, đủ tin | FAIL | old_19_error.png, old_19_retried.png | sau GET 500: nút 'Thử tải lại'=False, div.err=True, ô nhập khóa=False; sau thử lại: mở khóa=True, đủ tin=False |
+| 20 | Trong lúc GET chậm: 'Cuộc trò chuyện mới' dùng được ngay, chuyển chat khác không bị đè, rời tab Mô hình rồi quay lại | PASS | old_20a_new_during_load.png, old_20b_switch_chat.png, old_20c_tab_back.png | a(chat mới)=True [ta_disabled=False loading=False hash=#/chat]; b(chuyển chat)=True [hash=#/chat/2]; c(rời tab/quay lại)=True |
+| 21 | Không có lỗi console JS / exception trong toàn bộ kịch bản | PASS | - | 0 lỗi |
+
+Tổng: 3/6 PASS
+
+## Sau sửa (chatbot.js trong repo)
+
+Ngày giờ: 2026-11-27 16:17; Chrome Chrome/158.0.8127.88; Python 3.13.7
+
+| Bước | Nội dung | Kết quả | Ảnh | Ghi chú |
+|---|---|---|---|---|
+| 1 | Mở /, đăng ký bằng fetch('/api/register') rồi reload (không qua form) -> thấy thanh tab | PASS | 01_login.png | register status 200 |
+| 2 | Bấm tab Trợ lý game -> có [data-chatbot-v2] | PASS | 02_chat_tab.png |  |
+| 3 | Gửi 'Tạo game ôn toán' -> câu hỏi bổ sung + nhãn chế độ giả | PASS | 03_clarify1.png |  |
+| 4 | 'lớp 2' -> chỉ hỏi chủ đề | PASS | 04_clarify2.png | câu hỏi còn lại: ['Chủ đề hoặc bài cụ thể cần ôn là gì?'] |
+| 5 | Thẻ phương án phiên bản 1 + nút Xác nhận/Hủy | PASS | 05_plan_v1.png |  |
+| 6 | Reload -> hash #/chat/<id>, đủ tin nhắn + thẻ phương án v1 | PASS | 06_reload.png | hash=#/chat/1 |
+| 7 | Bấm Xác nhận -> trạng thái đã xác nhận | PASS | 07_confirmed.png |  |
+| 8 | 'đổi thành 15 câu' -> phương án v2 chờ xác nhận; confirm version 1 -> 409 | PASS | 08_plan_v2.png | confirm v1 status 409 |
+| 9 | Bấm Hủy phương án -> trạng thái đã hủy | PASS | 09_cancelled.png |  |
+| 10 | Đổi tab Mô hình rồi quay lại -> giao diện mới hoạt động | PASS | 10_switch_tab.png |  |
+| 11 | Mở thẳng /#/chat -> giao diện mới | PASS | 11_direct_chat.png |  |
+| 12 | (i) A gửi chậm 3s, bấm sang chat B -> hash vẫn #/chat/B, log B không có tin của A, ô nhập dùng được | PASS | 12_slow_switch_chat.png | hash=#/chat/2 |
+| 13 | (ii) A gửi chậm, bấm 'Cuộc trò chuyện mới' -> hash #/chat, log trống không có tin của A, dùng được | PASS | 13_slow_new_chat.png | hash=#/chat |
+| 14 | (iii) gửi chậm rồi bấm tab Mô hình -> không lỗi, quay lại tab Trợ lý game vẫn dùng được | PASS | 14a_slow_on_models.png, 14b_slow_back_to_chat.png |  |
+| 15 | (iv) chat mới chưa có id gửi chậm rồi chuyển B -> URL không đổi sang chat mới; danh sách có thêm chat mới | PASS | 15_slow_new_unsaved_switch.png | hash=#/chat/2; titles=['Cuộc trò chuyện mới', 'Tạo game ôn địa lý', 'Tạo game ôn lịch sử', 'Tạo game ôn toán'] |
+| 16 | Không có lỗi console JS / exception trong toàn bộ kịch bản | PASS | - | 0 lỗi |
+| 17 | GET chậm 4s, mở chat có sẵn: thấy 'Đang tải', ô nhập + Gửi disabled, gõ/Gửi/Ctrl+Enter không POST; tải xong mở khóa, đủ tin | PASS | new_17_loading.png, new_17_loaded.png | khi chờ: loading=True ta_disabled=True send_disabled=True; POST đã gửi=0; sau tải: ta_disabled=False send_disabled=False đủ tin=True |
+| 18 | POST trực tiếp trong lúc GET chậm đang chờ: sau GET UI không lùi (thấy tin mới), gửi tiếp OK không 409 | PASS | new_18_after_get.png, new_18_next_send.png | server v2->v3 (POST trực tiếp trong lúc GET chờ); sau GET UI có tin mới=True; gửi tiếp: server v3, tin 6->8, không 409/err=True |
+| 18b | GET chậm trả bản chụp CŨ: cố gửi trong lúc chờ -> không có tin nào bị ghi đè/mất | PASS | new_18b_waiting.png, new_18b_after_get.png | UI khóa gửi trong lúc chờ (POST=0); sau GET mở khóa=True, đủ tin=True |
+| 19 | GET trả 500 một lần: div.err + 'Thử tải lại', ô nhập khóa; bấm thử lại -> mở khóa, đủ tin | PASS | new_19_error.png, new_19_retried.png | sau GET 500: nút 'Thử tải lại'=True, div.err=True, ô nhập khóa=True; sau thử lại: mở khóa=True, đủ tin=True |
+| 20 | Trong lúc GET chậm: 'Cuộc trò chuyện mới' dùng được ngay, chuyển chat khác không bị đè, rời tab Mô hình rồi quay lại | PASS | new_20a_new_during_load.png, new_20b_switch_chat.png, new_20c_tab_back.png | a(chat mới)=True [ta_disabled=False loading=False hash=#/chat]; b(chuyển chat)=True [hash=#/chat/5]; c(rời tab/quay lại)=True |
+| 21 | Không có lỗi console JS / exception trong toàn bộ kịch bản | PASS | - | 0 lỗi |
+
+Tổng: 22/22 PASS
+

@@ -14,7 +14,7 @@ import re
 
 SCHEMA_VERSION = 1
 
-ACTIONS = ("message", "confirm_plan", "accept_result", "reject_result")
+ACTIONS = ("message", "confirm_plan", "accept_result", "reject_result", "cancel_plan")
 STATUSES = ("clarifying", "awaiting_confirmation", "awaiting_review", "needs_revision", "ready", "error")
 INTENTS = ("new_request", "update", "confirm_intent", "reject_intent", "question", "off_topic")
 SOURCE_KINDS = ("topic", "document", "existing_exam", "provided_questions")
