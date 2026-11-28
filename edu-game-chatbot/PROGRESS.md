@@ -26,6 +26,7 @@ T22 | 2026-11-28 | Script smoke ChatEngine + OpenAILLM + N4 thật, exit 0/1/2 |
 FIX1 | 2026-11-28 | Sửa happy_llm theo schema thật; replies.retry_button/fix_progress/document_error; engine dùng trực tiếp | đề xuất của T18
 T19 | 2026-11-28 | API sessions/messages/files/export/SSE/preview CSP, chuẩn hoá tên file upload | create_app() cần OPENAI_API_KEY
 T21 | 2026-11-28 | E2E Playwright: luồng topic+chỉnh sửa→zip+inbox, mobile 375, resume; web resync() khi SSE mở | tester giả; bấm nút không lưu bong bóng user
+T23 | 2026-11-28 | README tiếng Việt: cài đặt, chạy, env, cấu trúc, test, sơ đồ luồng | 
 
 ## Câu hỏi cần người dùng trả lời
 

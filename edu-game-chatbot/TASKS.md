@@ -224,7 +224,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Làm:** chạy pipeline không giao diện với `OPENAI_API_KEY` thật, chủ đề cố định, 5 câu. In ra số lần sửa, kết quả N4, đường dẫn output. **Không** chạy trong `pytest` mặc định.
 - **Kiểm tra:** người dùng tự chạy `python scripts/smoke_real_llm.py`
 
-### [ ] T23. README + dọn dẹp
+### [x] T23. README + dọn dẹp
 - **File:** `README.md`
 - **Làm:** cài đặt, chạy (`uvicorn app.main:create_app --factory --reload`), biến môi trường, cấu trúc, cách chạy test, sơ đồ luồng (copy từ SPEC §2).
 - **Kiểm tra:** `ruff check . && ruff format --check . && pytest -q -m "not browser" && pytest -q -m browser`
