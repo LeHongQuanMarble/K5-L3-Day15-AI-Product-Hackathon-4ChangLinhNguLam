@@ -23,6 +23,7 @@ T16 | 2026-11-28 | N6: slug, copy html/questions/screenshots/manifest, zip, noti
 T15 | 2026-11-28 | N5: preview_url, nút theo test_passed, ≤8 lỗi gọn | lỗi kỹ thuật chưa dịch sang tiếng Việt
 T18 | 2026-11-28 | ChatEngine bảng dispatch, pipeline design/export, FIX ≤2, retry, EventBus | 14 test; upload đọc sessions/<id>/uploads
 T22 | 2026-11-28 | Script smoke ChatEngine + OpenAILLM + N4 thật, exit 0/1/2 | CHƯA chạy với API thật — người dùng tự chạy
+FIX1 | 2026-11-28 | Sửa happy_llm theo schema thật; replies.retry_button/fix_progress/document_error; engine dùng trực tiếp | đề xuất của T18
 
 ## Câu hỏi cần người dùng trả lời
 
