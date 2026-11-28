@@ -52,6 +52,9 @@ def extract_gameplay_parts(raw_snippet: str) -> tuple[str, str, str]:
     text = (raw_snippet or "").strip()
     css_parts = [m.group(1).strip() for m in _STYLE_RE.finditer(text)]
     js_parts = [m.group(1).strip() for m in _SCRIPT_RE.finditer(text)]
+    # AI CSS không được đóng sớm thẻ <style> của Wrapper (chống thoát khỏi style để chèn thẻ khác):
+    # `<\/style>` khiến browser không đóng thẻ mà CSS parser bỏ qua như selector lỗi.
+    css_parts = [re.sub(r"</(\s*style)", r"<\\/\1", c, flags=re.I) for c in css_parts]
     body_m = _BODY_RE.search(text)
     markup = body_m.group(1) if body_m else text
     markup = _STYLE_RE.sub("", markup)

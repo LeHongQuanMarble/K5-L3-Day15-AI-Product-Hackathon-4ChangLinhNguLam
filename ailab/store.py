@@ -9,6 +9,7 @@ import secrets
 import sqlite3
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import contract
@@ -293,19 +294,55 @@ def model_row(r, user, apps_using=None):
     return d
 
 
+# Host được phép cho kiểm artifact model (kể cả đích redirect — chống SSRF sang IP private/localhost):
+# URL nguồn bị clean_model giới hạn ở Teachable Machine; redirect của TM đi tới storage Google.
+_ALLOWED_MODEL_HOSTS = ("teachablemachine.withgoogle.com", "storage.googleapis.com", "storage.cloud.google.com")
+
+
+def _model_host_allowed(host):
+    """Chỉ chấp nhận host trong allow-list VÀ phân giải ra IP công khai (chặn SSRF về LAN/loopback)."""
+    import ipaddress
+    import socket
+    h = (host or "").lower()
+    if not any(h == s or h.endswith("." + s) for s in _ALLOWED_MODEL_HOSTS):
+        return False
+    try:
+        for _fam, _typ, _proto, _canon, sa in socket.getaddrinfo(h, 443):
+            ip = ipaddress.ip_address(sa[0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                return False
+    except (socket.gaierror, ValueError):
+        return False
+    return True
+
+
+class _CheckedRedirect(urllib.request.HTTPRedirectHandler):
+    """Theo redirect nhưng chặn mọi đích ngoài allow-list (Chỉ https + host công khai)."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        u = urllib.parse.urlsplit(newurl)
+        if u.scheme != "https" or not _model_host_allowed(u.hostname):
+            raise urllib.error.HTTPError(newurl, code, "model_check_redirect_denied", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def check_model_url(url, timeout=2.5):
-    """Kiểm nhanh artifact model có tải được không (HEAD model.json). `jl:builtin` luôn sẵn sàng.
-    Trả True/False — không raise (mạng chậm/lỗi chỉ nghĩa là 'chưa xác minh được' → coi như sẵn sàng
-    để không chặn offline; chỉ đánh dấu broken khi chắc chắn 4xx/5xx)."""
+    """Kiểm nhanh artifact model có tải được không (GET model.json). `jl:builtin` luôn sẵn sàng.
+    An toàn SSRF: chỉ https + host allow-list, mỗi hop redirect được kiểm lại, chặn IP private.
+    Trả True/False — không raise (lỗi mạng/timeout chỉ nghĩa là 'chưa xác minh' → coi như sẵn sàng
+    để không chặn offline; chỉ đánh dấu broken khi chắc chắn 4xx/5xx hoặc đích không hợp lệ)."""
     if not isinstance(url, str) or not url or url.startswith("jl:"):
         return True
     base = url if url.endswith("/") else url + "/"
+    u = urllib.parse.urlsplit(base)
+    if u.scheme != "https" or not _model_host_allowed(u.hostname):
+        return False  # ngoài allow-list (hoặc trông như URL nội bộ) → không được tin là READY
     try:
-        req = urllib.request.Request(base + "model.json", method="GET")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        opener = urllib.request.build_opener(_CheckedRedirect)
+        with opener.open(base + "model.json", timeout=timeout) as resp:
             return resp.status < 400
-    except urllib.error.HTTPError as e:
-        return False  # 4xx/5xx chắc chắn: artifact không tồn tại
+    except urllib.error.HTTPError:
+        return False  # 4xx/5xx (kể cả redirect bị chặn) chắc chắn không tải được
     except Exception:
         return True  # mạng lỗi/timeout: không kết luận là broken
 
