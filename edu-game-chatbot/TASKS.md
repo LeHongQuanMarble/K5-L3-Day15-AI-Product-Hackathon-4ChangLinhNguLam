@@ -111,7 +111,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Kiểm tra:** `pytest tests/unit/test_n1.py -q`
 - **Bẫy:** `.txt` đọc bằng `utf-8`, lỗi thì thử lại với `cp1258`/`latin-1`.
 
-### [ ] T10. N1b — Bộ câu hỏi (tạo / nạp / sửa)
+### [x] T10. N1b — Bộ câu hỏi (tạo / nạp / sửa)
 - **Đọc:** QUESTION_SCHEMA §2–4, SPEC §3 (`BUILDING_QUESTIONS`, `AWAIT_QUESTION_APPROVAL`)
 - **File:** `app/nodes/n1b_questions.py`, `tests/unit/test_n1b.py`
 - **Làm:**
