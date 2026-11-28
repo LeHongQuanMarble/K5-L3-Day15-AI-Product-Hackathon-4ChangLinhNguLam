@@ -6,6 +6,11 @@ import pytest
 
 from app.nodes.n3_generate import build_codegen_prompt, generate
 
+
+def _read(p):
+    return Path(p).read_text(encoding="utf-8")
+
+
 BANK = {
     "title": "T",
     "questions": [
@@ -28,7 +33,7 @@ async def test_generate_injects_bank_and_increments(settings, store, fake_llm, r
     v2 = await generate(fake_llm, settings, store, s)
     assert (v1.number, v2.number) == (1, 2)
     assert len(s.versions) == 2
-    text = Path(v1.html_path).read_text(encoding="utf-8")
+    text = _read(v1.html_path)
     assert "q1" in text and "q2" in text
     assert v1.html_path.replace("\\", "/").endswith(f"{s.id}/v1/index.html")
     user = fake_llm.calls_for("codegen")[0]["user"]
