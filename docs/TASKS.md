@@ -990,3 +990,15 @@ flowchart LR
 4. **Model lái xe (TC04):** Không có kind/artifact "driving" trong repo — khả thi duy nhất qua model image/pose tự train (lớp trái/phải) trên Model Trainer. PENDING model.
 5. **Phase 7 — UI:** Sửa bong bóng chat ẩn mất `plan.message` khi ERROR/INFO/REFUSE; không leak JSON/trace.
 6. **Kiểm chứng:** 350/350 offline tests PASS (226 ailab + 124 codebase) · JS syntax check PASS · server `http://127.0.0.1:8800` chạy trên code mới. Codex Independent Review: *đang chạy, kết quả sẽ bổ sung*.
+
+### Cập nhật 28/11 (tối) — P0 Final Stabilization: Model Integration + sửa 3 bug UAT của PM
+
+**Branch:** `fix/p0-composer-capability` @ `298fb12` (chưa push/merge — chờ PM nghiệm thu).
+
+1. **Diệt gốc lỗi 404 `models/x/` (blocker PM báo nhiều lần):** nguyên nhân KHÔNG phải model thật — là **test suite nhiễm runtime DB**: unittest discovery import alphabetical khiến `store` được import trước khi 2 file test kịp đặt env cách ly → mỗi lần chạy suite chèn thêm model "M" placeholder + app "App thử" vào DB thật. Đã: swap `store.DB_PATH` trực tiếp (chứng minh chạy suite 2 lần liên tiếp DB nguyên vẹn), cleanup 10 row fixture (backup `evidence/db-backups/`), thêm cột `models.status` — model URL chết bị đánh dấu `broken`, không bao giờ hiển thị READY, GENERATE từ chối trung thực (TC05).
+2. **Model thật của team đã vào Catalog (live, ready=True):** #2 "Lái Xe" (pose, TM `a6Z7kwzyq/`, 4 lớp nghiêng trái/phải/bình thường/nitro) · #3 "Âm thanh A B C D" (audio, TM `eC5WQ6nj_/`, wordLabels A/B/C/D + Background Noise — metadata kiểm 200 OK). Bật runtime audio cho server qua `AILAB_ENABLE_AUDIO=1` (mặc định code vẫn TẮT để bảo toàn Frozen Eval B24/B30).
+3. **Module audit toàn repo:** các branch remote còn lại đã rà — `feat/update-tet-penalty-games` (TV3) ĐÃ MERGE + refresh 2 showcase player trong DB; `feat/ui-ux-refactor`, `feature/chatbot`, `feat/t08-t09-ai-core-takeover` (chỉ README) đã bị main vượt xa — không tích hợp; 2 docs branch thuộc TV3/TV4 — để owner tự merge.
+4. **Sửa 3 bug PM bắt được khi UAT:** (a) 2 camera trong Preview — Assembler strip `data-jl-camera` của AI, Wrapper sở hữu camera duy nhất; (b) HUD "Câu 0/0" nhưng kết thúc 0/2 — prompt giờ dạy JLRuntime + auto setProgress/setScore khi camera.init + quy tắc chấm `d.input === q.answer` (không so `d.label`); (c) giao diện sơ sài — JL Design System trong Wrapper (tokens, jl-opt/is-good/is-bad/jl-screen/jl-fadein) + AI được hướng dẫn dùng class.
+5. **REUSE rescue xếp hạng theo độ phủ mapping** (Tết 2027 2/2 thắng Penalty 3D 2/6).
+6. **Codex Independent Review:** vòng 1 **NO-SHIP** (1 HIGH SSRF qua redirect + 2 MEDIUM) → đã vá SSRF allow-list per-hop + escape `</style`; vòng sau sẽ review lại. Điểm còn mở: POST /api/models chờ check 2.5s (chấp nhận có ghi nhận — cần đăng nhập, cap 100 model/TK).
+7. **Kiểm chứng:** 353/353 offline tests PASS · L5 headless smoke PASS · screenshot `evidence/screenshots/shot-fixture.png` (HUD đồng bộ, 1 camera, design system) · server `http://127.0.0.1:8800` chạy bản mới nhất.
