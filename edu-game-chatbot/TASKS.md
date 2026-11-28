@@ -130,7 +130,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Kiểm tra:** `pytest tests/unit/test_n2.py -q`
 - **Bẫy:** **không** đưa toàn bộ bộ câu hỏi vào prompt N2 (tốn token). Chỉ đưa thống kê và 3 câu mẫu.
 
-### [ ] T12. N3 — Sinh HTML
+### [x] T12. N3 — Sinh HTML
 - **Đọc:** GAME_CONTRACT §6
 - **File:** `app/nodes/n3_generate.py`, `tests/unit/test_n3.py`
 - **Làm:** `generate(llm, store, session) -> Version`: gọi prompt `codegen` (gồm design + 2 câu mẫu), `extract_html`, `inject_bank` với bộ câu hỏi thật, ghi `sessions/<id>/v<n>/index.html`, thêm `Version`.

@@ -11,6 +11,7 @@ T04 | 2026-11-28 | CONTRACT_TEXT, static_check, inject_bank, reference_game.html
 T02 | 2026-11-28 | Settings đủ biến .env.example, get_settings lru_cache + ensure_dirs | 4 test
 T03 | 2026-11-28 | validate_bank, normalize_bank, max_score, load_bank_file json/csv, BankFileError | 25 test
 T17 | 2026-11-28 | Mọi câu chữ/nút tiếng Việt, reject(), progress(), review_buttons | giữ nguyên button id
+T12 | 2026-11-28 | N3 generate: codegen prompt, extract_html, inject_bank, ghi v<n>/index.html | không save session (theo docstring)
 
 ## Câu hỏi cần người dùng trả lời
 
