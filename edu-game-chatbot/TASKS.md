@@ -47,7 +47,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Kiểm tra:** `pytest tests/unit/test_questions.py -q`
 - **Bẫy:** bool là con của int; `csv` phải mở với `newline=""`, `encoding="utf-8-sig"`.
 
-### [ ] T04. Game contract: kiểm tra tĩnh + game mẫu chuẩn
+### [x] T04. Game contract: kiểm tra tĩnh + game mẫu chuẩn
 - **Đọc:** GAME_CONTRACT §1–4, §6
 - **File:** `app/domain/contract.py`, `tests/fixtures/reference_game.html`, `tests/unit/test_contract.py`
 - **Làm:**
@@ -65,7 +65,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Test:** vòng tròn save→get bằng nhau; `safe_path("../x")` raise `ValueError`; ghi nguyên tử (không còn file `.tmp`); `updated_at` tăng.
 - **Kiểm tra:** `pytest tests/unit/test_store.py -q`
 
-### [ ] T06. LLM client + FakeLLM + prompts loader
+### [x] T06. LLM client + FakeLLM + prompts loader
 - **Đọc:** ARCHITECTURE §5 (đoạn cuối), SPEC §5
 - **File:** `app/core/llm.py`, `app/core/prompts.py`, `tests/conftest.py`, `tests/unit/test_llm.py`
 - **Làm:**
