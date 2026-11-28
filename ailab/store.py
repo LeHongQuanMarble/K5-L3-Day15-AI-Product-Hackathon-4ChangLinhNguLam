@@ -117,6 +117,10 @@ CREATE TABLE IF NOT EXISTS exams(id INTEGER PRIMARY KEY, owner_id INTEGER NOT NU
   image TEXT NOT NULL DEFAULT '', content TEXT NOT NULL, created REAL NOT NULL, updated REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS seed_log(tbl TEXT NOT NULL, name TEXT NOT NULL, sha TEXT NOT NULL, PRIMARY KEY(tbl, name));
 CREATE TABLE IF NOT EXISTS chats(id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, title TEXT NOT NULL, messages TEXT NOT NULL DEFAULT '[]', created REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS agent_drafts(id INTEGER PRIMARY KEY, owner_id INTEGER NOT NULL, decision TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending_approval' CHECK(status IN ('pending_approval','published','rejected')),
+  envelope_json TEXT NOT NULL, plan_hash TEXT NOT NULL DEFAULT '', app_id INTEGER, player_id INTEGER, exam_id INTEGER,
+  reject_reason TEXT NOT NULL DEFAULT '', created REAL NOT NULL, updated REAL NOT NULL);
 """
 
 
@@ -514,7 +518,7 @@ def clean_app(c, user, d, existing=None):
         raise Err(400, "player", "Trình chơi này không dùng được (đã ẩn hoặc chưa được chia sẻ).")
     man = json.loads(p["manifest"])
     mapping, model_id = {}, None
-    if "inputs" in man:
+    if "inputs" in man and d.get("modelId") not in (None, ""):
         try:
             model_id = int(d.get("modelId"))
         except (TypeError, ValueError):
@@ -569,7 +573,10 @@ def clean_app(c, user, d, existing=None):
     if not (0.5 <= sure <= 0.99) or not (300 <= hold <= 5000):
         raise Err(400, "sure", "Độ chắc chắn 0.5–0.99, thời gian giữ 300–5000 ms.")
     image = clean_image(d["image"]) if "image" in d else (existing["image"] if existing is not None else "")
-    return name, desc, pid, model_id, mapping, content, sure, hold, 1 if d.get("share") else 0, exam_id, image
+    share_flag = 1 if d.get("share") else 0
+    if share_flag and p["status"] != "approved":
+        raise Err(403, "unapproved_player", "Chỉ ứng dụng dùng trình chơi đã được duyệt (approved) mới được chia sẻ công khai.")
+    return name, desc, pid, model_id, mapping, content, sure, hold, share_flag, exam_id, image
 
 
 def app_row(r, user):
@@ -587,14 +594,19 @@ def get_app(c, aid, user, edit=False):
 
 
 def play_data(c, aid, user):
-    """Dữ liệu để chạy ứng dụng. user có thể None: chỉ chạy được khi ứng dụng có Chia sẻ."""
+    """Dữ liệu để chạy ứng dụng. user có thể None: chỉ chạy được khi ứng dụng có Chia sẻ và trình chơi đã duyệt."""
     a = c.execute("SELECT * FROM apps WHERE id=?", (aid,)).fetchone()
-    ok = a and (a["share"] or (user and (a["owner_id"] == user["id"] or user["role"] == "admin")))
+    is_owner_or_admin = bool(a and user and (a["owner_id"] == user["id"] or user["role"] == "admin"))
+    ok = a and (a["share"] or is_owner_or_admin)
     if not ok:
         raise Err(404, "not_found", "Không thấy ứng dụng này, hoặc chủ ứng dụng chưa chia sẻ.")
     p = c.execute("SELECT * FROM players WHERE id=?", (a["player_id"],)).fetchone()
+    if not p:
+        raise Err(404, "not_found", "Không thấy trình chơi của ứng dụng này.")
     if p["status"] == "hidden":
         return {"unavailable": "player", "reason": p["note"] or "Trình chơi đã bị Admin ẩn."}
+    if not is_owner_or_admin and p["status"] != "approved":
+        raise Err(404, "not_found", "Trình chơi chưa được phê duyệt công khai.")
     man = json.loads(p["manifest"])
     out = {"app": {"id": a["id"], "name": a["name"], "description": a["description"]}, "manifest": man,
            "srcdoc": contract.secure(p["html"]), "sure": a["sure"], "holdMs": a["hold_ms"], "mapping": json.loads(a["mapping"]),

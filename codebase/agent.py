@@ -158,10 +158,25 @@ def _make_envelope(decision, message, plan=None, errors=None, warnings=None, sim
     }
 
 
-def _find_by_id(rows, rid):
-    if not isinstance(rid, int) or isinstance(rid, bool):
+def _normalize_id(rid):
+    """Chuẩn hóa ID số nguyên dương (chấp nhận int hoặc chuỗi chữ số từ JSON LLM; từ chối bool/<=0/sai định dạng)."""
+    if isinstance(rid, bool) or rid is None:
         return None
-    return next((r for r in rows if r.get("id") == rid), None)
+    if isinstance(rid, int):
+        return rid if rid > 0 else None
+    if isinstance(rid, str):
+        s = rid.strip()
+        if s.isdigit():
+            val = int(s)
+            return val if val > 0 else None
+    return None
+
+
+def _find_by_id(rows, rid):
+    norm = _normalize_id(rid)
+    if norm is None:
+        return None
+    return next((r for r in rows if r.get("id") == norm), None)
 
 
 def _validate_and_repair_exam(content: str, player_id=None, expected_count=None, manifest=None):
@@ -826,6 +841,8 @@ def _run_agent_core(request, registry=None):
         if _is_capability_limit_text(msg):
             msg = _ensure_catalog_grounding(msg, active_registry, user_msg=req["message"])
             msg = _ensure_info_hitl_policy(msg, req["message"])
+            note("LLM trả REFUSE cho giới hạn năng lực → chuyển về INFO/ASK_CLARIFY")
+            return _make_envelope("ASK_CLARIFY", msg, simulated=is_simulated), None
         note("LLM quyết định REFUSE")
         return _make_envelope("REFUSE", msg, errors=[ac.issue("refused", msg, "message")], simulated=is_simulated), None
 

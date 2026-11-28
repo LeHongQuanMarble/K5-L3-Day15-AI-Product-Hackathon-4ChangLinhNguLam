@@ -451,12 +451,15 @@ class H(BaseHTTPRequestHandler):
         raise Err(404, "not_found", "Không thấy.")
 
     def _agent(self, c, method, parts, user):
-        """T14 — Shared Core Web/CLI + HITL.
+        """T14 — Shared Core Web/CLI + HITL + Persistence.
 
-        POST /api/agent          → chạy codebase.agent.run_agent(), trả UI projection + trace.
-        POST /api/agent/publish  → cổng phê duyệt: từ chối mọi tự duyệt / DRAFT / REJECTED.
-        POST /api/agent/review   → so plan hiện tại với bản đã duyệt; đổi thì quay về draft.
+        GET  /api/agent/drafts/<id>/try → xem thử bản nháp GENERATE trong iframe sandbox (CSP).
+        POST /api/agent                 → chạy codebase.agent.run_agent(), lưu draft phía server, trả UI projection + trace.
+        POST /api/agent/publish         → cổng phê duyệt HITL + lưu SQLite nguyên tử (apps/players/exams), trả app_id + play_url.
+        POST /api/agent/review          → từ chối bản nháp (action='reject') hoặc so plan với bản đã duyệt (plan_hash).
         """
+        if len(parts) == 4 and parts[1] == "drafts" and parts[3] == "try" and method == "GET":
+            return self._json(200, agent_bridge.draft_preview(c, _int(parts[2]), user, sample_questions=SAMPLE_QUESTIONS))
         if method != "POST":
             raise Err(405, "method", "Chỉ hỗ trợ POST.")
         body = self._body()
@@ -469,11 +472,42 @@ class H(BaseHTTPRequestHandler):
                 raise Err(400, "bad_request", "Gửi {'text': '...'} hoặc Spec request dict.")
             # registry=None → agent dùng cùng @tool Catalog như `python run.py` (hành vi đồng nhất).
             out = agent_bridge.call(payload, case_id="web-%d" % user["id"])
-            return self._json(200, out["ui"] | {"trace": out["trace"]})
+            resp = dict(out["ui"])
+            resp["trace"] = out["trace"]
+            env = out["envelope"]
+            plan = resp.get("application_plan")
+            if isinstance(plan, dict) and env.get("decision") in ("REUSE", "GENERATE") and env.get("status") == "pending_approval":
+                saved = agent_bridge.save_draft(c, user, env)
+                if saved:
+                    resp["draft_id"] = saved["draft_id"]
+                    resp["plan_hash"] = saved["plan_hash"]
+                    p_cfg = plan.get("player") or {}
+                    if p_cfg.get("mode") == "generate_new":
+                        resp["preview_url"] = "/api/agent/drafts/%d/try" % saved["draft_id"]
+                        raw_html = ((env.get("application_plan") or {}).get("player") or {}).get("html") or ""
+                        resp["safety_flags"] = contract.scan(raw_html) if isinstance(raw_html, str) and raw_html else []
+                    elif p_cfg.get("player_id") is not None:
+                        resp["preview_url"] = "/api/agent/drafts/%d/try" % saved["draft_id"]
+                        prow = c.execute("SELECT name FROM players WHERE id=?", (int(p_cfg["player_id"]),)).fetchone()
+                        if prow:
+                            p_cfg["player_name"] = prow["name"]
+                    m_cfg = plan.get("model")
+                    if isinstance(m_cfg, dict) and m_cfg.get("model_id") is not None:
+                        mrow = c.execute("SELECT name FROM models WHERE id=?", (int(m_cfg["model_id"]),)).fetchone()
+                        if mrow:
+                            m_cfg["model_name"] = mrow["name"]
+                    e_cfg = plan.get("exam")
+                    if isinstance(e_cfg, dict) and e_cfg.get("exam_id") is not None:
+                        erow = c.execute("SELECT name FROM exams WHERE id=?", (int(e_cfg["exam_id"]),)).fetchone()
+                        if erow:
+                            e_cfg["exam_name"] = erow["name"]
+            return self._json(200, resp)
         if parts == ["agent", "publish"]:
-            approval = agent_bridge.publish(body, user, registry=agent_bridge.trusted_registry(c))
-            return self._json(200, approval)
+            result = agent_bridge.publish_and_persist(c, body, user, registry=agent_bridge.trusted_registry(c, user=user))
+            return self._json(200, result)
         if parts == ["agent", "review"]:
+            if body.get("action") == "reject" and "draft_id" in body:
+                return self._json(200, agent_bridge.reject_draft(c, body.get("draft_id"), user, reason=body.get("reason", "")))
             return self._json(200, agent_bridge.review(body, body.get("approval")))
         raise Err(404, "not_found", "Không thấy.")
 

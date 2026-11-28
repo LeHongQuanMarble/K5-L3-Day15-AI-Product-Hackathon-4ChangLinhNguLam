@@ -6,9 +6,14 @@
 
 ## Tổng quan trạng thái nghiệm thu T14
 
-- **Backend Shared Core & HITL API (`ailab/agent_bridge.py`, `ailab/server.py`, `ailab/llm.py`):** `INTEGRATION_VERIFIED` (10/10 unit tests `test_agent_bridge.py`, HTTP Real AI test trong `docs/T14-integration.md`).
-- **Frontend Integration (`ailab/web/js/views-assistant.js`) & Application Persistence (SQLite `apps`):** `NOT_READY / FAIL` — `git grep "/api/agent" origin/main -- ailab/web/` trả **0 kết quả**; chế độ Real trên UI vẫn gọi legacy `POST /api/chat`, `hitlBar()` chỉ render chip tĩnh `HITL 1 — chờ nối API duyệt (T08/T14)` (chưa có nút duyệt thật), và `POST /api/agent/publish` chưa lưu bản App `approved` vào SQLite (`apps`) để mở `/play/<app_id>`.
-- **Kết luận nghiệm thu hiện tại:** **CHƯA ĐẠT (`IN_PROGRESS`)** — chặn luồng E2E Web thật và Video 30s Real AI (`T15`).
+- **Cập nhật tích hợp P0 E2E (`fix/p0-e2e-integration`, kế thừa `origin/main @ 133cc21`):**
+  - **Backend Shared Core, HITL Draft Lifecycle & SQLite Persistence (`ailab/agent_bridge.py`, `ailab/server.py`, `ailab/store.py`, `ailab/composer.py`, `codebase/agent.py`):** `INTEGRATION_VERIFIED` — **295/295** tests PASS (`codebase` 124 + `ailab` 171 gồm `test_p0_e2e_integration.py`), `python run.py check` PASS, Codex Independent Security Review: **0 CRITICAL**, đã khắc phục toàn bộ `HIGH`/`MEDIUM` (`store.clean_app` single source of truth, atomic state transition chống race condition, quét `contract.scan` thật, khóa RC-4 public share, khóa leak `catalog_snapshot`, chuẩn hóa numeric string ID RC-3, đồng bộ `draft_preview` đúng bộ đề thật cho cả REUSE và GENERATE, chuyển capability-limit về `INFO`/`ASK_CLARIFY`, `_TRACE_LOCK`).
+  - **Frontend Integration & Real AI Browser E2E (`ailab/web/js/views-assistant.js`, `http://127.0.0.1:8800`):** `REAL_AI_BROWSER_VERIFIED` — đã xác minh trực tiếp trên trình duyệt thật với `gpt-4o-mini` (`simulated=false`, **0 console errors**):
+    - **Scenario A (REUSE):** Real AI → Preview đúng bộ đề Toán 12 Đạo hàm → Checked knowledge review → Approve & Publish (`app_id=1`, `/play/1`) → Chơi bằng Mouse Fallback sang câu 2 → Reload `#/apps` còn nguyên bản ghi SQLite.
+    - **Scenario B (GENERATE):** Real AI sinh HTML game `"Ghép Cặp Từ Vựng Động Vật"` (0 cờ an toàn) → Preview sandbox → Approve & Publish (`app_id=2`, `player_id=8` giữ `status='draft'`, `visibility='private'`, `exam_id=7`, `/play/2`) → Chơi được trên `/play/2`.
+    - **Scenario C (ASK_CLARIFY):** Yêu cầu mơ hồ → hỏi lại 1 câu, không tạo `draft_id`, không có nút publish.
+    - **Scenario D (Capability Limit):** Phát hiện LLM trả `REFUSE` cho audio → đã vá trong `codebase/agent.py` chuyển sang `ASK_CLARIFY`/`INFO` và xác minh bằng unit test (`test_e2e_04_capability_limit_routes_to_info_not_refuse`).
+- **Kết luận nghiệm thu hiện tại:** **RELEASE CANDIDATE READY — CHỜ PM HUMAN UAT (T04) & DUYỆT MERGE PR** *(không tự đánh `DONE` cho T04 Human UAT trước khi PM trực tiếp nghiệm thu).*
 
 ---
 

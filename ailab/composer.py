@@ -368,7 +368,10 @@ def catalog_snapshot():
     c = _connect()
     try:
         players = []
-        for r in c.execute("SELECT id,name,description,manifest,status,source,visibility FROM players WHERE source<>'showcase' ORDER BY id"):
+        for r in c.execute(
+            "SELECT id,name,description,manifest,status,source,visibility FROM players "
+            "WHERE status='approved' AND source<>'showcase' AND (visibility='public' OR owner_id IS NULL) ORDER BY id"
+        ):
             man = _json_value(r["manifest"]) or {}
             players.append({
                 "id": r["id"], "name": r["name"], "description": r["description"],
@@ -377,14 +380,14 @@ def catalog_snapshot():
                 "questions": man.get("questions"), "content": man.get("content"),
             })
         models = []
-        for r in c.execute("SELECT id,name,description,kind,url,outputs,visibility FROM models ORDER BY id"):
+        for r in c.execute("SELECT id,name,description,kind,url,outputs,visibility FROM models WHERE visibility='public' ORDER BY id"):
             models.append({
                 "id": r["id"], "name": r["name"], "description": r["description"],
                 "kind": r["kind"], "url": r["url"], "outputs": _json_value(r["outputs"]) or [],
                 "visibility": r["visibility"],
             })
         exams = []
-        for r in c.execute("SELECT id,name,description,content FROM exams ORDER BY id"):
+        for r in c.execute("SELECT id,name,description,content FROM exams WHERE owner_id=0 ORDER BY id"):
             try:
                 count = len(store.parse_questions(r["content"]))
             except store.Err:
