@@ -120,3 +120,9 @@ async def test_fake_llm_exhausted_raises() -> None:
     with pytest.raises(AssertionError, match="design"):
         await f.complete(system=sys, user="u", model="m")
     assert len(f.calls_for("design")) == 3
+
+
+def test_empty_base_url_uses_default() -> None:
+    """OPENAI_BASE_URL= (rỗng, như .env.example) không được làm hỏng URL gọi API."""
+    client = OpenAILLM(Settings(_env_file=None, openai_api_key="k", openai_base_url=""))
+    assert client._client.base_url.host == "api.openai.com"

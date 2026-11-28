@@ -34,7 +34,7 @@ class OpenAILLM:
         """Tạo AsyncOpenAI (api_key, base_url, timeout từ settings). Chỉ đọc key tại đây."""
         self._client = AsyncOpenAI(
             api_key=settings.openai_api_key,
-            base_url=settings.openai_base_url,
+            base_url=(settings.openai_base_url or "").strip() or None,  # "OPENAI_BASE_URL=" rỗng -> mặc định
             timeout=settings.llm_timeout_s,
             max_retries=0,
         )

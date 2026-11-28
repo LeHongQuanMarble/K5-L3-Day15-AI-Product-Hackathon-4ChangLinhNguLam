@@ -137,6 +137,22 @@ async def test_happy_llm_fixture_reaches_review(store, happy_llm, bus, settings,
     assert s.state == State.AWAIT_REVIEW, s.error
 
 
+async def test_llm_error_on_user_text_fails_cleanly(store, fake_llm, bus, settings) -> None:
+    """Lỗi LLM khi xử lý tin nhắn (vd. mất kết nối) -> FAILED + nút retry, không văng TypeError."""
+    from app.core.llm import LLMError
+
+    def boom(system: str, user: str) -> str:
+        raise LLMError("Connection error.")
+
+    fake_llm.add("intake", boom)
+    engine = make_engine(store, fake_llm, bus, settings)
+    s = await engine.start_session()
+    s = await run(engine, s.id, text="Tạo game ôn tập phân số lớp 4")
+    assert s.state == State.FAILED and "Connection error" in s.error
+    assert review_ids(s) == [replies.BTN_RETRY]
+    assert s.events[-1]["input_text"] == "Tạo game ôn tập phân số lớp 4"
+
+
 async def test_reject_non_educational(store, fake_llm, bus, settings) -> None:
     fake_llm.add("intake", json.dumps({"is_educational": False, "reason": "đây là game bắn súng giải trí"}))
     engine = make_engine(store, fake_llm, bus, settings)

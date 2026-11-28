@@ -270,7 +270,7 @@ class ChatEngine:
         try:
             await handler(s, text, action)
         except Exception as exc:  # noqa: BLE001
-            await self._fail(s, exc, step="handle", state=state.value, text=text, action=action)
+            await self._fail(s, exc, step="handle", state=state.value, input_text=text, action=action)
 
     async def _on_failed_input(self, s: Session, text: str | None, action: str | None) -> None:
         retry = replies.retry_button()
