@@ -94,6 +94,7 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .game-pane--loading #preview { opacity: .35; pointer-events: none; }
 
 /* ---- Màn hình hẹp: tab chuyển khung ---- */
+@media (max-width: 1200px) { .stepper { gap: 2px; } .stepper li { padding: 6px 6px; font-size: .78rem; } }
 @media (max-width: 900px) {
   .stepper { display: none; }
   .brand__sub { display: none; }

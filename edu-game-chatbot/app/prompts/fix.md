@@ -7,6 +7,7 @@ Yêu cầu:
 - Không đụng tới nội dung #question-bank (giữ trống/nguyên như hiện có).
 - Mọi hiệu ứng ≤ 600 ms; chơi lại phải reset toàn bộ trạng thái.
 - Tuân thủ contract bên dưới.
+- Giữ nguyên cách điều khiển đang có (bàn phím/camera/micro) và chơi được bằng chuột/chạm; lỗi camera/micro chỉ console.warn, không console.error.
 - Chỉ trả về đúng 1 khối ```html ... ``` chứa toàn bộ file đã sửa, không giải thích thêm.
 
 {{CONTRACT}}

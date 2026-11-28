@@ -63,7 +63,7 @@ sessions/  output/  main_inbox/   # runtime, .gitignore
 
 ```python
 class State(StrEnum): AWAIT_REQUEST, AWAIT_SOURCE, AWAIT_SOURCE_INPUT, BUILDING_QUESTIONS,
-    AWAIT_QUESTION_APPROVAL, READY_TO_DESIGN, PIPELINE_RUNNING, AWAIT_REVIEW,
+    AWAIT_QUESTION_APPROVAL, AWAIT_GAMEPLAY, AWAIT_CONTROLS, AWAIT_VISUAL, READY_TO_DESIGN, PIPELINE_RUNNING, AWAIT_REVIEW,
     AWAIT_REVISION_TEXT, EXPORTING, DONE, REJECTED, CANCELLED, FAILED
 class Source(StrEnum): USER="user", DOCUMENT="document", TOPIC="topic"
 
@@ -82,6 +82,8 @@ class Session(BaseModel):
     source: Source | None = None; topic: str = ""; num_questions: int = 10
     documents: list[dict] = []          # {name, path, chars}
     question_bank: dict = {}; question_feedback: list[str] = []
+    gameplay: str = ""; controls: str = ""; visual: str = ""   # nhãn nút hoặc mô tả tự do (F01)
+    controls_code: str = ""             # mouse | keyboard | motion | voice | custom
     design: dict = {}; design_history: list[dict] = []
     revisions: list[str] = []; versions: list[Version] = []
     messages: list[Message] = []; events: list[dict] = []

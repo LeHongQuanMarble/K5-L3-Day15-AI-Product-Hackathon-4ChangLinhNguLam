@@ -80,3 +80,10 @@ def test_inject_inserts_when_missing(ref):
     out = inject_bank(ref.replace('id="question-bank"', 'id="qb"'), BANK)
     assert 'id="question-bank"' in out
     assert out.index('id="question-bank"') < out.index("<style>")
+
+
+def test_contract_text_has_controls_rules():
+    from app.domain.contract import CONTRACT_TEXT
+
+    for needle in ("ĐIỀU KHIỂN", "getUserMedia", "webkitSpeechRecognition", "vi-VN", "console.warn", "chuột"):
+        assert needle in CONTRACT_TEXT, needle

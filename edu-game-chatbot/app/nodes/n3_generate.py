@@ -27,7 +27,7 @@ async def generate(llm: LLMClient, settings: Settings, store: SessionStore, sess
 
 
 def build_codegen_prompt(session: Session) -> str:
-    """Design JSON + 2 câu mẫu (cấu trúc) + ngữ cảnh phiên."""
+    """Design JSON + 2 câu mẫu (cấu trúc) + ngữ cảnh phiên + điều khiển giáo viên chọn."""
     samples = session.question_bank.get("questions", [])[:2]
     parts = [
         f"Chủ đề: {session.topic or session.request}",
@@ -36,6 +36,11 @@ def build_codegen_prompt(session: Session) -> str:
         "2 câu mẫu (chỉ để biết cấu trúc, bộ câu hỏi thật sẽ được nhúng sau):\n"
         + json.dumps(samples, ensure_ascii=False, indent=2),
     ]
+    if session.controls:
+        code = session.controls_code or "custom"
+        parts.append(
+            f"Điều khiển giáo viên yêu cầu (mã {code}, theo mục ĐIỀU KHIỂN của contract): {session.controls}"
+        )
     if session.revisions:
         parts.append("Yêu cầu chỉnh sửa:\n" + "\n".join(f"- {r}" for r in session.revisions))
     return "\n\n".join(parts)

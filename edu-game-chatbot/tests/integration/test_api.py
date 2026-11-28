@@ -63,6 +63,12 @@ async def _to_review(client, app, n: int) -> str:
     await _msg(client, app, sid, action="source_topic")
     await _msg(client, app, sid, text=f"Phân số lớp 4, {n} câu")
     await _msg(client, app, sid, action="qb_approve")
+    assert app.state.store.get(sid).state == "AWAIT_GAMEPLAY"
+    await _msg(client, app, sid, action="gp_quiz")
+    await _msg(client, app, sid, text="dùng phím mũi tên và chuột")
+    await _msg(client, app, sid, action="vis_space")
+    s = app.state.store.get(sid)
+    assert s.controls == "dùng phím mũi tên và chuột" and s.controls_code == "custom"
     return sid
 
 
@@ -117,7 +123,8 @@ async def test_preview_has_csp(client, app, sample_bank) -> None:
     assert app.state.store.get(sid).state == "AWAIT_REVIEW", app.state.store.get(sid).error
     r = await client.get(f"/preview/{sid}/v1")
     assert r.status_code == 200
-    assert "default-src 'none'" in r.headers["content-security-policy"]
+    csp = r.headers["content-security-policy"]
+    assert "default-src 'none'" in csp and "mediastream:" in csp
     assert (await client.get(f"/preview/{sid}/v9")).status_code == 404
 
 

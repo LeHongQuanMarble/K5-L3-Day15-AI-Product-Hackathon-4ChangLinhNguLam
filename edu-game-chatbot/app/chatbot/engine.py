@@ -15,6 +15,7 @@ from app.core.events import EventBus
 from app.core.llm import LLMClient
 from app.core.models import BUSY_STATES, TERMINAL_STATES, Button, Message, Session, Source, State, Version
 from app.core.store import SessionStore
+from app.domain.questions import max_score
 from app.nodes import intake
 from app.nodes.n1_read_docs import SUPPORTED_EXTS
 from app.nodes.n4_test import TestReport, run_tests
@@ -61,6 +62,9 @@ class ChatEngine:
             State.AWAIT_SOURCE: self._on_await_source,
             State.AWAIT_SOURCE_INPUT: self._on_await_source_input,
             State.AWAIT_QUESTION_APPROVAL: self._on_await_question_approval,
+            State.AWAIT_GAMEPLAY: self._on_await_gameplay,
+            State.AWAIT_CONTROLS: self._on_await_controls,
+            State.AWAIT_VISUAL: self._on_await_visual,
             State.AWAIT_REVIEW: self._on_await_review,
             State.AWAIT_REVISION_TEXT: self._on_await_revision_text,
         }
@@ -148,12 +152,12 @@ class ChatEngine:
         await self._launch(s, "run_build_questions")
 
     async def _on_await_question_approval(self, s: Session, text: str | None, action: str | None) -> None:
-        """qb_approve -> READY_TO_DESIGN + chạy pipeline.run_design_cycle; qb_regenerate -> hỏi góp ý / tạo lại."""
+        """qb_approve -> hỏi cách chơi (AWAIT_GAMEPLAY); qb_regenerate -> hỏi góp ý / tạo lại."""
         buttons = replies.question_approval_buttons()
         bid = await self._resolve(text, action, buttons)
         if bid == replies.BTN_QB_APPROVE:
-            await self._transition(s, State.READY_TO_DESIGN)
-            self._run_background(s.id, pipeline.run_design_cycle(self, s.id))
+            await self._reply(s, _bot(replies.ASK_GAMEPLAY, replies.gameplay_buttons()))
+            await self._transition(s, State.AWAIT_GAMEPLAY)
         elif bid == replies.BTN_QB_REGENERATE:
             feedback = self._free_text(text, buttons)
             if feedback:
@@ -161,6 +165,42 @@ class ChatEngine:
             await self._launch(s, "run_build_questions", feedback=feedback)
         else:
             await self._reply(s, _bot(replies.NOT_UNDERSTOOD, buttons))
+
+    async def _on_await_gameplay(self, s: Session, text: str | None, action: str | None) -> None:
+        """Lưu cách chơi (nhãn nút hoặc mô tả tự do) -> hỏi điều khiển (AWAIT_CONTROLS)."""
+        picked = self._pick(text, action, replies.gameplay_buttons())
+        if picked is None:
+            await self._reply(s, _bot(replies.ASK_GAMEPLAY, replies.gameplay_buttons()))
+            return
+        s.gameplay = picked[1]
+        await self._reply(s, _bot(replies.ASK_CONTROLS, replies.controls_buttons()))
+        await self._transition(s, State.AWAIT_CONTROLS)
+
+    async def _on_await_controls(self, s: Session, text: str | None, action: str | None) -> None:
+        """Lưu cách điều khiển + controls_code -> hỏi giao diện (AWAIT_VISUAL)."""
+        picked = self._pick(text, action, replies.controls_buttons())
+        if picked is None:
+            await self._reply(s, _bot(replies.ASK_CONTROLS, replies.controls_buttons()))
+            return
+        bid, s.controls = picked
+        s.controls_code = replies.CONTROLS_CODES.get(bid or "", replies.CONTROLS_CUSTOM)
+        await self._reply(s, _bot(replies.ASK_VISUAL, replies.visual_buttons()))
+        await self._transition(s, State.AWAIT_VISUAL)
+
+    async def _on_await_visual(self, s: Session, text: str | None, action: str | None) -> None:
+        """Lưu giao diện -> tóm tắt yêu cầu -> READY_TO_DESIGN + chạy pipeline.run_design_cycle nền."""
+        picked = self._pick(text, action, replies.visual_buttons())
+        if picked is None:
+            await self._reply(s, _bot(replies.ASK_VISUAL, replies.visual_buttons()))
+            return
+        s.visual = picked[1]
+        qs = s.question_bank.get("questions", [])
+        summary = replies.requirements_summary(
+            len(qs), max_score(s.question_bank), s.gameplay, s.controls, s.visual
+        )
+        await self._reply(s, _bot(summary))
+        await self._transition(s, State.READY_TO_DESIGN)
+        self._run_background(s.id, pipeline.run_design_cycle(self, s.id))
 
     async def _on_await_review(self, s: Session, text: str | None, action: str | None) -> None:
         """approve (chỉ khi test pass) -> EXPORTING + run_export; revise -> AWAIT_REVISION_TEXT; cancel -> CANCELLED."""
@@ -297,6 +337,20 @@ class ChatEngine:
         if text and text.strip():
             return await intake.classify_intent(self.llm, self.settings, text, buttons)
         return None
+
+    @staticmethod
+    def _pick(text: str | None, action: str | None, buttons: list[Button]) -> tuple[str | None, str] | None:
+        """(id nút, nhãn) khi bấm/gõ khớp nút; (None, nguyên văn) khi gõ mô tả tự do (không gọi LLM);
+        None khi rỗng hoặc action lạ."""
+        labels = {b.id: b.label for b in buttons}
+        if action:
+            return (action, labels[action]) if action in labels else None
+        if not text or not text.strip():
+            return None
+        bid = intake.match_button(text, buttons)
+        if bid is not None:
+            return bid, labels[bid]
+        return None, text.strip()
 
     @staticmethod
     def _free_text(text: str | None, buttons: list[Button]) -> str:

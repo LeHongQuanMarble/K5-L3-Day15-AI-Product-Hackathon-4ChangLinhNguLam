@@ -19,9 +19,10 @@
     <ol id="stepper" class="stepper" aria-label="Tiến trình">
       <li data-step="0">Yêu cầu</li>
       <li data-step="1">Câu hỏi</li>
-      <li data-step="2">Tạo game</li>
-      <li data-step="3">Chơi thử</li>
-      <li data-step="4">Xuất file</li>
+      <li data-step="2">Yêu cầu game</li>
+      <li data-step="3">Tạo game</li>
+      <li data-step="4">Chơi thử</li>
+      <li data-step="5">Xuất file</li>
     </ol>
     <button id="new-session" class="btn btn--ghost" type="button" title="Bắt đầu cuộc trò chuyện mới">＋ Phiên mới</button>
   </header>
@@ -78,7 +79,7 @@
         </div>
         <section id="preview" data-testid="preview" hidden>
           <div id="device" class="device device--desktop">
-            <iframe id="preview-frame" sandbox="allow-scripts" title="Chơi thử game"></iframe>
+            <iframe id="preview-frame" sandbox="allow-scripts" allow="camera; microphone; autoplay" title="Chơi thử game"></iframe>
           </div>
         </section>
       </div>

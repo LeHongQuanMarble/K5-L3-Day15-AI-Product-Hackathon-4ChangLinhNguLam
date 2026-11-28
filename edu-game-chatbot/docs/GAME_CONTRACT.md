@@ -72,3 +72,25 @@ Danh sách lỗi này được đưa nguyên văn cho FIX.
 N3 yêu cầu model để thẻ `#question-bank` rỗng. Sau khi model trả HTML, hàm `inject_bank()` thay nội
 dung thẻ bằng JSON bộ câu hỏi thật (escape `</` thành `<\/`). FIX cũng gọi lại `inject_bank()`.
 Nhờ đó model không thể bịa thêm hay bỏ bớt câu.
+
+## 7. Điều khiển theo yêu cầu giáo viên
+
+Giáo viên chọn cách điều khiển trước khi tạo game (SPEC §2 mục 7); N3 nhận mã
+`mouse | keyboard | motion | voice | custom` và mô tả.
+
+- **Luôn chơi được bằng chuột/chạm** và giữ mọi `data-testid` ở §2 (N4 bấm bằng chuột).
+  Các kiểu điều khiển khác là **thêm vào**, không thay thế.
+- `keyboard`: phím `1–4` / `A–D` chọn đáp án, mũi tên di chuyển, `Enter` xác nhận; hiện chú thích phím trên màn hình.
+- `motion`: nút "Bật camera" (không tự xin quyền khi tải trang) → `navigator.mediaDevices.getUserMedia({video:true})`;
+  phát hiện chuyển động bằng so sánh khung hình (frame differencing trên canvas) theo vùng trái/phải/trên…
+  để chọn đáp án hoặc di chuyển. Không thư viện/CDN. Hiện ô camera nhỏ + hướng dẫn.
+- `voice`: nút "Bật micro" → `SpeechRecognition`/`webkitSpeechRecognition` (`lang="vi-VN"`) để nói đáp án
+  (A/B/C/D, "đúng"/"sai" hoặc nội dung đáp án). Không có API thì đo âm lượng micro (`AnalyserNode`): "vỗ tay để xác nhận".
+- Từ chối quyền / không có thiết bị / API không hỗ trợ: chỉ `console.warn` (**không** `console.error`, không throw —
+  N4 bắt `console.error`/`pageerror`), hiện thông báo thân thiện và tiếp tục chơi bằng chuột.
+- `custom`: làm đúng mô tả của giáo viên theo các quy tắc trên.
+
+Preview: iframe có `allow="camera; microphone; autoplay"` và CSP thêm `media-src … mediastream:`. Iframe vẫn
+`sandbox="allow-scripts"` (không `allow-same-origin`) nên trên Chromium `getUserMedia` trong iframe bị chặn
+(`SecurityError: Invalid security origin`); game rơi về chơi bằng chuột. Camera/micro dùng được khi mở game
+toàn màn hình (tab riêng) hoặc file đã xuất chạy trên `localhost`/HTTPS.

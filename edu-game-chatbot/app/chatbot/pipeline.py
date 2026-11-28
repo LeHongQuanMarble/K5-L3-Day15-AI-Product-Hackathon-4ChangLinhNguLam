@@ -29,8 +29,8 @@ _PROGRESS_KEYS = {
 
 
 async def run_build_questions(engine: ChatEngine, session_id: str, feedback: str = "") -> None:
-    """N1 (nếu nguồn document) -> N1b. Nguồn user: hiện preview, sang READY_TO_DESIGN và chạy luôn
-    run_design_cycle. Nguồn document/topic: hiện preview + nút duyệt -> AWAIT_QUESTION_APPROVAL.
+    """N1 (nếu nguồn document) -> N1b. Nguồn user: hiện preview rồi hỏi cách chơi -> AWAIT_GAMEPLAY.
+    Nguồn document/topic: hiện preview + nút duyệt -> AWAIT_QUESTION_APPROVAL.
     BankFileError -> báo lỗi, quay lại AWAIT_SOURCE_INPUT."""
     await _mark_step(engine, session_id, "run_build_questions", feedback=feedback)
     work = engine.store.get(session_id)
@@ -42,8 +42,8 @@ async def run_build_questions(engine: ChatEngine, session_id: str, feedback: str
                 raise BankFileError([replies.ASK_UPLOAD_QUESTIONS])
             work.question_bank = await asyncio.to_thread(n1b_questions.from_user_file, files[0])
             preview = _bot(n1b_questions.preview_text(work.question_bank))
-            await _commit(engine, work, "question_bank", messages=[preview], state=State.READY_TO_DESIGN)
-            await run_design_cycle(engine, session_id)
+            ask = _bot(replies.ASK_GAMEPLAY, replies.gameplay_buttons())
+            await _commit(engine, work, "question_bank", messages=[preview, ask], state=State.AWAIT_GAMEPLAY)
             return
         doc_text = ""
         if work.source == Source.DOCUMENT:

@@ -110,6 +110,11 @@ def _open_and_choose_topic(page: Page, base: str) -> None:
     page.get_by_test_id("btn-source_topic").click()
     _send(page, "Phân số, 5 câu")
     page.get_by_test_id("btn-qb_approve").click()
+    page.get_by_test_id("btn-gp_race").click()
+    page.get_by_test_id("btn-ctl_keyboard").click()
+    expect(page.get_by_test_id("btn-vis_cartoon")).to_be_visible()
+    expect(page.locator("#stepper li.is-current")).to_have_text("Yêu cầu game")
+    _send(page, "nền xanh biển, nhân vật cá heo")
 
 
 def test_full_flow_topic_with_revision(live_server: str, page: Page, settings, scripted_llm) -> None:
@@ -137,6 +142,9 @@ def test_full_flow_topic_with_revision(live_server: str, page: Page, settings, s
     assert len(scripted_llm.calls_for("design")) == 2
     assert len(scripted_llm.calls_for("codegen")) == 2
     assert "Đổi màu nền sang xanh lá" in scripted_llm.calls_for("design")[1]["user"]
+    first = scripted_llm.calls_for("design")[0]["user"]
+    assert "Đua về đích" in first and "Bàn phím" in first and "nhân vật cá heo" in first
+    assert not scripted_llm.calls_for("intent")
     expect(page.get_by_test_id("text-input")).to_be_disabled()
 
 

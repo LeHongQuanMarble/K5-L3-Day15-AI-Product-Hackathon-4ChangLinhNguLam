@@ -17,6 +17,9 @@ class State(StrEnum):
     AWAIT_SOURCE_INPUT = "AWAIT_SOURCE_INPUT"
     BUILDING_QUESTIONS = "BUILDING_QUESTIONS"
     AWAIT_QUESTION_APPROVAL = "AWAIT_QUESTION_APPROVAL"
+    AWAIT_GAMEPLAY = "AWAIT_GAMEPLAY"
+    AWAIT_CONTROLS = "AWAIT_CONTROLS"
+    AWAIT_VISUAL = "AWAIT_VISUAL"
     READY_TO_DESIGN = "READY_TO_DESIGN"
     PIPELINE_RUNNING = "PIPELINE_RUNNING"
     AWAIT_REVIEW = "AWAIT_REVIEW"
@@ -95,6 +98,12 @@ class Session(BaseModel):
     documents: list[DocumentInfo] = []
     question_bank: dict = {}
     question_feedback: list[str] = []
+
+    # Yêu cầu game của giáo viên (F01): nhãn nút hoặc nguyên văn mô tả tự do
+    gameplay: str = ""
+    controls: str = ""
+    controls_code: str = ""  # mouse | keyboard | motion | voice | custom
+    visual: str = ""
 
     design: dict = {}
     design_history: list[dict] = []
