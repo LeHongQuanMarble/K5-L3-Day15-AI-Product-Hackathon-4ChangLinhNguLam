@@ -1010,3 +1010,10 @@ flowchart LR
 3. **Diệt nốt root cause audio GENERATE trên Real AI**: 3 chỗ hardcode "audio chưa hỗ trợ" trong routing prompt/catalog context/voice-note → dynamic theo `AUDIO_SUPPORTED`.
 4. **Premium Smoke Test (gpt-4.1, $0.24/$0.40)**: 4 Player mới — Lái Xe (/play/13), Âm thanh ABCD (/play/14), Hands (/play/15), mouse-only (/play/16) — publish + play + reload PASS; share=1 cho PM demo; PM đăng nhập demo admin để mở (server đang chạy AILAB_DEMO=1).
 5. **Chốt RC**: dừng mở rộng tính năng; việc còn lại là Human UAT của PM (inference camera/mic thật) + merge sau nghiệm thu.
+
+### Cập nhật 28/11 (12:25) — FINAL RC: Codex round 2 + GO có điều kiện
+
+1. **Codex round 2** (scope f5fb3b9..9933c8b): NO-SHIP ban đầu với 1 HIGH thật — **DNS rebinding** trong check_model_url (resolve 2 lần) + 1 MEDIUM camera regex ăn giá trị quoted + 1 LOW leak fp. **Đã vá hết**: `_PinnedHTTPSConnection` kết nối thẳng IP đã xác minh (SNI/cert theo hostname, redirect thủ công 3 hop mỗi hop kiểm lại) — sanity 7/7 (TM thật True, host lạ/http chặn, quoted value nguyên vẹn); `_ensure_single_camera` quét theo tag + blank-out quoted. Hai nhóm còn lại (multi-model routing, audio routing động) **OK**.
+2. **docs/UAT-CHECKLIST-RC.md** — checklist Human UAT cho PM: 4 game premium (/play/13–16, đăng nhập demo Admin), 1 ca GENERATE trong Trợ lý AI, 7 game team, catalog model + test model broken.
+3. **slides/rc-slides.html** (10 trang, in PDF được) + **slides/pitch-5min-rc.md** (kịch bản 5 phút + demo chính + phương án dự phòng) — số liệu có nguồn, phân biệt rõ benchmark/regression/smoke/UAT; ghi rõ benchmark Run 1–3 đo trên cấu hình gpt-4o-mini TRƯỚC nâng cấp generator.
+4. **GO CÓ ĐIỀU KIỆN**: 353/353 offline · L5 PASS · 3 model ready · 7/7 game team · 4 game premium share=1 · Codex r2 HIGH/MEDIUM đã vá + sanity PASS → chờ **PM Human UAT** (checklist) rồi push/merge.
