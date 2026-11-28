@@ -176,7 +176,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 
 ## Giai đoạn 3 — Chatbot
 
-### [ ] T17. Replies tiếng Việt
+### [x] T17. Replies tiếng Việt
 - **Đọc:** SPEC §4
 - **File:** `app/chatbot/replies.py`
 - **Làm:** mọi câu chữ và nút của bot là hằng/hàm ở đây (`GREETING`, `ASK_SOURCE`, `BTN_SOURCE_USER`…, `reject(reason)`, `progress(node, detail)`). Code khác **không** được hard-code chuỗi hiển thị.
