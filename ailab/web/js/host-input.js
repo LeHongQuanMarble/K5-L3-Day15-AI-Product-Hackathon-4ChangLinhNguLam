@@ -23,11 +23,87 @@ function loadScript(src) {
     document.head.appendChild(s);
   });
 }
-function curlOf(lm, aspect) {
+export function curlOf(lm, aspect) {
   function d(a, b) { return Math.hypot((a.x - b.x) * aspect, a.y - b.y); }
   var size = d(lm[0], lm[9]) || 1e-6, c = 0;
   [8, 12, 16, 20].forEach(function (t) { c += Math.max(0, Math.min(1, (1.75 - d(lm[t], lm[0]) / size) / 0.6)); });
   return c / 4;
+}
+
+/* ---- Giọng nói → chữ (Web Speech API) cho trình chơi gửi {type:'speech',on,lang}; trả lời bằng camera.speech {text,final,available,error}.
+   Độc lập với mô hình: trình chơi giọng nói (vd Chim Bay Nói) cần cái này dù ứng dụng có hay không có model. ---- */
+export function createSpeech(frame, onSay) {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var rec = null, on = false, lang = 'vi-VN', retry = 0;
+  function send(o) { if (frame && frame.contentWindow) frame.contentWindow.postMessage(Object.assign({ type: 'camera.speech' }, o), '*'); }
+  function fatal(code) { return code === 'not-allowed' || code === 'service-not-allowed' || code === 'audio-capture' || code === 'language-not-supported'; }
+  function stop() {
+    on = false; clearTimeout(retry);
+    if (rec) { var r = rec; rec = null; r.onend = null; r.onerror = null; r.onresult = null; try { r.abort(); } catch (e) { /* đã dừng */ } }
+  }
+  function begin() {
+    if (!on) return;
+    rec = new SR(); rec.lang = lang; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+    rec.onresult = function (e) {
+      for (var i = e.resultIndex; i < e.results.length; i++) send({ text: e.results[i][0].transcript, final: e.results[i].isFinal, available: true });
+    };
+    rec.onerror = function (e) {
+      if (fatal(e.error)) {
+        on = false;
+        send({ text: '', final: true, available: false, error: e.error });
+        if (onSay) onSay(e.error === 'not-allowed' || e.error === 'service-not-allowed' ? 'Chưa được cấp quyền micro để nghe giọng nói — hãy chọn “Cho phép” rồi thử lại.' : 'Không nghe được giọng nói (' + e.error + ').');
+      }
+    };
+    rec.onend = function () { if (on) retry = setTimeout(begin, 250); }; // trình duyệt tự dừng sau một lúc im lặng → nghe tiếp
+    try { rec.start(); } catch (err) { /* đang chạy */ }
+  }
+  function start(l) {
+    if (!SR) { send({ text: '', final: true, available: false, error: 'unsupported' }); if (onSay) onSay('Trình duyệt này không hỗ trợ nhận giọng nói (hãy dùng Chrome hoặc Edge).'); return; }
+    stop(); lang = l || lang; on = true; begin();
+  }
+  return { start: start, stop: stop, message: function (d) { if (d && d.type === 'speech') { if (d.on) start(typeof d.lang === 'string' ? d.lang : null); else stop(); } } };
+}
+
+/* ---- vẽ khung xương lên canvas phủ trên video (toạ độ theo pixel của video) ---- */
+var POSE_PAIRS = [['leftShoulder', 'rightShoulder'], ['leftShoulder', 'leftElbow'], ['leftElbow', 'leftWrist'], ['rightShoulder', 'rightElbow'], ['rightElbow', 'rightWrist'],
+  ['leftShoulder', 'leftHip'], ['rightShoulder', 'rightHip'], ['leftHip', 'rightHip'], ['leftHip', 'leftKnee'], ['leftKnee', 'leftAnkle'], ['rightHip', 'rightKnee'], ['rightKnee', 'rightAnkle'],
+  ['nose', 'leftEye'], ['nose', 'rightEye'], ['leftEye', 'leftEar'], ['rightEye', 'rightEar']];
+var HAND_PAIRS = [[0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [5, 9], [9, 10], [10, 11], [11, 12], [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17]];
+function prep(canvas, video) {
+  if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
+  if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
+  var g = canvas.getContext('2d'); g.clearRect(0, 0, canvas.width, canvas.height);
+  g.lineCap = 'round'; g.lineWidth = Math.max(3, canvas.width / 160);
+  return g;
+}
+export function drawPose(canvas, video, pose, minScore) {
+  var g = prep(canvas, video); if (!pose || !pose.keypoints) return;
+  var min = minScore == null ? 0.4 : minScore, by = {}, r = Math.max(4, canvas.width / 110);
+  pose.keypoints.forEach(function (k) { if (k.score >= min) by[k.part] = k.position; });
+  g.strokeStyle = '#22d3ee';
+  POSE_PAIRS.forEach(function (p) { var a = by[p[0]], b = by[p[1]]; if (a && b) { g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); } });
+  g.fillStyle = '#facc15';
+  Object.keys(by).forEach(function (n) { g.beginPath(); g.arc(by[n].x, by[n].y, r, 0, 6.2832); g.fill(); });
+}
+export function drawHands(canvas, video, hands) { // hands: [[{x,y} chuẩn hoá 0..1 ×21]]
+  var g = prep(canvas, video), W = canvas.width, H = canvas.height, r = Math.max(3, W / 150);
+  (hands || []).forEach(function (lm) {
+    g.strokeStyle = '#22d3ee';
+    HAND_PAIRS.forEach(function (p) { var a = lm[p[0]], b = lm[p[1]]; g.beginPath(); g.moveTo(a.x * W, a.y * H); g.lineTo(b.x * W, b.y * H); g.stroke(); });
+    g.fillStyle = '#facc15';
+    lm.forEach(function (q) { g.beginPath(); g.arc(q.x * W, q.y * H, r, 0, 6.2832); g.fill(); });
+  });
+}
+
+/* Bộ đọc bàn tay MediaPipe dùng chung (nạp một lần). */
+var sharedLandmarker = null;
+export function loadHandLandmarker() {
+  if (sharedLandmarker) return Promise.resolve(sharedLandmarker);
+  return import(HAND.lib).then(function (mp) {
+    return mp.FilesetResolver.forVisionTasks(HAND.wasm).then(function (files) {
+      return mp.HandLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: HAND.model }, runningMode: 'VIDEO', numHands: 2 });
+    });
+  }).then(function (l) { sharedLandmarker = l; return l; });
 }
 
 /* o = { frame, model:{kind,url}, mapping:{đầuVào:lớp}, sure, holdMs, onSay(text), onRunning(bool) } */
@@ -38,6 +114,7 @@ export function createHostInput(o) {
   var rev = {}; Object.keys(o.mapping || {}).forEach(function (k) { rev[o.mapping[k]] = k; });
   var running = false, want = false, handsAsked = false, landmarker = null, handNow = { present: false, fist: false };
   var video = null, stream = null, tm = null, rec = null, loopId = 0, lastFrame = 0, lastHand = 0, lastPredict = 0, busy = false;
+  var actx = null, analyser = null, vizStream = null, vizId = 0, lastViz = 0, vizData = null, vizCanvas = null;
   var cand = null, since = 0, emitted = false, canvas = document.createElement('canvas');
   var thing = isAudio ? 'micro' : 'camera';
   var hint = o.fallbackHint || '';
@@ -95,6 +172,45 @@ export function createHostInput(o) {
     if (landmarker && video.videoWidth && now - lastHand > 66) { lastHand = now; readHands(now); }
     if (!busy && now - lastPredict > 120) { lastPredict = now; busy = true; predictCamera().then(function () { busy = false; }, function () { busy = false; }); }
   }
+  /* Micro: vẽ phổ tần số (analyser) thành ảnh gửi vào ô [data-jl-camera] của trình chơi, như khung camera. */
+  function startViz() {
+    return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
+      if (!running) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
+      vizStream = s;
+      var AC = window.AudioContext || window.webkitAudioContext; actx = new AC(); if (actx.resume) actx.resume();
+      var src = actx.createMediaStreamSource(s); analyser = actx.createAnalyser();
+      analyser.fftSize = 1024; analyser.smoothingTimeConstant = 0.6; src.connect(analyser); // không nối ra loa
+      vizData = new Uint8Array(analyser.frequencyBinCount);
+      vizCanvas = document.createElement('canvas'); vizCanvas.width = 480; vizCanvas.height = 300;
+      vizLoop();
+    }).catch(function () { /* không có phổ thì vẫn nhận diện được */ });
+  }
+  function vizLoop() {
+    if (!running || !analyser) return;
+    vizId = requestAnimationFrame(vizLoop);
+    var now = performance.now();
+    if (!want || now - lastViz < 66) return;
+    lastViz = now;
+    analyser.getByteFrequencyData(vizData);
+    var W = vizCanvas.width, H = vizCanvas.height, g = vizCanvas.getContext('2d'), hz = actx.sampleRate / analyser.fftSize;
+    var maxHz = 8000, n = Math.min(vizData.length, Math.floor(maxHz / hz)), bw = W / n, padB = 24;
+    g.fillStyle = '#0b1020'; g.fillRect(0, 0, W, H);
+    for (var i = 0; i < n; i++) {
+      var v = vizData[i] / 255, bh = v * (H - padB - 8);
+      g.fillStyle = 'hsl(' + Math.round(200 - v * 170) + ',90%,' + Math.round(45 + v * 20) + '%)';
+      g.fillRect(i * bw, H - padB - bh, Math.max(1, bw - 1), bh);
+    }
+    g.fillStyle = '#9aa4c7'; g.font = '14px sans-serif'; g.textBaseline = 'bottom';
+    [0, 2000, 4000, 6000, 8000].forEach(function (f, k) {
+      var x = Math.min(W - 40, (f / hz) * bw); g.fillText(f === 0 ? '0 Hz' : (f / 1000) + ' kHz', k === 0 ? 4 : x - (k === 4 ? 36 : 14), H - 4);
+    });
+    createImageBitmap(vizCanvas).then(function (b) { toFrame({ type: 'camera.image', image: b }, [b]); }).catch(function () {});
+  }
+  function stopViz() {
+    cancelAnimationFrame(vizId); analyser = null;
+    if (vizStream) vizStream.getTracks().forEach(function (t) { t.stop(); }); vizStream = null;
+    if (actx) { try { actx.close(); } catch (e) { /* đã đóng */ } actx = null; }
+  }
   function fail(err) {
     var name = err && err.name;
     var denied = name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError';
@@ -124,7 +240,7 @@ export function createHostInput(o) {
         return rec.listen(function (res) {
           decide(labels.map(function (l, i) { return { className: l, probability: res.scores[i] }; }));
         }, { includeSpectrogram: false, probabilityThreshold: 0, invokeCallbackOnNoiseAndUnknown: true, overlapFactor: 0.75 });
-      }).then(function () { running = true; say('Đang nghe — hãy tạo âm thanh để chọn đáp án.'); st('ready'); onRunning(true); }).catch(fail);
+      }).then(function () { running = true; say('Đang nghe — hãy tạo âm thanh để chọn đáp án.'); st('ready'); onRunning(true); startViz(); }).catch(fail);
     }
     return navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false }).then(function (s) {
       stream = s;
@@ -140,7 +256,7 @@ export function createHostInput(o) {
     }).catch(fail);
   }
   function stop(keepStatus) {
-    running = false; cancelAnimationFrame(loopId);
+    running = false; cancelAnimationFrame(loopId); stopViz();
     if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); stream = null;
     if (rec) { try { rec.stopListening(); } catch (e) { /* đã dừng */ } rec = null; }
     onRunning(false);

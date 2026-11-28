@@ -606,3 +606,5 @@ code,kbd{font-family:var(--jl-font-mono);font-size:var(--jl-font-size-sm)}
 .ail-try-cam{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--jl-border-default);border-radius:var(--jl-radius-md);background:var(--jl-au-soft)}
 .ail-try-cam[hidden]{display:none}
 .ail-try-cam select{min-height:32px;border:1px solid var(--jl-border-strong);border-radius:var(--jl-radius-md);padding:0 8px;background:var(--jl-surface-default)}
+
+.ail-cambox canvas.ail-cam-overlay{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);pointer-events:none}

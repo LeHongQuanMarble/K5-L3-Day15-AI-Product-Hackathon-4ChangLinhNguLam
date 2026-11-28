@@ -79,7 +79,7 @@ function modelsCfg(ctx, items, o) {
       });
       function setScores(s) { m.outputs.forEach(function (x) { var v = s && s[x.key] ? s[x.key] : 0; rows[x.key].fill.style.width = Math.round(v * 100) + '%'; rows[x.key].pc.textContent = Math.round(v * 100) + '%'; }); }
       var body = [m.description ? h('p', { class: 'ail-desc' }, m.description) : null];
-      if (m.kind === 'image' || m.kind === 'pose') {
+      if (m.kind === 'image' || m.kind === 'pose' || m.kind === 'hands') {
         var box = h('div', { class: 'ail-cambox' }), cb = h('button', { type: 'button', class: 'ail-btn pri', style: 'align-self:flex-start' });
         var auto = h('input', { type: 'checkbox', checked: localStorage.getItem('ail.autocam') === '1', onchange: function (e) { localStorage.setItem('ail.autocam', e.target.checked ? '1' : '0'); } });
         cameraTry(m, box, setScores, cb);
@@ -89,7 +89,7 @@ function modelsCfg(ctx, items, o) {
         var abox = h('div', { class: 'ail-cambox' }), ab = h('button', { type: 'button', class: 'ail-btn pri', style: 'align-self:flex-start' });
         micTry(m, abox, setScores, ab);
         body.push(abox, h('div', { class: 'ail-row' }, ab), h('p', { class: 'meta', style: 'margin:0' }, 'Cần cho phép micro. Mô hình càng chắc với một âm thì thanh của lớp đó càng đầy.'));
-      } else body.push(h('div', { class: 'ail-cambox' }, ico('image'), h('div', null, 'Bàn tay có sẵn: thử khi chơi một ứng dụng dùng nó.')));
+      };
       body.push(bars);
       var foot = [];
       if (o.pick) foot.push(btn('Chọn mô hình này', 'check', { cls: 'pri', onclick: function () { o.pick(m); } }));
@@ -127,7 +127,7 @@ function tryPlayer(p) {
   w.onFrameReady = function () { if (host) host.status(); };
   w.onFrameMsg = function (m) { if (host) host.message(m); else if (m.type === 'hands' && m.on === true) w.frame.contentWindow.postMessage({ type: 'camera.hand', hands: [], available: false }, '*'); };
   function autoMap(model, inputs) {
-    var cls = (model.outputs || []).filter(function (o) { return o.role !== 'empty'; }).map(function (o) { return o.key; }), map = {};
+    var cls = (model.outputs || []).filter(function (o) { return o.role === 'action'; }).map(function (o) { return o.key; }), map = {};
     inputs.forEach(function (i, n) { if (cls[n] != null) map[i.key] = cls[n]; });
     return map;
   }
@@ -161,6 +161,7 @@ function tryPlayer(p) {
       });
       bar.replaceChildren(h('div', { class: 'row', style: 'gap:8px;align-items:center' }, sel, go), note, msg);
       showMap();
+      if (!go.disabled) go.click(); // mở chạy thử là tự bật camera/micro
     }).catch(function (e) { bar.replaceChildren(errBox(e)); });
   }
   modal('Chạy thử: ' + p.name, h('div', { class: 'ail-try-wrap' },
