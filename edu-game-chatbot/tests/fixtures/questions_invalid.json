@@ -1,0 +1,8 @@
+{
+  "questions": [
+    {"id": "q1", "type": "mcq", "question": "Câu thiếu phương án", "options": ["A"], "answer": 0},
+    {"id": "q1", "type": "true_false", "question": "Trùng id, answer không phải bool", "answer": "đúng"},
+    {"id": "q3", "type": "mcq", "question": "answer là bool", "options": ["A", "B"], "answer": true},
+    {"id": "q4", "type": "fill_blank", "question": "", "answer": "", "points": 0}
+  ]
+}

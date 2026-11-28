@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trợ lý tạo game học tập</title>
+  <link rel="stylesheet" href="/chat.css">
+</head>
+<body>
+  <!-- T20: khung giao diện chat. Giữ nguyên các id bên dưới (chat.js và test e2e dùng). -->
+  <header id="app-header"></header>
+  <main id="chat">
+    <div id="messages" data-testid="messages"></div>
+    <div id="progress" data-testid="progress" hidden></div>
+    <section id="preview" data-testid="preview" hidden>
+      <iframe id="preview-frame" sandbox="allow-scripts" title="Chơi thử game"></iframe>
+      <a id="preview-open" target="_blank" rel="noopener">Mở toàn màn hình</a>
+    </section>
+  </main>
+  <form id="composer" data-testid="composer">
+    <input id="file-input" data-testid="file-input" type="file" multiple hidden>
+    <button id="attach-btn" data-testid="attach-btn" type="button" hidden>Đính kèm</button>
+    <input id="text-input" data-testid="text-input" type="text" autocomplete="off">
+    <button id="send-btn" data-testid="send-btn" type="submit">Gửi</button>
+  </form>
+  <script src="/chat.js"></script>
+</body>
+</html>

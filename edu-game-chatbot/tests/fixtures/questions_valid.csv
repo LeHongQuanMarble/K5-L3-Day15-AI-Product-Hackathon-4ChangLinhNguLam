@@ -1,0 +1,5 @@
+type,question,options,answer,explanation,points
+mcq,1/2 + 1/4 = ?,3/4|2/6|1/6|2/4,A,Quy đồng: 2/4 + 1/4 = 3/4,10
+true_false,3/5 lớn hơn 1/2,,đúng,3/5 = 0.6 > 0.5,10
+fill_blank,Phân số 4/8 rút gọn là ___,,1/2,Chia cả tử và mẫu cho 4,10
+mcq,Phân số nào bằng 2/3?,4/6|3/4|2/5,0,Nhân cả tử và mẫu với 2,20

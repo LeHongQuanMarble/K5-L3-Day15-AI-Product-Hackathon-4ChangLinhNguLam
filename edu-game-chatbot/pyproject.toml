@@ -1,0 +1,46 @@
+[project]
+name = "edu-game-chatbot"
+version = "0.1.0"
+description = "Chatbot tạo game học tập HTML có chấm điểm"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "sse-starlette>=2.1",
+  "python-multipart>=0.0.9",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.3",
+  "openai>=1.40",
+  "httpx>=0.27",
+  "pypdf>=4.2",
+  "python-docx>=1.1",
+  "playwright>=1.45",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.5"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["prompts/*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]  # mỗi worktree dùng code của chính nó
+asyncio_mode = "auto"
+markers = ["browser: test cần Chromium (Playwright)"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC"]
+ignore = ["E501"]  # độ dài dòng do ruff format lo
