@@ -1,74 +1,82 @@
-"""Contract tĩnh + inject_bank (T04)"""
+import json
+from pathlib import Path
 
 import pytest
 
-# Xoá dòng này khi bắt đầu T04.
-pytestmark = pytest.mark.skip(reason="TODO T04")
+from app.domain.contract import (
+    REQUIRED_TESTIDS,
+    find_forbidden_calls,
+    inject_bank,
+    static_check,
+)
+
+BANK = {
+    "title": "T",
+    "questions": [
+        {"id": "q1", "type": "mcq", "question": "a </script><b> ?", "options": ["x", "y"], "answer": 0}
+    ],
+}
 
 
-def test_reference_game_passes() -> None:
-    raise NotImplementedError
+@pytest.fixture
+def ref() -> str:
+    return (Path(__file__).parents[1] / "fixtures" / "reference_game.html").read_text(encoding="utf-8")
 
 
-def test_missing_doctype() -> None:
-    raise NotImplementedError
+def test_reference_ok(ref):
+    assert static_check(ref) == []
 
 
-def test_missing_viewport() -> None:
-    raise NotImplementedError
+@pytest.mark.parametrize(
+    ("old", "new", "code"),
+    [
+        ("<!DOCTYPE html>", "", "C2"),
+        ('<html lang="vi">', "<html>", "C2"),
+        ('name="viewport"', 'name="vp"', "C2"),
+        ('id="game-root"', 'id="x"', "C3"),
+        ("<svg ", "<p ", "C3"),
+        ('id="question-bank"', 'id="qb"', "C4"),
+        ("<style>", '<link rel="stylesheet" href="https://cdn.x/a.css"><style>', "C1"),
+        ("<style>", '<script src="//cdn.x/a.js"></script><style>', "C1"),
+        ("(function(){", "(function(){alert(1);", "C5"),
+        ("(function(){", "(function(){fetch('/x');", "C5"),
+        ("(function(){", "(function(){new XMLHttpRequest();", "C5"),
+        ("(function(){", "(function(){new WebSocket('x');", "C5"),
+        ("window.__GAME__=api;", "", "__GAME__"),
+    ],
+)
+def test_violations(ref, old, new, code):
+    assert old in ref
+    errs = static_check(ref.replace(old, new, 1))
+    assert errs
+    assert any(code in e for e in errs)
 
 
-def test_missing_game_root() -> None:
-    raise NotImplementedError
+def test_c6_size(ref):
+    assert any("C6" in e for e in static_check(ref + "x" * 2_000_001))
 
 
-def test_missing_graphics() -> None:
-    raise NotImplementedError
+@pytest.mark.parametrize("tid", REQUIRED_TESTIDS)
+def test_missing_testid(ref, tid):
+    errs = static_check(ref.replace(f'data-testid="{tid}"', 'data-x="1"'))
+    assert any(tid in e for e in errs)
 
 
-def test_missing_question_bank_tag() -> None:
-    raise NotImplementedError
+def test_forbidden_no_false_positive():
+    assert find_forbidden_calls("obj.alert(1); myalert(2); $alert(3); x.fetch(1)") == []
+    assert find_forbidden_calls("alert(1); confirm (2); prompt('x')") == ["alert", "confirm", "prompt"]
 
 
-def test_each_missing_testid() -> None:
-    raise NotImplementedError
+def test_inject_replaces_one(ref):
+    out = inject_bank(ref, BANK)
+    assert out.count('id="question-bank"') == 1
+    assert "<\\/script>" in out
+    body = out.split('id="question-bank">')[1].split("</script>")[0]
+    assert json.loads(body.replace("<\\/", "</")) == BANK
+    assert static_check(out) == []
 
 
-def test_missing_game_api() -> None:
-    raise NotImplementedError
-
-
-def test_external_script_detected() -> None:
-    raise NotImplementedError
-
-
-def test_protocol_relative_detected() -> None:
-    raise NotImplementedError
-
-
-def test_alert_detected() -> None:
-    raise NotImplementedError
-
-
-def test_obj_alert_not_detected() -> None:
-    raise NotImplementedError
-
-
-def test_fetch_detected() -> None:
-    raise NotImplementedError
-
-
-def test_too_large() -> None:
-    raise NotImplementedError
-
-
-def test_inject_replaces_existing_tag() -> None:
-    raise NotImplementedError
-
-
-def test_inject_inserts_when_missing() -> None:
-    raise NotImplementedError
-
-
-def test_inject_escapes_script_close() -> None:
-    raise NotImplementedError
+def test_inject_inserts_when_missing(ref):
+    out = inject_bank(ref.replace('id="question-bank"', 'id="qb"'), BANK)
+    assert 'id="question-bank"' in out
+    assert out.index('id="question-bank"') < out.index("<style>")
