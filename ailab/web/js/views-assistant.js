@@ -622,10 +622,11 @@ export function chatView(ctx) {
         if (plan && plan.preview_url) {
           var wp = previewFrame(plan.preview_url);
           wp.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:60vh';
+          var camNote = ap && ap.model ? ' (Xem thử nhanh bằng chuột trong sandbox; sau khi Phê duyệt & Lưu, mở trang Chơi để bật Camera / Model thật.)' : '';
           modal('Xem thử: ' + (p.player_name || ap.name || 'bản nháp'), flexModalBody([
-            h('span', { class: 'meta' }, p.mode === 'generate_new'
+            h('span', { class: 'meta' }, (p.mode === 'generate_new'
               ? 'Bản nháp DRAFT do AI tạo — iframe sandbox="allow-scripts" có CSP, không chạy cùng nguồn với AI Lab.'
-              : 'Trình chơi từ Catalog chạy trong iframe sandbox="allow-scripts" (tái sử dụng nguyên bản, không sinh HTML mới).'),
+              : 'Trình chơi từ Catalog chạy trong iframe sandbox="allow-scripts" (tái sử dụng nguyên bản, không sinh HTML mới).') + camNote),
             wp]));
         } else if (p.mode === 'generate_new' && p.html) {
           modal('Xem thử bản nháp (sandbox)', flexModalBody([

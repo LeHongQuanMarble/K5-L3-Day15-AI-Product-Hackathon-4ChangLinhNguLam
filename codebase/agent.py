@@ -28,6 +28,7 @@ import application_contract as ac  # noqa: E402
 from chatbot import catalog as chatbot_catalog  # noqa: E402
 import composer  # noqa: E402
 import contract  # noqa: E402
+import game_spec  # noqa: E402
 import game_templates  # noqa: E402
 import guardrails  # noqa: E402
 import store  # noqa: E402
@@ -89,11 +90,12 @@ QUY TẮC CỨNG (BẮT BUỘC TUÂN THỦ):
 
 GENERATE_HTML_SYSTEM = (
     contract.BRIEF
-    + "\n\nQUY TẮC BẮT BUỘC CHO BẢN NHÁP P0 (GENERATE):\n"
-    + "- Phải chạy hoàn toàn cục bộ trong iframe sandbox, 0 cờ an toàn (KHÔNG fetch, XHR, WebSocket, window.open, eval, new Function, localStorage, toDataURL, top.location, parent.* ngoài parent.postMessage).\n"
+    + "\n\nQUY TẮC BẮT BUỘC CHO BẢN NHÁP P0 (SPEC-DRIVEN MODEL-AWARE GENERATE):\n"
+    + "- Phải chạy hoàn toàn cục bộ trong iframe sandbox, 0 cờ an toàn (KHÔNG fetch, XHR, WebSocket, window.open, eval, new Function, localStorage, toDataURL, top.location, parent.* ngoài parent.postMessage, KHÔNG tự gọi getUserMedia hay tự tải MediaPipe/TFJS).\n"
     + "- KHÔNG khai xung đột manifest: chọn HOẶC `\"questions\": \"exam\"` HOẶC `\"content\": {\"kind\": \"texts\", ...}` — TUYỆT ĐỐI KHÔNG khai cả hai cùng lúc.\n"
-    + "- BẮT BUỘC hỗ trợ chơi trọn vẹn bằng chuột/chạm/bàn phím (Mouse Fallback) không cần camera. Với trò chơi chạy chuột (không gắn model camera), KHÔNG khai trường `inputs` trong khối `jl-camera`.\n"
-    + "- BẮT BUỘC xử lý `window.addEventListener('message', ...)` nhận `camera.init` (nạp động `d.questions` hoặc `d.content`), gửi `parent.postMessage({type:'ready'}, '*')`, có chấm điểm, phản hồi đúng/sai, kết thúc gửi `finish`, và nút Chơi lại (Reset) xóa sạch trạng thái cũ. Dùng `textContent` để hiển thị chữ an toàn.\n"
+    + "- BẮT BUỘC tuân thủ chính xác GameSpec: nếu GameSpec có gắn Model (`hands`/`image`/`pose`), PHẢI khai đúng `kinds` và `inputs` trong `#jl-camera` và lắng nghe `camera.result`/`camera.frame` (và `camera.hand` nếu dùng `hands`); nếu GameSpec ở chế độ chuột, KHÔNG khai `inputs`.\n"
+    + "- BẮT BUỘC hỗ trợ chơi trọn vẹn bằng chuột/chạm/bàn phím (Mouse Fallback) song song với Model camera.\n"
+    + "- BẮT BUỘC xử lý `window.addEventListener('message', ...)` nhận `camera.init` (nạp động `d.questions` hoặc `d.content`), gửi `parent.postMessage({type:'ready'}, '*')`, có chấm điểm, phản hồi đúng/sai, cooldown chống chọn lặp khi tay đứng yên, kết thúc gửi `finish`, và nút Chơi lại (Reset) xóa sạch trạng thái cũ. Dùng `textContent` để hiển thị chữ an toàn.\n"
     + "- Trả về 1–2 câu mô tả tiếng Việt và ĐÚNG MỘT khối mã ```html ... ``` hoàn chỉnh từ `<!doctype html>` đến `</html>`.\n"
 )
 
@@ -248,20 +250,27 @@ def _validate_and_repair_exam(content: str, player_id=None, expected_count=None,
     return cur, res
 
 
-def _run_generate_html(user_message: str, game_idea: str, need_exam: bool):
-    """Sinh 1 file HTML nháp theo contract.BRIEF, tối đa MAX_STEPS lượt (1 tạo + 1 sửa).
-    Kiểm bằng guardrails.validate_html_draft (check_game + 0 cờ an toàn + chống cắt cụt)."""
-    base_prompt = (
-        "Yêu cầu giáo viên: %s\n"
-        "Ý tưởng cơ chế trò chơi mới: %s\n"
-        "Yêu cầu dữ liệu: %s\n"
-        "Hãy viết 1 file HTML tự đủ đúng hợp đồng jl-camera (chơi chuột, không khai inputs), 0 cờ an toàn."
-        % (
-            user_message,
-            game_idea or user_message,
-            "Nhận bộ câu hỏi trắc nghiệm (questions: 'exam') và có câu demo." if need_exam else "Trò chơi tương tác có dữ liệu demo sẵn.",
+def _run_generate_html(user_message: str, game_idea: str, need_exam: bool, spec: dict = None):
+    """Sinh 1 file HTML nháp theo GameSpec + contract.BRIEF, tối đa MAX_STEPS lượt (1 tạo + 1 sửa).
+    Kiểm bằng L1–L4: guardrails.validate_html_draft + game_spec.validate_html_against_spec."""
+    if isinstance(spec, dict):
+        base_prompt = (
+            "Yêu cầu giáo viên: %s\n\n%s\n\n"
+            "Hãy viết 1 file HTML tự đủ đúng hợp đồng jl-camera, tuân thủ tuyệt đối GameSpec ở trên, 0 cờ an toàn."
+            % (user_message, game_spec.format_game_spec_for_generator(spec))
         )
-    )
+    else:
+        base_prompt = (
+            "Yêu cầu giáo viên: %s\n"
+            "Ý tưởng cơ chế trò chơi mới: %s\n"
+            "Yêu cầu dữ liệu: %s\n"
+            "Hãy viết 1 file HTML tự đủ đúng hợp đồng jl-camera (chơi chuột, không khai inputs), 0 cờ an toàn."
+            % (
+                user_message,
+                game_idea or user_message,
+                "Nhận bộ câu hỏi trắc nghiệm (questions: 'exam') và có câu demo." if need_exam else "Trò chơi tương tác có dữ liệu demo sẵn.",
+            )
+        )
     last_err = None
     for step in range(1, MAX_STEPS + 1):
         prompt = base_prompt if not last_err else (
@@ -283,6 +292,12 @@ def _run_generate_html(user_message: str, game_idea: str, need_exam: bool):
             last_err = vres["error"]
             note("GENERATE lượt %d bị chặn: %s" % (step, last_err))
             continue
+        if isinstance(spec, dict):
+            spec_errs = game_spec.validate_html_against_spec(html, spec)
+            if spec_errs:
+                last_err = "; ".join(spec_errs)
+                note("GENERATE lượt %d sai GameSpec: %s" % (step, last_err))
+                continue
         note("GENERATE đạt sau %d lượt: %s (0 cờ an toàn)" % (step, vres.get("name", "")))
         return html.strip(), msg, None
     note("dừng GENERATE: sau %d lượt vẫn không đạt hợp đồng/an toàn" % MAX_STEPS)
@@ -723,48 +738,85 @@ def _handle_reuse(parsed: dict, req: dict, registry: dict, use_live_tools: bool)
 
 
 def _handle_generate(parsed: dict, req: dict, registry: dict, use_live_tools: bool):
-    """Xử lý nhánh Hybrid GENERATE (Template-guided khi khớp khung đã kiểm chứng + Free-form khi cơ chế mới;
-    tối đa MAX_STEPS=2, kiểm 4 tầng L1–L4, 0 cờ an toàn, chỉ DRAFT)."""
+    """Xử lý nhánh Spec-driven Model-aware Hybrid GENERATE:
+    - Resolve Model & Exam từ active_registry (hỗ trợ hands/image/pose + mouse-only, reuse/generate exam).
+    - Xây và xác thực GameSpec (L1/L2) trước khi sinh HTML.
+    - Template-guided khi mouse-only khớp khung đã kiểm chứng; Free-form Spec-driven khi có Model hoặc cơ chế mới.
+    - Kiểm tra L1–L4 (check_game 0 cờ + GameSpec conformance + ApplicationPlan Contract), chỉ tạo DRAFT."""
+    models = registry.get("models") or []
+    exams = registry.get("exams") or []
+    user_msg = req.get("message") or ""
     llm_msg = guardrails.strip_html_fences(parsed.get("message") or "")
-    game_idea = parsed.get("game_idea") or req["message"]
+    game_idea = parsed.get("game_idea") or user_msg
     exam_content = parsed.get("exam_content")
     need_exam = bool(parsed.get("exam_mode") == "generate_new" or (isinstance(exam_content, str) and exam_content.strip()))
     exp_cnt = parsed.get("expected_question_count")
     exp_cnt = exp_cnt if isinstance(exp_cnt, int) and not isinstance(exp_cnt, bool) else None
 
-    tpl_kind = game_templates.detect_template(req["message"], game_idea)
+    # Resolve Model & Exam từ Live Registry (không hardcode ID/tên)
+    explicit_model = _detect_explicit_resource(user_msg, models, req.get("selected_model_id"))
+    if explicit_model is None and parsed.get("model_id") is not None:
+        explicit_model = _find_by_id(models, parsed.get("model_id"))
+    # Nhận diện thêm trường hợp giáo viên nhắc "mediapipe" hoặc "bàn tay" khi có model kind="hands" trong registry
+    if explicit_model is None and re.search(r"\b(?:mediapipe|ban tay|cu chi tay)\b", guardrails.fold_text(user_msg)):
+        explicit_model = next((m for m in models if m.get("kind") == "hands"), None)
+
+    explicit_exam = _detect_explicit_resource(user_msg, exams, req.get("selected_exam_id"))
+    if explicit_exam is None and parsed.get("exam_mode") == "reuse_existing" and parsed.get("exam_id") is not None:
+        explicit_exam = _find_by_id(exams, parsed.get("exam_id"))
+
+    spec = game_spec.build_game_spec(parsed, req, registry, explicit_model=explicit_model, explicit_exam=explicit_exam)
+    spec_errors = game_spec.validate_game_spec(spec, registry=registry)
+    if spec_errors:
+        return _make_envelope(
+            "ERROR",
+            "Không thể tạo bản nháp trò chơi mới theo yêu cầu: %s" % "; ".join(spec_errors),
+            errors=[ac.issue("incompatible_model", e, "model") for e in spec_errors],
+        )
+
+    if exp_cnt is None:
+        exp_cnt = (spec.get("question_requirements") or {}).get("expected_count")
+
+    # Chỉ dùng template cố định khi mouse-only và khớp đúng khung; khi có Model hoặc cơ chế mới → Spec-driven Free-form!
+    tpl_kind = game_templates.detect_template(user_msg, game_idea) if explicit_model is None else None
     html = None
     html_msg = ""
     gen_mode_note = ""
     plan_exam = None
     warnings = []
 
+    if explicit_exam is not None:
+        plan_exam = {"mode": "reuse_existing", "exam_id": explicit_exam["id"], "content": explicit_exam["content"]}
+        warnings.append(copy.deepcopy(guardrails.KNOWLEDGE_REVIEW_WARNING))
+
     if tpl_kind is not None:
-        # Hybrid A — Template-guided Generation: AI sinh bộ câu hỏi chuẩn hóa, khung HTML đã kiểm chứng dựng UI/runtime.
         raw_exam = (exam_content or "").strip() if isinstance(exam_content, str) else ""
-        if not raw_exam:
-            cnt_hint = exp_cnt or 4
-            fmt_hint = (
-                "Câu hỏi Đúng/Sai dạng `Mệnh đề | =Đúng` hoặc `Mệnh đề | =Sai`"
-                if tpl_kind == "true_false"
-                else "Câu hỏi trắc nghiệm 2–4 lựa chọn dạng `Khái niệm/Câu hỏi | Đáp án A | Đáp án B | =A`"
-            )
-            gen_q_reply = call_model(
-                EXAM_REPAIR_SYSTEM,
-                "Soạn %d câu hỏi tiếng Việt phù hợp cho trò chơi: %s\nĐịnh dạng bắt buộc: %s.\nChỉ trả về các dòng câu hỏi."
-                % (cnt_hint, req["message"], fmt_hint),
-            )
-            raw_exam = re.sub(r"^```[a-zA-Z]*\s*\n|\n```$", "", (gen_q_reply.get("text") or "").strip()).strip()
-        valid_content, vres = _validate_and_repair_exam(raw_exam, expected_count=exp_cnt)
-        if not vres["ok"]:
-            return _make_envelope(
-                "ERROR",
-                "Bộ câu hỏi sinh ra cho trò chơi mới chưa đạt kiểm tra cú pháp parse_questions: %s"
-                % "; ".join(vres["errors"]),
-                errors=[ac.issue("invalid_exam", e, "exam.content") for e in vres["errors"]],
-                warnings=[copy.deepcopy(guardrails.KNOWLEDGE_REVIEW_WARNING)],
-            )
-        demo_qs = store.parse_questions(valid_content)
+        if plan_exam is None:
+            if not raw_exam:
+                cnt_hint = exp_cnt or 4
+                fmt_hint = (
+                    "Câu hỏi Đúng/Sai dạng `Mệnh đề | =Đúng` hoặc `Mệnh đề | =Sai`"
+                    if tpl_kind == "true_false"
+                    else "Câu hỏi trắc nghiệm 2–4 lựa chọn dạng `Khái niệm/Câu hỏi | Đáp án A | Đáp án B | =A`"
+                )
+                gen_q_reply = call_model(
+                    EXAM_REPAIR_SYSTEM,
+                    "Soạn %d câu hỏi tiếng Việt phù hợp cho trò chơi: %s\nĐịnh dạng bắt buộc: %s.\nChỉ trả về các dòng câu hỏi."
+                    % (cnt_hint, user_msg, fmt_hint),
+                )
+                raw_exam = re.sub(r"^```[a-zA-Z]*\s*\n|\n```$", "", (gen_q_reply.get("text") or "").strip()).strip()
+            valid_content, vres = _validate_and_repair_exam(raw_exam, expected_count=exp_cnt)
+            if not vres["ok"]:
+                return _make_envelope(
+                    "ERROR",
+                    "Bộ câu hỏi sinh ra cho trò chơi mới chưa đạt kiểm tra cú pháp parse_questions: %s"
+                    % "; ".join(vres["errors"]),
+                    errors=[ac.issue("invalid_exam", e, "exam.content") for e in vres["errors"]],
+                    warnings=[copy.deepcopy(guardrails.KNOWLEDGE_REVIEW_WARNING)],
+                )
+            plan_exam = {"mode": "generate_new", "exam_id": None, "content": valid_content}
+            warnings.append(copy.deepcopy(guardrails.KNOWLEDGE_REVIEW_WARNING))
+        demo_qs = store.parse_questions(plan_exam["content"])
         app_name = _clean_name(parsed.get("app_name"), "Trò chơi %s" % ("Ghép cặp thẻ" if tpl_kind == "matching_cards" else "Đúng / Sai"))
         html = game_templates.render_template(tpl_kind, app_name, game_idea, demo_qs)
         vres_html = guardrails.validate_html_draft(html, check_fn=check_game)
@@ -774,14 +826,13 @@ def _handle_generate(parsed: dict, req: dict, registry: dict, use_live_tools: bo
                 "Khung bản nháp HTML không vượt qua kiểm tra hợp đồng/an toàn: %s" % vres_html["error"],
                 errors=[ac.issue("invalid_player", vres_html["error"], "player.html")],
             )
-        plan_exam = {"mode": "generate_new", "exam_id": None, "content": valid_content}
-        warnings.append(copy.deepcopy(guardrails.KNOWLEDGE_REVIEW_WARNING))
         gen_mode_note = "Template-guided (%s)" % tpl_kind
         html_msg = "Đã tạo bản nháp trò chơi mới theo khung chuẩn %s kèm %d câu hỏi động." % (tpl_kind, len(demo_qs))
         note("GENERATE template-guided hợp lệ (%s, %d câu)" % (tpl_kind, len(demo_qs)))
     else:
-        # Hybrid B — Free-form HTML Generation: giữ khả năng sinh cơ chế mới chưa có template/Player.
-        html, html_msg, gen_err = _run_generate_html(req["message"], game_idea, need_exam)
+        # Spec-driven Free-form HTML Generation (hỗ trợ cả Model-aware hands/image/pose lẫn mouse-only cơ chế mới)
+        pass_spec = spec if explicit_model is not None else None
+        html, html_msg, gen_err = _run_generate_html(user_msg, game_idea, need_exam or explicit_exam is not None, spec=pass_spec)
         if gen_err or not html:
             return _make_envelope(
                 "ERROR",
@@ -790,7 +841,11 @@ def _handle_generate(parsed: dict, req: dict, registry: dict, use_live_tools: bo
                 % (MAX_STEPS, gen_err or "lỗi không xác định"),
                 errors=[ac.issue("invalid_player", gen_err or "HTML draft failed check_game.", "player.html")],
             )
-        gen_mode_note = "Free-form HTML"
+        gen_mode_note = (
+            "Spec-driven Model-aware (%s)" % explicit_model["name"]
+            if explicit_model is not None
+            else "Spec-driven Free-form HTML"
+        )
 
     man, _ = contract.parse(html)
     manifest_needs_exam = bool(
@@ -799,8 +854,17 @@ def _handle_generate(parsed: dict, req: dict, registry: dict, use_live_tools: bo
     )
 
     if plan_exam is None and manifest_needs_exam:
-        if isinstance(exam_content, str) and exam_content.strip():
-            valid_content, vres = _validate_and_repair_exam(exam_content, expected_count=exp_cnt, manifest=man)
+        raw_exam = (exam_content or "").strip() if isinstance(exam_content, str) else ""
+        if not raw_exam and exp_cnt:
+            gen_q_reply = call_model(
+                EXAM_REPAIR_SYSTEM,
+                "Soạn đúng %d câu hỏi trắc nghiệm tiếng Việt (4 phương án A, B, C, D, đáp án cuối là =A..=D) cho yêu cầu: %s\n"
+                "Mỗi câu 1 dòng dạng `Câu hỏi | A | B | C | D | =A`. Chỉ trả về các dòng câu hỏi."
+                % (exp_cnt, user_msg),
+            )
+            raw_exam = re.sub(r"^```[a-zA-Z]*\s*\n|\n```$", "", (gen_q_reply.get("text") or "").strip()).strip()
+        if raw_exam:
+            valid_content, vres = _validate_and_repair_exam(raw_exam, expected_count=exp_cnt, manifest=man)
             if not vres["ok"]:
                 return _make_envelope(
                     "ERROR",
@@ -811,7 +875,6 @@ def _handle_generate(parsed: dict, req: dict, registry: dict, use_live_tools: bo
             plan_exam = {"mode": "generate_new", "exam_id": None, "content": valid_content}
             warnings.append(copy.deepcopy(guardrails.KNOWLEDGE_REVIEW_WARNING))
         else:
-            # Không có exam_content nhưng manifest yêu cầu bộ câu hỏi -> tạo 1 câu mẫu tối thiểu hợp lệ + cảnh báo
             plan_exam = {
                 "mode": "generate_new",
                 "exam_id": None,
@@ -819,22 +882,43 @@ def _handle_generate(parsed: dict, req: dict, registry: dict, use_live_tools: bo
             }
             warnings.append(copy.deepcopy(guardrails.KNOWLEDGE_REVIEW_WARNING))
 
+    plan_model = None
+    primary_ctrl = "mouse"
+    if explicit_model is not None and isinstance(man, dict) and "inputs" in man:
+        # Đảm bảo mapping hợp lệ trên manifest thực tế của HTML vừa sinh
+        resolved_map = dict(spec.get("input_mapping") or {})
+        if not chatbot_catalog.validate_mapping(man, explicit_model, resolved_map).get("ok"):
+            resolved_map = _semantic_auto_mapping(man, explicit_model)
+        plan_model = {
+            "model_id": explicit_model["id"],
+            "kind": explicit_model["kind"],
+            "mapping": resolved_map,
+            "sure": 0.8,
+            "hold_ms": 800,
+        }
+        primary_ctrl = explicit_model["kind"]
+
     plan = {
         "name": _clean_name(parsed.get("app_name"), (man or {}).get("name") or "Bản nháp trò chơi mới"),
         "player": {"mode": "generate_new", "player_id": None, "html": html},
-        "model": None,
+        "model": plan_model,
         "exam": plan_exam,
-        "interaction": {"primary": "mouse", "fallback": "mouse", "mouse_always_enabled": True},
+        "interaction": {"primary": primary_ctrl, "fallback": "mouse", "mouse_always_enabled": True},
     }
 
+    ctrl_note = (
+        'Model "%s" (kind=%s) + Mouse Fallback' % (explicit_model["name"], explicit_model["kind"])
+        if plan_model is not None
+        else "Mouse Fallback luôn bật"
+    )
     summary = (
         "%s\n\n"
         "Nhánh: GENERATE — %s (bản nháp HTML tách biệt, KHÔNG tự thêm vào Catalog chính thức) · "
         "Kiểm tra L1–L4 check_game (hợp đồng jl-camera): ĐẠT (0 cờ an toàn) · "
         "Xem thử an toàn trong iframe sandbox có CSP · "
-        "Điều khiển: Mouse Fallback luôn bật · "
+        "Điều khiển: %s · "
         "Trạng thái: BẢN NHÁP (DRAFT / pending_approval) chờ giáo viên kiểm duyệt."
-        % (llm_msg or html_msg or "Đã chuẩn bị bản nháp trò chơi mới theo yêu cầu.", gen_mode_note)
+        % (llm_msg or html_msg or "Đã chuẩn bị bản nháp trò chơi mới theo yêu cầu.", gen_mode_note, ctrl_note)
     )
     if warnings:
         summary += "\n\n" + guardrails.KNOWLEDGE_REVIEW_WARNING["message"]
@@ -1100,14 +1184,16 @@ def _run_agent_core(request, registry=None):
         note("LLM quyết định ASK_CLARIFY")
         return _make_envelope("ASK_CLARIFY", msg, simulated=is_simulated), None
 
+    wants_new_game = game_spec.is_explicit_new_game_request(req["message"])
+    if wants_new_game and forced_mode != "reuse_existing" and decision in ("REUSE", "INFO") and not _is_pure_count_query(req["message"]):
+        note("Intent Policy: tôn trọng yêu cầu tạo cơ chế chơi mới → chuyển sang GENERATE (không ép về REUSE)")
+        decision = "GENERATE"
+
     if decision == "INFO":
-        # Fix 1 (Model-aware REUSE rescue): Nếu người dùng yêu cầu TẠO GAME với một Model thật trong active_registry
-        # (không chỉ định đích danh Player không tương thích) mà LLM lại trả INFO do neo vào Quiz ABCD,
-        # và active_registry CÓ Player tương thích thật → tự chuyển sang _handle_reuse!
-        # (Trong Frozen Eval chỉ có 2 player mẫu nên compat_p là None → hành vi INFO giữ nguyên 100%.)
+        # Chỉ áp dụng Model-aware REUSE rescue khi người dùng KHÔNG yêu cầu cơ chế chơi mới (wants_new_game=False)
         u_fold = guardrails.fold_text(req["message"])
         wants_game = bool(re.search(r"\b(?:tao game|tao tro choi|lam game|ghep.*game|tro choi)\b", u_fold))
-        if wants_game and not _is_pure_count_query(req["message"]):
+        if wants_game and not wants_new_game and not _is_pure_count_query(req["message"]):
             exp_model = _detect_explicit_resource(req["message"], active_registry.get("models") or [], req.get("selected_model_id"))
             exp_player = _detect_explicit_resource(req["message"], active_registry.get("players") or [], req.get("selected_player_id"))
             if exp_model is not None and exp_player is None:
