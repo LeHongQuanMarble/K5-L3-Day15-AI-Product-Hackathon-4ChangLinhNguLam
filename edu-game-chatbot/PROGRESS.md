@@ -18,6 +18,9 @@ T10 | 2026-11-28 | N1b: from_user_file, generate retry ≤2, edit giữ câu kh�
 T07 | 2026-11-28 | 7 prompt đầy đủ, dòng đầu # prompt: <name>, giữ đúng biến | intent trả {"button_id": ...}
 T08 | 2026-11-28 | check_educational, classify_intent (khớp nút trực tiếp không gọi LLM) | json_mode, intake_model
 T14 | 2026-11-28 | fix(): ≤20 lỗi, extract_html, inject_bank lại, ghi đè cùng version, fix_attempts++ | 
+T13 | 2026-11-28 | N4: static rồi Playwright 7 bước × 2 viewport, chặn mạng, 4 ảnh chụp | 6 browser test; reference_game pass §5
+T16 | 2026-11-28 | N6: slug, copy html/questions/screenshots/manifest, zip, notify_main inbox + webhook retry | thêm kw-only transport=None
+T15 | 2026-11-28 | N5: preview_url, nút theo test_passed, ≤8 lỗi gọn | lỗi kỹ thuật chưa dịch sang tiếng Việt
 
 ## Câu hỏi cần người dùng trả lời
 

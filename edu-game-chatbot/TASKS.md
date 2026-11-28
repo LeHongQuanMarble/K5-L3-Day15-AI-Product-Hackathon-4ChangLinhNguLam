@@ -137,7 +137,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Test:** FakeLLM trả reference_game có `#question-bank` rỗng, file ghi ra chứa đủ id câu hỏi; số phiên bản tăng dần.
 - **Kiểm tra:** `pytest tests/unit/test_n3.py -q`
 
-### [ ] T13. N4 — Kiểm tra tự động (Contract + Playwright)
+### [x] T13. N4 — Kiểm tra tự động (Contract + Playwright)
 - **Đọc:** GAME_CONTRACT §5 (toàn bộ)
 - **File:** `app/nodes/n4_test.py`, `tests/integration/test_n4.py`, các fixture lỗi `tests/fixtures/broken_*.html`
 - **Làm:** `async def run_tests(session, version, settings) -> TestReport(passed, errors, screenshots)`. Static check trước, **chỉ chạy Playwright khi static pass**. Playwright sync chạy trong `asyncio.to_thread`. Thực hiện đúng 7 bước §5 cho 2 viewport. Mỗi viewport dùng một page riêng; một bước lỗi thì ghi lỗi và chuyển sang viewport tiếp theo. Chặn mạng bằng `page.route("**/*", ...)`, chỉ cho `file://`.
@@ -157,14 +157,14 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Test:** `fix_attempts` tăng; bộ câu hỏi luôn được nhúng lại kể cả khi model xoá thẻ.
 - **Kiểm tra:** `pytest tests/unit/test_fixer.py -q`
 
-### [ ] T15. N5 — Chơi thử
+### [x] T15. N5 — Chơi thử
 - **Đọc:** SPEC §3 (`AWAIT_REVIEW`), §4
 - **File:** `app/nodes/n5_review.py`, `tests/unit/test_n5.py`
 - **Làm:** `build_review_message(session, version) -> Message`, gồm `preview_url=/preview/{id}/v{n}` và các nút: test pass thì `[approve, revise, cancel]`; fail thì `[revise, cancel]` kèm tối đa 8 lỗi bằng lời dễ hiểu.
 - **Test:** đúng bộ nút cho cả 2 trường hợp.
 - **Kiểm tra:** `pytest tests/unit/test_n5.py -q`
 
-### [ ] T16. N6 — Xuất file + MAIN tiếp nhận
+### [x] T16. N6 — Xuất file + MAIN tiếp nhận
 - **Đọc:** ARCHITECTURE §6
 - **File:** `app/nodes/n6_export.py`, `tests/unit/test_n6.py`
 - **Làm:** `export(session, version, settings) -> Path` (slug tiếng Việt bỏ dấu, `đ` thành `d`; copy html, questions.json, screenshots, manifest; tạo `export.zip`). `notify_main(...)`: ghi inbox và POST webhook (httpx, retry 2). Webhook lỗi thì trả cảnh báo, không raise.
