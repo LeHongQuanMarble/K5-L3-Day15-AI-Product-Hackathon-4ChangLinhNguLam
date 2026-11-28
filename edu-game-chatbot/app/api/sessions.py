@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile
@@ -26,6 +28,15 @@ class SessionOut(BaseModel):
     id: str
     state: str
     messages: list[dict]
+
+
+def _clean_name(name: str) -> str:
+    """Bỏ dấu tiếng Việt, ký tự lạ -> '-', giữ đuôi (lower); rỗng -> 'upload'."""
+    p = Path(name)
+    base = unicodedata.normalize("NFKD", p.stem.replace("đ", "d").replace("Đ", "D"))
+    base = "".join(c for c in base if not unicodedata.combining(c))
+    base = re.sub(r"[^A-Za-z0-9_.-]+", "-", base).strip("-.") or "upload"
+    return base + p.suffix.lower()
 
 
 def _load(request: Request, session_id: str) -> Session:
@@ -90,8 +101,10 @@ async def upload_files(session_id: str, files: list[UploadFile], request: Reques
         name = f.filename or ""
         if Path(name).suffix.lower() not in ALLOWED_UPLOAD_EXTS:
             raise HTTPException(400, f"Định dạng không được hỗ trợ: {name}")
+        if "/" in name or "\\" in name or ".." in name:
+            raise HTTPException(400, f"Tên file không hợp lệ: {name}")
         try:
-            path = store.safe_path(session_id, name)
+            path = store.safe_path(session_id, _clean_name(name))
         except ValueError:
             raise HTTPException(400, f"Tên file không hợp lệ: {name}") from None
         data = await f.read(max_bytes + 1)

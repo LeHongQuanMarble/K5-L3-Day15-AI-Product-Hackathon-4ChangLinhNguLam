@@ -141,3 +141,11 @@ async def test_sse_receives_progress(app, client) -> None:
     ev = await asyncio.wait_for(task, 2)
     assert json.loads(ev["data"])["text"] == "đang làm"
     await it.aclose()
+
+
+async def test_upload_unicode_filename(client, settings) -> None:
+    sid = await _new(client)
+    r = await client.post(f"/api/sessions/{sid}/files", files={"files": ("Đề kiểm tra Toán 7.docx", b"x")})
+    assert r.status_code == 202
+    names = [f.name for f in (settings.sessions_dir / sid / "uploads").iterdir()]
+    assert names == ["De-kiem-tra-Toan-7.docx"]
