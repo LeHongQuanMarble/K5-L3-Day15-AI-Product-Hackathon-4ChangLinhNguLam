@@ -96,7 +96,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 
 ## Giai đoạn 2 — Các node (mỗi node một hàm async, nhận dependency qua tham số)
 
-### [ ] T08. INPUT: cổng game học tập + phân loại ý định
+### [x] T08. INPUT: cổng game học tập + phân loại ý định
 - **Đọc:** SPEC §2 (bổ sung 1–2), §4 (câu từ chối)
 - **File:** `app/nodes/intake.py`, `tests/unit/test_intake.py`
 - **Làm:** `check_educational(llm, request) -> IntakeResult`; `classify_intent(llm, text, buttons) -> str | None`. Nếu đầu vào là chuỗi trùng (không phân biệt hoa/thường) với label hoặc id của nút thì trả luôn, **không gọi LLM**.

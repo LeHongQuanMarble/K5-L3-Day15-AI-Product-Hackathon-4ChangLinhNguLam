@@ -16,6 +16,7 @@ T09 | 2026-11-28 | read_documents pdf/docx(bảng)/txt/md, giới hạn 10MB, c�
 T11 | 2026-11-28 | N2 design: thống kê bank + 3 câu mẫu, revision ưu tiên, design_history | ngữ cảnh truyền qua user message
 T10 | 2026-11-28 | N1b: from_user_file, generate retry ≤2, edit giữ câu không nhắc tới, preview | "nhắc tới" = id hoặc "câu N"
 T07 | 2026-11-28 | 7 prompt đầy đủ, dòng đầu # prompt: <name>, giữ đúng biến | intent trả {"button_id": ...}
+T08 | 2026-11-28 | check_educational, classify_intent (khớp nút trực tiếp không gọi LLM) | json_mode, intake_model
 
 ## Câu hỏi cần người dùng trả lời
 
