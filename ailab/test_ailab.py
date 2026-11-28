@@ -3,6 +3,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ["AILAB_DB"] = os.path.join(tempfile.mkdtemp(), "t.db")
@@ -108,6 +109,13 @@ class Contract(unittest.TestCase):
 
 
 class Chat(unittest.TestCase):
+    def setUp(self):
+        # Test dành cho chế độ giả: không được gọi model thật dù .env có MODEL_PROVIDER/API_KEY.
+        import ai
+        p = mock.patch.object(ai, "MODEL_PROVIDER", "fake")
+        p.start()
+        self.addCleanup(p.stop)
+
     def test_fake_is_valid_and_labelled(self):
         out = llm.generate([{"role": "user", "text": "game câu hỏi trắc nghiệm"}])
         self.assertTrue(out["simulated"])

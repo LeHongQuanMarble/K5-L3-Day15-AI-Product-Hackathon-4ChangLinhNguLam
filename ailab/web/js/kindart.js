@@ -57,7 +57,7 @@ var KINDS = [
   { kind: 'pose', label: 'Tư thế', hint: 'Dạy bằng tư thế cơ thể, từ tệp hoặc webcam.', badge: 'Giơ tay · 95%', art: '/kindart/pose.jpg',
     help: 'Mỗi lớp là một hành động học sinh làm trước camera, tên viết không dấu (Gio tay phai). Train xong, bạn gán mỗi hành động với một đáp án, ví dụ Gio tay phai → A.' },
   { kind: 'audio', label: 'Âm thanh', hint: 'Dạy bằng âm thanh ngắn một giây, từ tệp hoặc micro.', badge: 'Vỗ tay · 92%', art: '/kindart/audio-spectrogram.png',
-    help: 'Mỗi lớp là một âm thanh học sinh tạo ra (vỗ tay, huýt sáo), tên viết không dấu (Vo tay). Train xong, bạn gán mỗi âm thanh với một đáp án. Lớp Tiếng nền luôn có sẵn. Lưu ý: Âm thanh mới chỉ lưu, chưa chạy ở bản này.' }
+    help: 'Mỗi lớp là một âm thanh học sinh tạo ra (vỗ tay, huýt sáo), tên viết không dấu (Vo tay). Train xong, bạn gán mỗi âm thanh với một đáp án. Lớp Tiếng nền luôn có sẵn. Sau khi train xong, bạn thử bằng micro ở trang chi tiết của mô hình.' }
 ];
 export var TM_TRAIN_URL = { image: 'https://teachablemachine.withgoogle.com/train/image', pose: 'https://teachablemachine.withgoogle.com/train/pose', audio: 'https://teachablemachine.withgoogle.com/train/audio' };
 

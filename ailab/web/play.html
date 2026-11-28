@@ -23,7 +23,7 @@
 </style></head>
 <body><div class="ail-play-page">
 <div class="ail-play-bar">
-  <a class="ail-btn sm" href="/">Về AI Lab</a>
+  <a id="back" class="ail-btn sm" href="/">Về AI Lab</a>
   <b id="title">Đang nạp trò chơi…</b>
   <span class="ail-chip ok" title="Camera hỏng hoặc bị chặn vẫn chơi được trọn vẹn bằng chuột">Chuột luôn sẵn sàng</span>
   <span id="status" class="ail-play-status" role="status" aria-live="polite"></span>
@@ -37,5 +37,5 @@
     <a class="ail-btn sm" href="/">Về AI Lab</a>
   </div>
 </div>
-<iframe id="stage" class="ail-play-stage" sandbox="allow-scripts" title="Khu vực chơi trò chơi"></iframe>
+<iframe id="stage" class="ail-play-stage" sandbox="allow-scripts" allow="camera; microphone" title="Khu vực chơi trò chơi"></iframe>
 </div><script src="/play.js"></script></body></html>

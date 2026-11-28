@@ -85,6 +85,8 @@ export function chatView(ctx) {
   var compose = h('div', { class: 'ail-chat-compose-wrap' },
     h('div', { class: 'ail-chat-compose' }, input, send));
   var main = h('div', { class: 'ail-chat-main' }, head, bannerSlot, log, compose);
+  var planEl = h('aside', { class: 'ail-plan-pane', 'aria-label': 'Kế hoạch ứng dụng' });
+  var devUi = false; try { devUi = localStorage.getItem('ail_dev') === '1'; } catch (e) {}
 
   /* ---------- tiện ích nhỏ ---------- */
   function focusInput() { try { input.focus({ preventScroll: true }); } catch (e) { input.focus(); } }
@@ -149,8 +151,8 @@ export function chatView(ctx) {
         histAnchor,
         btn('Cuộc mới', 'plus', { cls: 'sm', onclick: function () { closeHistory(); newChat(); } })),
       h('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap' },
-        h('span', { class: 'ail-llm-pill ' + (llmOk ? 'is-ok' : 'is-mock'), title: 'Chế độ model hiện hành' }, 'Model AI: ' + (llmMode || '…')),
-        h('div', { class: 'ail-mode-switch', role: 'group', 'aria-label': 'Chế độ hoạt động' },
+        devUi ? h('span', { class: 'ail-llm-pill ' + (llmOk ? 'is-ok' : 'is-mock'), title: 'Chế độ model hiện hành' }, 'Model AI: ' + (llmMode || '…')) : null,
+        !devUi ? null : h('div', { class: 'ail-mode-switch', role: 'group', 'aria-label': 'Chế độ hoạt động' },
           modeBtn('real', 'Chế độ thật', 'Gọi Shared Core thật (/api/agent + HITL).'),
           modeBtn('mock', 'Mock (Plan v1.0)', 'Xem trước ApplicationPlan v1.0 (cô lập, không ghi DB).'))));
   }
@@ -169,7 +171,7 @@ export function chatView(ctx) {
 
   /* ================= 2 · Lịch sử chat (side) — luôn có .catch() + Thử lại ================= */
   function newChat() {
-    if (mode === 'real') { real.chatId = null; real.msgs = []; real.openErr = null; }
+    if (mode === 'real') { real.chatId = null; real.msgs = []; real.openErr = null; real.brief = null; real.flowPlan = null; }
     else mock.msgs = [];
     drawLog(); focusInput();
   }
@@ -262,20 +264,46 @@ export function chatView(ctx) {
   var thinkTimer = null;
   function stopThink() { if (thinkTimer) { clearInterval(thinkTimer); thinkTimer = null; } }
   function thinkingEl() {
-    var step = 0;
-    var lbl = h('span', null, THINK_STEPS[0]);
+    var step = 0, TS = (mode === 'real' && real.thinkSteps) || THINK_STEPS;
+    var lbl = h('span', null, TS[0]);
     stopThink();
     thinkTimer = setInterval(function () {
       if (!lbl.isConnected) return stopThink();
-      step = (step + 1) % THINK_STEPS.length;
-      lbl.textContent = THINK_STEPS[step];
+      step = (step + 1) % TS.length;
+      lbl.textContent = TS[step];
     }, 1800);
     return h('div', { class: 'm bot', 'aria-live': 'polite' },
       h('span', { class: 'ail-thinking' }, h('span', { class: 'dots', 'aria-hidden': 'true' }, h('span'), h('span'), h('span')), lbl));
   }
+  function toolCard(s) {
+    var st = s.status || 'ok', lab = { ok: 'xong', bad: 'cần xem', run: 'đang chạy…' }[st] || st;
+    return h('details', { class: 'ail-mo-tool is-' + st, open: st === 'bad' ? true : null },
+      h('summary', null, h('code', null, s.tool), h('span', null, ' · ' + lab + (s.ms != null ? ' · ' + (s.ms / 1000).toFixed(1) + ' giây' : ''))),
+      h('dl', null, h('dt', null, 'Vào'), h('dd', null, s.input || '—'), h('dt', null, 'Ra'), h('dd', null, s.output || '—')));
+  }
+  /* Các bước liên tiếp cùng một công cụ (vd get_exam × 6) gộp thành một thẻ có thể mở ra. */
+  function groupSteps(steps) {
+    var out = [];
+    steps.forEach(function (s) { var last = out[out.length - 1]; if (last && last[0].tool === s.tool) last.push(s); else out.push([s]); });
+    return out;
+  }
+  function toolGroup(g) {
+    var bad = g.some(function (s) { return s.status === 'bad'; }), ms = g.reduce(function (t, s) { return t + (s.ms || 0); }, 0);
+    return h('details', { class: 'ail-mo-tool is-' + (bad ? 'bad' : 'ok') },
+      h('summary', null, h('code', null, g[0].tool + ' ×' + g.length), h('span', null, ' · ' + (bad ? 'có bước cần xem' : 'xong') + ' · ' + (ms / 1000).toFixed(1) + ' giây')),
+      h('div', { class: 'ail-mo-steps', style: 'margin-top:6px' }, g.map(toolCard)));
+  }
+  /* Mặc định ẩn; bấm nút mới xổ danh sách công cụ AI đã chạy. */
+  function stepsToggle(steps) {
+    var bad = steps.some(function (s) { return s.status === 'bad'; });
+    return h('details', { class: 'ail-steps-toggle' },
+      h('summary', null, ico('wand'), 'Xem các bước AI đã làm (' + steps.length + ' công cụ' + (bad ? ', có bước cần xem' : '') + ')'),
+      h('div', { class: 'ail-mo-steps', 'aria-label': 'Các bước AI đã làm', style: 'margin-top:8px' }, groupSteps(steps).map(function (g) { return g.length === 1 ? toolCard(g[0]) : toolGroup(g); })));
+  }
   function msgEl(m) {
     var el = h('div', { class: 'm ' + (m.role === 'user' ? 'user' : 'bot') }, m.text || '');
     if (m.role !== 'bot') return el;
+    if (m.steps && m.steps.length) el.insertBefore(stepsToggle(m.steps), el.firstChild);
     if (m.simulated) el.appendChild(simPill('Simulated — khuôn có sẵn, chưa gọi model thật'));
     if (m.error) {
       el.appendChild(h('div', { class: 'err', role: 'alert', style: 'margin-top:8px' }, m.error));
@@ -284,7 +312,11 @@ export function chatView(ctx) {
           onclick: function () { if (!input.value.trim()) input.value = m.retryText; autoResize(); submit(); } })));
       return el;
     }
-    if (m.plan) el.appendChild(planCard(m));
+    if (m.flow) { var fc = flowCard(m); if (fc) el.appendChild(fc); return el; }
+    if (m.plan) {
+      el.appendChild(h('div', { class: 'ail-plan-ref' }, ico('check'), 'Đã cập nhật khung Kế hoạch'));
+      var qr = quickReplies(m.plan); if (qr) el.appendChild(qr);
+    }
     else if (m.proposal) el.appendChild(legacyProposalCard(m));
     return el;
   }
@@ -303,6 +335,7 @@ export function chatView(ctx) {
     if (!list.length) log.appendChild(emptyState());
     list.forEach(function (m) { log.appendChild(msgEl(m)); });
     if (busy) log.appendChild(thinkingEl());
+    planPane();
     if (forceScroll !== false && (forceScroll === true || wasNearBottom || busy)) log.scrollTop = log.scrollHeight;
   }
   function drawAll() { drawHead(); drawBanner(); drawSide(); drawLog(); }
@@ -311,21 +344,132 @@ export function chatView(ctx) {
   function submit() { if (mode === 'real') submitReal(); else submitMock(); }
   function submitReal() {
     var t = input.value.trim();
-    if (real.busy || t.length < 3) return;
-    real.busy = true; send.disabled = true;
+    if (real.busy || t.length < 2) return;
+    real.busy = true; send.disabled = true; real.thinkSteps = ['Đang đọc yêu cầu…', 'Đang xem còn thiếu ý chính nào…'];
     real.msgs.push({ role: 'user', text: t });
-    input.value = ''; input.style.height = '';
+    input.value = ''; input.style.height = ''; input.placeholder = 'Mô tả game ôn tập bạn muốn tạo (môn, chủ đề, cách chơi)…';
     drawLog(true);
-    api('POST', '/api/agent', { text: t }).then(function (d) {
-      var plan = d || {};
-      var topText = plan.application_plan ? (plan.message || '') : '';
-      real.msgs.push({ role: 'bot', text: topText, plan: plan, simulated: !!plan.simulated });
+    /* Luồng mới (/api/flow): chỉ hỏi số đáp án + cách điều khiển; đủ thì lập Kế hoạch (khung bên phải mới hiện); duyệt rồi mới tạo game. */
+    api('POST', '/api/flow', { text: t, brief: real.brief }).then(function (d) {
+      real.brief = d.brief || real.brief;
+      if (d.stage === 'plan') real.flowPlan = { plan: d.plan, brief: d.brief, approved: false, built: null };
+      real.msgs.push({ role: 'bot', text: d.message || '', steps: d.steps || [], flow: d });
     }).catch(function (e) {
       real.msgs.push({ role: 'bot', text: '', error: e.message || 'Lỗi kết nối máy chủ AI.', retryText: t });
       if (!input.value.trim()) input.value = t; // KHÔNG làm mất nội dung người dùng đã gõ
     }).then(function () {
-      real.busy = false; send.disabled = false; drawLog(); focusInput();
+      real.busy = false; send.disabled = false; real.thinkSteps = null; drawLog(); focusInput();
     });
+  }
+
+  /* ---------- luồng mới: duyệt kế hoạch → tạo → chơi thử → sửa → lưu ---------- */
+  function flowRun(label, steps, fn) {
+    real.busy = true; send.disabled = true; real.thinkSteps = steps; drawLog(true);
+    return fn().catch(function (e) { toast(e.message || label + ' không được.', 'err'); real.msgs.push({ role: 'bot', text: '', error: e.message || label + ' không được.' }); })
+      .then(function () { real.busy = false; send.disabled = false; real.thinkSteps = null; drawLog(true); });
+  }
+  function pushBuilt(d, brief) {
+    var f = Object.assign({ stage: 'built', brief: brief }, d);
+    if (real.flowPlan) real.flowPlan.built = f;
+    real.msgs.push({ role: 'bot', text: d.message || '', steps: d.steps || [], flow: f });
+  }
+  function flowApprove() {
+    var fp = real.flowPlan; if (!fp || fp.approved || real.busy) return;
+    fp.approved = true;
+    flowRun('Tạo game', ['Đang tạo game…', 'Đang kiểm tra an toàn (check_game)…', 'Sắp xong, chuẩn bị cho bạn chạy thử…'], function () {
+      return api('POST', '/api/flow/build', { brief: fp.brief }).then(function (d) { pushBuilt(d, fp.brief); }).catch(function (e) { fp.approved = false; throw e; });
+    });
+  }
+  function flowCard(m) {
+    var f = m.flow, idx = real.msgs.indexOf(m);
+    if (f.stage === 'ask') {
+      var live = idx === real.msgs.length - 1 && !real.busy;
+      return (f.quick_replies || []).length ? h('div', { class: 'ail-starters', style: 'margin-top:8px' }, f.quick_replies.map(function (q) {
+        return h('button', { type: 'button', class: 'ail-starter-chip', disabled: live ? null : true, onclick: function () { input.value = q; submit(); } }, ico('chevR'), h('span', null, q));
+      })) : null;
+    }
+    if (f.stage === 'plan') return h('div', { class: 'ail-plan-ref' }, ico('check'), 'Đã cập nhật khung Kế hoạch (bên phải): đọc và duyệt để mình tạo game.');
+    if (f.stage === 'built') {
+      var last = -1; for (var i = real.msgs.length - 1; i >= 0; i--) if (real.msgs[i].flow && real.msgs[i].flow.stage === 'built') { last = i; break; }
+      return flowBuiltCard(f, idx === last);
+    }
+    return null;
+  }
+  function flowTry(f) {
+    var w = previewFrame(f.preview_url);
+    w.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:60vh';
+    modal('Chạy thử: ' + (f.name || f.player_name || 'game'), flexModalBody([h('span', { class: 'meta' }, 'Chạy trong iframe sandbox với câu hỏi mẫu. Chuột luôn dùng được.'), w]));
+  }
+  function flowBuiltCard(f, active) {
+    var card = h('div', { class: 'ail-plan-card ail-flow-built' });
+    card.appendChild(h('div', { class: 'ail-plan-head' }, h('span', { class: 'ail-plan-badge teal' }, ico('play'), f.kind === 'reuse' ? 'Dùng lại có sẵn' : 'Bản ' + f.version),
+      h('b', null, f.name || f.player_name || 'Game'),
+      (f.flags && f.flags.length) ? h('span', { class: 'ail-chip warn' }, f.flags.length + ' cờ cần xem') : h('span', { class: 'ail-chip ok' }, 'Đạt kiểm tra an toàn')));
+    var row = h('div', { class: 'row', style: 'padding:6px 18px 10px' }, btn('Chạy thử', 'play', { cls: 'pri', onclick: function () { flowTry(f); } }));
+    card.appendChild(row);
+    if (!active) { row.appendChild(h('span', { class: 'meta' }, 'Bản cũ.')); return card; }
+    if (f.accepted) {
+      row.appendChild(h('span', { class: 'ail-chip ok' }, 'Đã lưu thành trình chơi Nháp'));
+      var bSub = btn('Gửi duyệt công khai', 'send', { onclick: function () {
+        bSub.disabled = true;
+        api('POST', '/api/players/' + f.player_id + '/submit').then(function () { toast('Đã gửi duyệt! Chờ Admin phê duyệt.', 'ok'); bSub.replaceWith(h('span', { class: 'ail-chip warn' }, 'Đang chờ Admin duyệt')); })
+          .catch(function (e) { bSub.disabled = false; toast(e.message, 'err'); });
+      } });
+      row.appendChild(bSub);
+      row.appendChild(btn('Ghép thành ứng dụng', 'grid', { cls: 'pri', href: '#/apps/new?player=' + f.player_id }));
+      return card;
+    }
+    if (f.kind === 'reuse') {
+      row.appendChild(btn('Ghép thành ứng dụng', 'grid', { cls: 'pri', href: '#/apps/new?player=' + f.player_id }));
+      card.appendChild(h('div', { class: 'meta', style: 'padding:0 18px 14px' }, 'Chưa hợp? Nhắn mình bên dưới để đổi yêu cầu, mình lập kế hoạch lại.'));
+      return card;
+    }
+    var fb = h('textarea', { rows: 2, maxlength: 1500, 'aria-label': 'Bạn muốn sửa gì', placeholder: 'Chơi thử xong, bạn muốn sửa gì? (màu sắc, chữ to hơn, thêm điểm, đổi luật…)', style: 'width:100%' });
+    var bFix = btn('Sửa theo ý bạn', 'edit', { onclick: function () {
+      var t = fb.value.trim();
+      if (t.length < 3) { toast('Hãy nói rõ muốn sửa gì.', 'err'); fb.focus(); return; }
+      flowRun('Sửa game', ['Đang sửa game theo ý bạn…', 'Đang kiểm tra lại an toàn…'], function () {
+        return api('POST', '/api/flow/fix', { draftId: f.draft_id, feedback: t }).then(function (d) { real.msgs.push({ role: 'user', text: 'Sửa: ' + t }); pushBuilt(d, f.brief); });
+      });
+    } });
+    var bOk = btn('Ưng rồi, lưu game này', 'check', { cls: 'pri', onclick: function () {
+      bOk.disabled = true;
+      api('POST', '/api/flow/accept', { draftId: f.draft_id }).then(function (d) { f.accepted = true; f.player_id = d.player_id; toast('Đã lưu thành trình chơi Nháp.', 'ok'); drawLog(); })
+        .catch(function (e) { bOk.disabled = false; toast(e.message, 'err'); });
+    } });
+    card.appendChild(h('div', { style: 'padding:0 18px 14px;display:flex;flex-direction:column;gap:8px' }, fb,
+      h('div', { class: 'row' }, bFix, bOk, h('span', { class: 'meta' }, 'Còn ' + (f.fixes_left != null ? f.fixes_left : 0) + ' lượt sửa.'))));
+    return card;
+  }
+  /* Khung Kế hoạch (bên phải) ở chế độ thật: ẩn cho tới khi đã xác định đủ ý chính và có kế hoạch. */
+  function flowPane() {
+    var fp = real.flowPlan;
+    planEl.style.display = fp ? '' : 'none';
+    if (!fp) { planEl.replaceChildren(); return; }
+    var plan = fp.plan, built = fp.built, busy = real.busy;
+    var head = h('div', { class: 'ail-plan-pane-h' }, h('b', null, 'Kế hoạch'),
+      built ? h('span', { class: 'ail-chip ok' }, built.accepted ? 'Đã lưu' : 'Đã tạo') : fp.approved ? h('span', { class: 'ail-chip warn' }, 'Đang tạo…') : h('span', { class: 'ail-chip' }, 'Chờ bạn duyệt'));
+    var body = h('div', { class: 'ail-plan-pane-b' });
+    body.appendChild(planSec(1, 'Mục tiêu', h('div', { style: 'display:flex;flex-direction:column;gap:4px' }, h('b', null, plan.name), fp.brief.notes ? h('span', { class: 'meta' }, fp.brief.notes) : null), busy));
+    body.appendChild(planSec(2, 'Câu hỏi', h('div', { style: 'display:flex;flex-direction:column;gap:4px' },
+      h('b', null, plan.answers === 2 ? 'Đúng/Sai (2 đáp án)' : plan.answers + ' đáp án (' + 'ABCD'.slice(0, plan.answers).split('').join(', ') + ')'),
+      h('span', { class: 'meta' }, 'Không phụ thuộc môn học: bạn gắn bộ câu hỏi khi tạo ứng dụng.')), busy));
+    body.appendChild(planSec(3, 'Điều khiển & model', h('div', { style: 'display:flex;flex-direction:column;gap:6px' },
+      h('span', { class: 'ail-fallback-pill' }, ico('mouse'), 'Chuột luôn hoạt động (Mouse Fallback)'),
+      plan.model ? h('span', { class: 'ail-chip' }, 'Thêm điều khiển: ' + (KIND[plan.model.kind] || plan.model.kind)) : h('span', { class: 'meta' }, 'Không dùng model.'),
+      plan.model ? h('span', { class: 'meta' }, 'Chưa có model cũng không sao: tạo sau ở “Mô hình tương tác”, rồi gắn khi tạo ứng dụng.') : null,
+      plan.model ? h('a', { class: 'ail-btn sm', href: '#/models/create', style: 'align-self:flex-start' }, ico('wand'), 'Tạo mô hình') : null), busy));
+    var pl = plan.player;
+    body.appendChild(planSec(4, 'Trình chơi', pl.mode === 'reuse_existing'
+      ? h('div', { style: 'display:flex;flex-direction:column;gap:4px' }, h('span', { class: 'ail-chip teal' }, 'Dùng lại có sẵn'), h('span', { class: 'meta' }, pl.player_name + ' · #' + pl.player_id))
+      : h('div', { style: 'display:flex;flex-direction:column;gap:4px' }, h('span', { class: 'ail-chip warn' }, 'AI viết game mới'), h('span', { class: 'meta' }, 'Bản nháp, kiểm an toàn (check_game) trước khi cho bạn chơi thử.')), busy));
+    var steps = [['Duyệt kế hoạch', fp.approved], ['AI tạo game', !!built], ['Bạn chơi thử', !!built && (built.accepted || (built.version || 1) > 1)], ['Sửa theo ý bạn (nếu cần)', !!built && (built.version || 1) > 1], ['Lưu & gửi duyệt công khai', !!(built && built.accepted)]];
+    body.appendChild(planSec(5, 'Các bước tiếp theo', h('ol', { class: 'ail-flow-steps' }, steps.map(function (s) { return h('li', { class: s[1] ? 'is-done' : '' }, (s[1] ? '✓ ' : '') + s[0]); })), false));
+    var foot = h('div', { class: 'ail-plan-pane-f' });
+    if (!fp.approved) foot.appendChild(h('div', { class: 'row' }, btn('Duyệt & tạo game', 'check', { cls: 'pri', onclick: flowApprove }),
+      btn('Chỉnh lại', 'edit', { onclick: function () { input.placeholder = 'Bạn muốn đổi gì? (số đáp án, cách điều khiển, yêu cầu riêng…)'; focusInput(); } })));
+    else foot.appendChild(h('span', { class: 'meta' }, built ? 'Chạy thử và sửa ở khung chat bên trái.' : 'Đang thực hiện…'));
+    planEl.replaceChildren(head, body, foot);
   }
 
   /* ================= 3b · Gửi tin — Mock (cô lập qua runMockComposer) ================= */
@@ -454,50 +598,61 @@ export function chatView(ctx) {
   }
 
   /* ================= 5 · Thẻ ApplicationPlan Card (Mock hôm nay, T14 Real sau) ================= */
-  function planCard(m) {
-    var plan = m.plan || {};
-    var ap = plan.application_plan || null;
-    var key = DECISIONS[plan.decision] ? plan.decision : 'REFUSE';
-    var dec = DECISIONS[key];
-    var isMock = mode === 'mock';
-    var wrap = h('div', { class: 'cardin' });
-
-    var card = h('div', { class: 'ail-plan-card' },
-      h('div', { class: 'ail-plan-head' },
-        h('span', { class: 'ail-plan-badge ' + dec.badge }, ico(dec.icon), dec.label),
-        ap && ap.name ? h('b', null, ap.name) : null,
-        h('span', { class: 'ail-chip', title: 'Phiên bản hợp đồng ApplicationPlan' }, 'Plan v' + (plan.schema_version || '1.0')),
-        plan.simulated ? simPill('Simulated — Mock/khuôn, chưa gọi model thật') : null,
-        statusChipOf(plan)));
-    wrap.appendChild(card);
-
-    /* giải thích ngắn gọn của AI — KHÔNG hiển thị chain-of-thought */
-    if (plan.explanation) card.appendChild(h('p', { class: 'meta', style: 'margin:0;padding:12px 18px 2px' }, plan.explanation));
-    (plan.errors || []).forEach(function (er) {
-      card.appendChild(h('div', { class: 'err', role: 'alert', style: 'margin:10px 18px 0' },
-        (er.code ? er.code + ' — ' : '') + (er.message || '')));
+  /* ---- Khung kế hoạch (bên phải, như Plan của Claude Code): luôn có sẵn khung, AI điền dần ---- */
+  function latestPlanMsg() {
+    var list = mode === 'real' ? real.msgs : mock.msgs;
+    for (var i = list.length - 1; i >= 0; i--) if (list[i].plan) return list[i];
+    return null;
+  }
+  function planSec(n, title, body, busy) {
+    var filled = !!body;
+    return h('section', { class: 'ail-plan-sec' + (filled ? ' is-filled' : ' is-todo') + (!filled && busy ? ' is-busy' : '') },
+      h('div', { class: 'ail-plan-sec-h' },
+        h('span', { class: 'ail-plan-sec-n' }, filled ? ico('check') : String(n)), h('b', null, title)),
+      filled ? h('div', { class: 'ail-plan-sec-b' }, body)
+        : h('div', { class: 'ail-plan-sec-b ail-plan-ph' }, busy ? 'AI đang điền…' : 'Chờ AI điền'));
+  }
+  function cellBody(cell) { return cell.lastChild; }
+  function planPane() {
+    if (mode === 'real') return flowPane();
+    var m = latestPlanMsg(), plan = m ? m.plan : null, ap = plan && plan.application_plan || null;
+    var busy = mode === 'real' ? real.busy : mock.busy;
+    var key = plan ? (DECISIONS[plan.decision] ? plan.decision : 'REFUSE') : null;
+    var dec = key ? DECISIONS[key] : null;
+    var head = h('div', { class: 'ail-plan-pane-h' },
+      h('b', null, 'Kế hoạch'),
+      dec ? h('span', { class: 'ail-plan-badge ' + dec.badge }, ico(dec.icon), dec.label) : h('span', { class: 'ail-chip' }, 'Chưa có'),
+      plan ? statusChipOf(plan) : null,
+      plan && plan.simulated ? simPill('Simulated') : null);
+    var body = h('div', { class: 'ail-plan-pane-b' });
+    if (plan && plan.explanation) body.appendChild(h('p', { class: 'meta', style: 'margin:0' }, plan.explanation));
+    (plan && plan.errors || []).forEach(function (er) {
+      body.appendChild(h('div', { class: 'err', role: 'alert' }, (er.code ? er.code + ' — ' : '') + (er.message || '')));
     });
-
-    /* ASK_CLARIFY: 1 câu hỏi cụ thể + chip trả lời nhanh (bấm = điền & gửi) */
-    if (key === 'ASK_CLARIFY' || !ap) {
-      card.appendChild(h('div', { style: 'display:flex;flex-direction:column;gap:10px;padding:8px 18px 16px' },
-        key !== 'ASK_CLARIFY' ? h('span', { class: 'ail-chip bad' }, 'Không có application_plan — an toàn trước hết.') : null,
-        plan.message ? h('p', { style: 'margin:0' }, plan.message) : null,
-        key === 'ASK_CLARIFY' ? h('div', { class: 'ail-starters' }, (plan.quick_replies || []).map(function (qr) {
-          return h('button', { type: 'button', class: 'ail-starter-chip', title: 'Điền và gửi lại câu trả lời này',
-            onclick: function () { input.value = qr; submit(); } }, ico('chevR'), h('span', null, qr));
-        })) : null,
-        key === 'ASK_CLARIFY' ? h('span', { class: 'meta' }, 'Bấm một gợi ý để điền và gửi lại — AI không đoán mò khi còn mơ hồ.') : null));
-      return wrap;
-    }
-
     var qs = null;
-    if (ap.exam && ap.exam.content != null) qs = parseQuestionsClient(ap.exam.content);
-    card.appendChild(h('div', { class: 'ail-plan-grid' },
-      cellPlayer(ap), cellModel(ap), cellQuestions(ap, plan, qs, isMock), cellSafety(ap, plan)));
-    if ((qs && qs.questions.length) || plan.knowledge_review_required) card.appendChild(knowledgeWarn());
-    card.appendChild(hitlBar(plan, ap, isMock));
-    return wrap;
+    if (ap && ap.exam && ap.exam.content != null) qs = parseQuestionsClient(ap.exam.content);
+    var qBody = null;
+    if (ap) {
+      qBody = h('div', { style: 'display:flex;flex-direction:column;gap:8px' }, cellBody(cellQuestions(ap, plan, qs, mode === 'mock')));
+      if ((qs && qs.questions.length) || plan.knowledge_review_required) qBody.appendChild(knowledgeWarn());
+    }
+    body.appendChild(planSec(1, 'Mục tiêu', ap ? h('div', { style: 'display:flex;flex-direction:column;gap:4px' },
+      h('b', null, ap.name || '—'), ap.description ? h('span', { class: 'meta' }, ap.description) : null) : null, busy));
+    body.appendChild(planSec(2, 'Trình chơi', ap ? cellBody(cellPlayer(ap)) : null, busy));
+    body.appendChild(planSec(3, 'Mô hình & tương tác', ap ? cellBody(cellModel(ap)) : null, busy));
+    body.appendChild(planSec(4, 'Bộ câu hỏi', qBody, busy));
+    body.appendChild(planSec(5, 'An toàn & phê duyệt (HITL)', ap ? cellBody(cellSafety(ap, plan)) : null, busy));
+    var foot = h('div', { class: 'ail-plan-pane-f' }, ap ? hitlBar(plan, ap, mode === 'mock')
+      : h('span', { class: 'meta' }, 'Mô tả game ở khung chat — AI sẽ điền khung này. Mọi kế hoạch chỉ là BẢN NHÁP chờ giáo viên duyệt.'));
+    planEl.replaceChildren(head, body, foot);
+  }
+  function quickReplies(plan) {
+    var q = plan && plan.decision === 'ASK_CLARIFY' ? (plan.quick_replies || []) : [];
+    if (!q.length) return null;
+    return h('div', { class: 'ail-starters', style: 'margin-top:8px' }, q.map(function (qr) {
+      return h('button', { type: 'button', class: 'ail-starter-chip', title: 'Điền và gửi lại câu trả lời này',
+        onclick: function () { input.value = qr; submit(); } }, ico('chevR'), h('span', null, qr));
+    }));
   }
   function cellPlayer(ap) {
     var p = ap.player || {};
@@ -631,7 +786,7 @@ export function chatView(ctx) {
         } else if (p.mode === 'generate_new' && p.html) {
           modal('Xem thử bản nháp (sandbox)', flexModalBody([
             h('span', { class: 'meta' }, 'Bản nháp DRAFT do AI tạo — iframe sandbox="allow-scripts", không chạy cùng nguồn với AI Lab.'),
-            h('iframe', { sandbox: 'allow-scripts', title: 'Xem thử bản nháp DRAFT', srcdoc: p.html })]));
+            h('iframe', { sandbox: 'allow-scripts', allow: 'camera; microphone', title: 'Xem thử bản nháp DRAFT', srcdoc: p.html })]));
         } else if (p.player_id != null) {
           var w = previewFrame(p.player_id); // previewFrame(urlOrId, onInfo) từ js/list-page.js
           w.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:60vh';
@@ -759,6 +914,6 @@ export function chatView(ctx) {
   }
 
   /* ---------- gắn vào shell và vẽ lần đầu ---------- */
-  mountFn(h('div', { class: 'ail-chat-wrap' }, main));
+  mountFn(h('div', { class: 'ail-chat-wrap' }, main, planEl));
   drawAll();
 }

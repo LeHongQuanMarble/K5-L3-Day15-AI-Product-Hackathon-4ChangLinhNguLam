@@ -93,9 +93,10 @@ GENERATE_HTML_SYSTEM = (
     + "\n\nQUY TẮC BẮT BUỘC CHO BẢN NHÁP P0 (SPEC-DRIVEN MODEL-AWARE GENERATE):\n"
     + "- Phải chạy hoàn toàn cục bộ trong iframe sandbox, 0 cờ an toàn (KHÔNG fetch, XHR, WebSocket, window.open, eval, new Function, localStorage, toDataURL, top.location, parent.* ngoài parent.postMessage, KHÔNG tự gọi getUserMedia hay tự tải MediaPipe/TFJS).\n"
     + "- KHÔNG khai xung đột manifest: chọn HOẶC `\"questions\": \"exam\"` HOẶC `\"content\": {\"kind\": \"texts\", ...}` — TUYỆT ĐỐI KHÔNG khai cả hai cùng lúc.\n"
-    + "- BẮT BUỘC tuân thủ chính xác GameSpec: nếu GameSpec có gắn Model (`hands`/`image`/`pose`), PHẢI khai đúng `kinds` và `inputs` trong `#jl-camera` và lắng nghe `camera.result`/`camera.frame` (và `camera.hand` nếu dùng `hands`); nếu GameSpec ở chế độ chuột, KHÔNG khai `inputs`.\n"
-    + "- BẮT BUỘC hỗ trợ chơi trọn vẹn bằng chuột/chạm/bàn phím (Mouse Fallback) song song với Model camera.\n"
+    + "- BẮT BUỘC tuân thủ chính xác GameSpec: nếu GameSpec có gắn Model (`hands`/`image`/`pose`/`audio`), PHẢI khai đúng `kinds` và `inputs` trong `#jl-camera` và lắng nghe `camera.result`/`camera.frame` (và `camera.hand` nếu dùng `hands`); nếu GameSpec ở chế độ chuột, KHÔNG khai `inputs`.\n"
+    + "- BẮT BUỘC hỗ trợ chơi trọn vẹn bằng chuột/chạm/bàn phím (Mouse Fallback) song song với Model camera/micro.\n"
     + "- BẮT BUỘC xử lý `window.addEventListener('message', ...)` nhận `camera.init` (nạp động `d.questions` hoặc `d.content`), gửi `parent.postMessage({type:'ready'}, '*')`, có chấm điểm, phản hồi đúng/sai, cooldown chống chọn lặp khi tay đứng yên, kết thúc gửi `finish`, và nút Chơi lại (Reset) xóa sạch trạng thái cũ. Dùng `textContent` để hiển thị chữ an toàn.\n"
+    + "- GIỮ FILE GỌN: tối đa khoảng 250 dòng, CSS/JS ngắn, không thư viện ngoài, ít hiệu ứng, 4–8 mục dữ liệu mẫu để không bị cắt cụt giữa chừng.\n"
     + "- Trả về 1–2 câu mô tả tiếng Việt và ĐÚNG MỘT khối mã ```html ... ``` hoàn chỉnh từ `<!doctype html>` đến `</html>`.\n"
 )
 
@@ -284,7 +285,8 @@ def _run_generate_html(user_message: str, game_idea: str, need_exam: bool, spec:
             return None, None, "Model không trả nội dung ở lượt sinh HTML %d." % step
         msg, html = _split(text)
         if not html:
-            last_err = "Không tìm thấy khối mã ```html ... ```."
+            last_err = ("Không tìm thấy khối mã ```html ... ```. Nhiều khả năng file quá dài nên bị cắt cụt: "
+                        "viết lại NGẮN hơn một nửa (dưới 150 dòng, bỏ hiệu ứng phụ), vẫn đủ từ <!doctype html> đến </html>.")
             note("GENERATE lượt %d: thiếu khối HTML" % step)
             continue
         vres = guardrails.validate_html_draft(html, check_fn=check_game)

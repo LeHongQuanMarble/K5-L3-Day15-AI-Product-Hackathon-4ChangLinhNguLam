@@ -8,17 +8,19 @@
 
 import { h, api, ico, toast, setOnUnauthorized } from './js/dom.js';
 import { stopTry } from './js/list-page.js';
-import { homeView, modelsView, playersView, examsView, appsView, adminView, loginView } from './js/views-core.js';
+import { createHubView, homeView, modelsView, playersView, examsView, appsView, adminView, loginView } from './js/views-core.js';
 import { chatView } from './js/views-assistant.js';
+import { motionsListView, motionView } from './js/motions.js';
 
 var root = document.getElementById('app');
-var me = null, llmMode = '', curTab = 'chat';
+var me = null, llmMode = '', curTab = 'chat', curQuery = new URLSearchParams('');
 var railExpanded = sessionStorage.getItem('ail.rail') === '1';
 
 /* ---------- định nghĩa điều hướng (khớp 100% spec.md §4: Teacher Workspace + Thư viện Catalog) ---------- */
+/* Tạm ẩn 'Tạo' (#/create) và 'Motion' (#/motions) khỏi thanh bên, làm tiếp sau; trang và đường dẫn vẫn còn. */
 var NAV_MAIN = [['chat', 'Soạn trò chơi', 'chat'], ['apps', 'Trò chơi của tôi', 'grid'], ['exams', 'Bộ câu hỏi', 'edit']];
 var NAV_CATALOG = [['players', 'Kho mẫu game', 'play'], ['models', 'Mô hình tương tác', 'cube']];
-var TITLES = { chat: '', apps: 'Trò chơi của tôi', exams: 'Bộ câu hỏi', players: 'Kho mẫu game', models: 'Mô hình tương tác', admin: 'Quản trị', home: 'Tổng quan' };
+var TITLES = { create: 'Tạo', motions: 'Motion', chat: '', apps: 'Trò chơi của tôi', exams: 'Bộ câu hỏi', players: 'Kho mẫu game', models: 'Mô hình tương tác', admin: 'Quản trị', home: 'Tổng quan' };
 var LIST_TABS = ['models', 'players', 'exams', 'apps'];
 
 /* Logo nhóm 4ChangLinhNguLam (huy hiệu 4 cánh + khiên học thuật) */
@@ -31,7 +33,7 @@ function teamLogo() {
 
 /* ctx chia cho các view; tạo mới mỗi lần route để me/llmMode luôn tươi */
 function ctx() {
-  return { me: me, llmMode: llmMode, mount: mount, listMount: listMount, route: route, onLogin: onLogin, openDrawer: openDrawer };
+  return { me: me, llmMode: llmMode, query: curQuery, mount: mount, listMount: listMount, route: route, onLogin: onLogin, openDrawer: openDrawer };
 }
 function mount(el) {
   var m = document.getElementById('main');
@@ -172,10 +174,13 @@ function route() {
   closeDrawer();
   if (!me) { loginView(ctx()); return; }
   var hash = location.hash.replace(/^#\/?/, '');
+  var qi = hash.indexOf('?');  /* #/apps/new?player=3 → phần sau dấu ? là tham số điền sẵn */
+  curQuery = new URLSearchParams(qi >= 0 ? hash.slice(qi + 1) : '');
+  if (qi >= 0) hash = hash.slice(0, qi);
   var parts = hash ? hash.split('/') : [];
   var key = parts[0] || 'chat';
   if (key === 'assistant') { location.replace('#/chat'); return; } /* alias cũ → Trợ lý Game */
-  var views = { home: homeView, models: modelsView, players: playersView, exams: examsView, apps: appsView, chat: chatView, admin: adminView };
+  var views = { motions: function (c, p) { return p[1] ? motionView(c, p) : motionsListView(c); }, create: createHubView, home: homeView, models: modelsView, players: playersView, exams: examsView, apps: appsView, chat: chatView, admin: adminView };
   var view = views[key];
   if (!view) { location.replace('#/chat'); return; } /* hash lạ → về Trợ lý Game */
   var isList = LIST_TABS.indexOf(key) >= 0 && !parts[1];
