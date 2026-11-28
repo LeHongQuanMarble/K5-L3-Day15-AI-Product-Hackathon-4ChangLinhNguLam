@@ -504,3 +504,16 @@ code,kbd{font-family:var(--jl-font-mono);font-size:var(--jl-font-size-sm)}
 .ail-tb{grid-template-columns:minmax(260px,1fr) minmax(260px,.9fr) minmax(260px,1.2fr);gap:44px}
 .ail-page:has(.ail-train){max-width:1440px}
 .ail-tb-trainbody a,.ail-tb-trainbody p{overflow-wrap:anywhere}
+/* Thẻ chọn loại mô hình (Hình ảnh · Tư thế · Âm thanh), tái sử dụng từ learning */
+.ail-kinds{display:grid;gap:10px;margin:8px 0 14px}
+.ail-kind-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media(max-width:720px){.ail-kind-row{grid-template-columns:1fr}}
+.ail-kind-card{display:flex;flex-direction:column;gap:8px;padding:8px;border:1px solid var(--jl-border-default);border-radius:12px;background:var(--jl-surface-default);transition:box-shadow .2s,border-color .2s}
+.ail-kind-card.is-on{border-color:var(--jl-brand-600);box-shadow:inset 0 0 0 1px var(--jl-brand-600)}
+.ail-kind-pick{all:unset;display:flex;flex-direction:column;gap:6px;cursor:pointer;border-radius:8px}
+.ail-kind-pick:focus-visible{outline:2px solid var(--jl-brand-600);outline-offset:2px}
+.ail-kind-art{position:relative;display:block;aspect-ratio:4/3;overflow:hidden;border-radius:8px;background:#0f172a}
+.ail-kind-art img{width:100%;height:100%;object-fit:cover;display:block}
+.ail-kind-art .ail-kind-skel{position:absolute;inset:0;width:100%;height:100%}
+.ail-kind-badge{position:absolute;left:8px;top:8px;padding:2px 8px;border-radius:999px;background:rgba(15,23,42,.72);color:#fff;font-size:12px}
+.ail-kind-guide{margin:0}
