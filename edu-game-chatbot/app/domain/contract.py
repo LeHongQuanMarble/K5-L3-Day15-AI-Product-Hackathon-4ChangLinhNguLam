@@ -35,6 +35,12 @@ API window.__GAME__ = { ready, start(), getState(), answer(choice), getCorrectAn
 - getResult(): {score, maxScore, correctCount, totalQuestions, wrong:[{id,question,yourAnswer,correctAnswer,explanation}]}.
 Chấm điểm: đúng được points của câu, sai được 0, maxScore = tổng points.
 fill_blank: không phân biệt hoa/thường, bỏ khoảng trắng thừa, chấp nhận cả accept[].
+CHIỀU SÂU TƯƠNG TÁC (di chuyển, kéo thả, ngắm, combo, mạng, màn chơi...):
+- Cơ chế phụ KHÔNG được chặn API: answer() nhận ngay khi status==="playing" (kể cả lúc đang di chuyển/hiệu ứng),
+  câu hỏi hiện tại luôn hiện trong data-testid="question" và luôn có đáp án bấm/chạm được.
+- Điểm chỉ từ points của câu hỏi (combo/vật phẩm chỉ là thưởng trực quan); hết mạng không kết thúc sớm,
+  vẫn đi hết mọi câu; start() reset cả mạng, combo, màn chơi, vị trí nhân vật.
+- Sai: hiện đáp án đúng + explanation ngắn, không chặn câu kế tiếp quá 600 ms.
 ĐIỀU KHIỂN (mã mouse|keyboard|motion|voice|custom do giáo viên chọn):
 - LUÔN chơi được bằng chuột/chạm và giữ mọi data-testid ở trên (kiểm thử tự động bấm chuột).
   Bàn phím/camera/micro là THÊM VÀO, không thay thế.

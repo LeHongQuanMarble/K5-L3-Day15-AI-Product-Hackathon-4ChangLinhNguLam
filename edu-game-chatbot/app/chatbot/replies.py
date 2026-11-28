@@ -22,6 +22,10 @@ BTN_GP_TARGET = "gp_target"
 BTN_GP_MATCH = "gp_match"
 BTN_GP_ADVENTURE = "gp_adventure"
 BTN_GP_SUGGEST = "gp_suggest"
+# Gợi ý ý tưởng game (F02): idea_1..idea_3 + gợi ý khác
+BTN_IDEA_PREFIX = "idea_"
+BTN_IDEAS_MORE = "ideas_more"
+IDEA_LABEL_MAX = 40
 BTN_CTL_MOUSE = "ctl_mouse"
 BTN_CTL_KEYBOARD = "ctl_keyboard"
 BTN_CTL_MOTION = "ctl_motion"
@@ -59,6 +63,8 @@ ASK_GAMEPLAY = (
     "Bộ câu hỏi đã sẵn sàng. Thầy/cô muốn học sinh chơi theo cách nào? "
     "(Chọn một nút hoặc tự mô tả cách chơi.)"
 )
+IDEAS_FAILED = "Mình chưa nghĩ ra ý tưởng mới lúc này, thầy/cô chọn một cách chơi có sẵn bên dưới nhé."
+ASK_GAMEPLAY_FALLBACK = f"{IDEAS_FAILED}\n{ASK_GAMEPLAY}"
 ASK_CONTROLS = (
     "Học sinh điều khiển game bằng gì? (Chọn một nút hoặc tự mô tả, ví dụ: dùng phím mũi tên và chuột.)"
 )
@@ -93,18 +99,63 @@ def gameplay_buttons() -> list[Button]:
         Button(id=BTN_GP_TARGET, label="Chọn mục tiêu / bắn bóng"),
         Button(id=BTN_GP_MATCH, label="Ghép cặp / kéo thả"),
         Button(id=BTN_GP_ADVENTURE, label="Phiêu lưu qua từng màn"),
-        Button(id=BTN_GP_SUGGEST, label="Để trợ lý gợi ý"),
+        Button(id=BTN_GP_SUGGEST, label="Để trợ lý tự chọn"),
     ]
 
 
-def controls_buttons() -> list[Button]:
-    """4 nút cách điều khiển."""
-    return [
+def idea_button_id(index: int) -> str:
+    """Id nút ý tưởng thứ index (1-based)."""
+    return f"{BTN_IDEA_PREFIX}{index}"
+
+
+def ideas_message(ideas: list[dict]) -> str:
+    """Liệt kê ý tưởng: tên (đậm bằng **), pitch, tương tác, tiến triển."""
+    lines = ["Bộ câu hỏi đã sẵn sàng. Mình gợi ý vài ý tưởng game có nhiều tương tác hơn là chỉ chọn đáp án:"]
+    for i, idea in enumerate(ideas, 1):
+        interactions = idea.get("interactions") or []
+        if isinstance(interactions, list):
+            interactions = ", ".join(str(x) for x in interactions)
+        lines += [
+            "",
+            f"{i}. **{idea.get('title', '')}**",
+            str(idea.get("pitch", "")),
+            f"Tương tác: {interactions}",
+            f"Tiến triển: {idea.get('progression', '')}",
+        ]
+    lines += ["", "Thầy/cô chọn một ý tưởng, bấm gợi ý khác, hoặc tự mô tả cách chơi mong muốn."]
+    return "\n".join(lines)
+
+
+def idea_buttons(ideas: list[dict]) -> list[Button]:
+    """Nút idea_1..idea_n (nhãn "💡 " + title, ≤ 40 ký tự) + [Gợi ý khác] + [Để trợ lý tự chọn]."""
+    buttons = []
+    for i, idea in enumerate(ideas, 1):
+        label = f"💡 {idea.get('title', '')}".strip()
+        if len(label) > IDEA_LABEL_MAX:
+            label = label[: IDEA_LABEL_MAX - 1].rstrip() + "…"
+        buttons.append(Button(id=idea_button_id(i), label=label))
+    suggest = next(b for b in gameplay_buttons() if b.id == BTN_GP_SUGGEST)
+    return [*buttons, Button(id=BTN_IDEAS_MORE, label="🔄 Gợi ý khác"), suggest]
+
+
+def idea_gameplay(idea: dict) -> str:
+    """Cách chơi lưu vào Session khi chọn ý tưởng: title + pitch."""
+    return f"{idea.get('title', '')}: {idea.get('pitch', '')}"
+
+
+def controls_buttons(recommended: list[str] | None = None) -> list[Button]:
+    """4 nút cách điều khiển; mã trong recommended được đưa lên đầu, nhãn thêm "(gợi ý)" (id giữ nguyên)."""
+    buttons = [
         Button(id=BTN_CTL_MOUSE, label="Chuột / chạm màn hình"),
         Button(id=BTN_CTL_KEYBOARD, label="Bàn phím"),
         Button(id=BTN_CTL_MOTION, label="Cử động cơ thể (camera)"),
         Button(id=BTN_CTL_VOICE, label="Âm thanh / giọng nói (micro)"),
     ]
+    if not recommended:
+        return buttons
+    picked = [b for b in buttons if CONTROLS_CODES[b.id] in recommended]
+    rest = [b for b in buttons if CONTROLS_CODES[b.id] not in recommended]
+    return [Button(id=b.id, label=f"{b.label} (gợi ý)") for b in picked] + rest
 
 
 def visual_buttons() -> list[Button]:
@@ -171,6 +222,7 @@ def progress(node: str, detail: str = "") -> str:
     """Thông báo tiến độ, ví dụ 'Kiểm thử… (sửa lỗi 1/2)'."""
     names = {
         "questions": "Đang tạo bộ câu hỏi",
+        "ideas": "Đang gợi ý ý tưởng game",
         "design": "Thiết kế game",
         "codegen": "Sinh HTML",
         "test": "Kiểm thử",

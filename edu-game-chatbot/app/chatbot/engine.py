@@ -4,6 +4,7 @@ Dispatch bằng bảng {State: handler}; handler xử lý input và gọi _trans
 from __future__ import annotations
 
 import asyncio
+import copy
 import re
 from collections.abc import Awaitable, Callable, Coroutine
 from pathlib import Path
@@ -27,6 +28,7 @@ _NUM_RE = re.compile(r"(\d+)\s*câu", re.IGNORECASE)
 _MAX_NUM_QUESTIONS = 50
 _STEP_STATES = {
     "run_build_questions": State.BUILDING_QUESTIONS,
+    "run_suggest_games": State.SUGGESTING_GAMES,
     "run_design_cycle": State.PIPELINE_RUNNING,
     "run_export": State.EXPORTING,
 }
@@ -152,12 +154,11 @@ class ChatEngine:
         await self._launch(s, "run_build_questions")
 
     async def _on_await_question_approval(self, s: Session, text: str | None, action: str | None) -> None:
-        """qb_approve -> hỏi cách chơi (AWAIT_GAMEPLAY); qb_regenerate -> hỏi góp ý / tạo lại."""
+        """qb_approve -> gợi ý ý tưởng game nền (SUGGESTING_GAMES -> AWAIT_GAMEPLAY); qb_regenerate -> tạo lại."""
         buttons = replies.question_approval_buttons()
         bid = await self._resolve(text, action, buttons)
         if bid == replies.BTN_QB_APPROVE:
-            await self._reply(s, _bot(replies.ASK_GAMEPLAY, replies.gameplay_buttons()))
-            await self._transition(s, State.AWAIT_GAMEPLAY)
+            await self._launch(s, "run_suggest_games")
         elif bid == replies.BTN_QB_REGENERATE:
             feedback = self._free_text(text, buttons)
             if feedback:
@@ -167,20 +168,34 @@ class ChatEngine:
             await self._reply(s, _bot(replies.NOT_UNDERSTOOD, buttons))
 
     async def _on_await_gameplay(self, s: Session, text: str | None, action: str | None) -> None:
-        """Lưu cách chơi (nhãn nút hoặc mô tả tự do) -> hỏi điều khiển (AWAIT_CONTROLS)."""
-        picked = self._pick(text, action, replies.gameplay_buttons())
+        """idea_N -> lưu game_concept; ideas_more -> gợi ý lại (tránh title cũ); nút tĩnh/mô tả tự do
+        -> lưu cách chơi. Sau đó hỏi điều khiển (AWAIT_CONTROLS, điều khiển gợi ý lên đầu)."""
+        idea_btns = replies.idea_buttons(s.game_ideas) if s.game_ideas else []
+        ids = {b.id for b in idea_btns}
+        buttons = idea_btns + [b for b in replies.gameplay_buttons() if b.id not in ids]
+        picked = self._pick(text, action, buttons)
         if picked is None:
-            await self._reply(s, _bot(replies.ASK_GAMEPLAY, replies.gameplay_buttons()))
+            await self._reply(s, self._ask_gameplay(s))
             return
-        s.gameplay = picked[1]
-        await self._reply(s, _bot(replies.ASK_CONTROLS, replies.controls_buttons()))
+        bid, label = picked
+        if bid == replies.BTN_IDEAS_MORE:
+            await self._launch(s, "run_suggest_games", avoid=self._seen_idea_titles(s))
+            return
+        idea = self._idea_of(s, bid)
+        if idea is not None:
+            s.game_concept = copy.deepcopy(idea)
+            s.gameplay = replies.idea_gameplay(idea)
+        else:
+            s.game_concept = {}
+            s.gameplay = label
+        await self._reply(s, _bot(replies.ASK_CONTROLS, self._controls_buttons(s)))
         await self._transition(s, State.AWAIT_CONTROLS)
 
     async def _on_await_controls(self, s: Session, text: str | None, action: str | None) -> None:
         """Lưu cách điều khiển + controls_code -> hỏi giao diện (AWAIT_VISUAL)."""
         picked = self._pick(text, action, replies.controls_buttons())
         if picked is None:
-            await self._reply(s, _bot(replies.ASK_CONTROLS, replies.controls_buttons()))
+            await self._reply(s, _bot(replies.ASK_CONTROLS, self._controls_buttons(s)))
             return
         bid, s.controls = picked
         s.controls_code = replies.CONTROLS_CODES.get(bid or "", replies.CONTROLS_CUSTOM)
@@ -351,6 +366,38 @@ class ChatEngine:
         if bid is not None:
             return bid, labels[bid]
         return None, text.strip()
+
+    @staticmethod
+    def _ask_gameplay(s: Session) -> Message:
+        """Hỏi lại cách chơi: danh sách ý tưởng (nếu có) hoặc bộ nút tĩnh."""
+        if s.game_ideas:
+            return _bot(replies.ideas_message(s.game_ideas), replies.idea_buttons(s.game_ideas))
+        return _bot(replies.ASK_GAMEPLAY, replies.gameplay_buttons())
+
+    @staticmethod
+    def _idea_of(s: Session, bid: str | None) -> dict | None:
+        """Ý tưởng ứng với nút idea_N (None nếu không phải nút ý tưởng)."""
+        for i, idea in enumerate(s.game_ideas, 1):
+            if bid == replies.idea_button_id(i):
+                return idea
+        return None
+
+    @staticmethod
+    def _seen_idea_titles(s: Session) -> list[str]:
+        """Title đã gợi ý: lần gợi ý hiện tại + các title đã tránh ở lần 'gợi ý khác' trước."""
+        step = _last_event(s, "step") or {}
+        seen = (
+            list((step.get("kwargs") or {}).get("avoid") or [])
+            if step.get("text") == "run_suggest_games"
+            else []
+        )
+        seen += [str(i.get("title", "")) for i in s.game_ideas]
+        return list(dict.fromkeys(t for t in seen if t))
+
+    @staticmethod
+    def _controls_buttons(s: Session) -> list[Button]:
+        """Nút điều khiển, đưa điều khiển ý tưởng đã chọn gợi ý lên đầu."""
+        return replies.controls_buttons(s.game_concept.get("recommended_controls") or None)
 
     @staticmethod
     def _free_text(text: str | None, buttons: list[Button]) -> str:

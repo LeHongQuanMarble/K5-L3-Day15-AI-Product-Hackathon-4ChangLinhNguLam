@@ -14,7 +14,7 @@ from playwright.sync_api import Browser, Page, expect, sync_playwright
 
 from app.main import create_app
 from app.nodes.n4_test import TestReport
-from tests.conftest import FakeLLM
+from tests.conftest import FakeLLM, ideas_reply
 
 pytestmark = pytest.mark.browser
 
@@ -47,6 +47,7 @@ def scripted_llm(sample_bank: dict, reference_html: str) -> FakeLLM:
     llm = FakeLLM()
     llm.add("intake", json.dumps(INTAKE, ensure_ascii=False))
     llm.add("question_gen", json.dumps(sample_bank, ensure_ascii=False))
+    llm.add("game_ideas", ideas_reply("Pizza phân số"))
     llm.add("design", _design("Phân số vui"), _design("Phân số vui (bản 2)"))
     v2 = reference_html.replace("<title>Quiz mẫu</title>", "<title>Quiz mẫu v2</title>")
     llm.add("codegen", f"```html\n{reference_html}\n```", f"```html\n{v2}\n```")
@@ -110,7 +111,11 @@ def _open_and_choose_topic(page: Page, base: str) -> None:
     page.get_by_test_id("btn-source_topic").click()
     _send(page, "Phân số, 5 câu")
     page.get_by_test_id("btn-qb_approve").click()
-    page.get_by_test_id("btn-gp_race").click()
+    expect(page.get_by_test_id("btn-ideas_more")).to_be_visible()
+    expect(page.get_by_test_id("btn-gp_suggest")).to_be_visible()
+    expect(page.get_by_test_id("btn-idea_1")).to_contain_text("Pizza phân số 1")
+    page.get_by_test_id("btn-idea_1").click()
+    expect(page.get_by_test_id("btn-ctl_keyboard")).to_contain_text("(gợi ý)")
     page.get_by_test_id("btn-ctl_keyboard").click()
     expect(page.get_by_test_id("btn-vis_cartoon")).to_be_visible()
     expect(page.locator("#stepper li.is-current")).to_have_text("Yêu cầu game")
@@ -143,7 +148,8 @@ def test_full_flow_topic_with_revision(live_server: str, page: Page, settings, s
     assert len(scripted_llm.calls_for("codegen")) == 2
     assert "Đổi màu nền sang xanh lá" in scripted_llm.calls_for("design")[1]["user"]
     first = scripted_llm.calls_for("design")[0]["user"]
-    assert "Đua về đích" in first and "Bàn phím" in first and "nhân vật cá heo" in first
+    assert "Pizza phân số 1" in first and "Bàn phím" in first and "nhân vật cá heo" in first
+    assert "ý tưởng game giáo viên đã chọn".casefold() in first.casefold()
     assert not scripted_llm.calls_for("intent")
     expect(page.get_by_test_id("text-input")).to_be_disabled()
 

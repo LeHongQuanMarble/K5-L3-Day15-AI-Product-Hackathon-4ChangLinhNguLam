@@ -94,3 +94,15 @@ Preview: iframe có `allow="camera; microphone; autoplay"` và CSP thêm `media-
 `sandbox="allow-scripts"` (không `allow-same-origin`) nên trên Chromium `getUserMedia` trong iframe bị chặn
 (`SecurityError: Invalid security origin`); game rơi về chơi bằng chuột. Camera/micro dùng được khi mở game
 toàn màn hình (tab riêng) hoặc file đã xuất chạy trên `localhost`/HTTPS.
+
+## 8. Chiều sâu tương tác (F02)
+
+Game nên có nhiều lớp tương tác (di chuyển, kéo thả, ngắm bóng bay, né chướng ngại, combo, mạng, màn chơi…)
+và câu hỏi gắn vào thế giới game. Các cơ chế này **không được** phá contract:
+
+- `answer()` nhận ngay khi `status==="playing"`, kể cả lúc nhân vật đang di chuyển hoặc đang có hiệu ứng;
+  câu hỏi hiện tại luôn có trong `data-testid="question"` và luôn có đáp án bấm/chạm được.
+- Điểm chỉ tính từ `points` của câu hỏi; combo/vật phẩm chỉ là thưởng trực quan. Hết mạng **không** kết thúc
+  sớm — vẫn đi hết mọi câu để `totalQuestions`/màn kết quả đúng.
+- Trả lời sai: hiện đáp án đúng + `explanation` ngắn, không chặn câu kế tiếp quá 600 ms.
+- `start()`/chơi lại reset cả mạng, combo, màn chơi, vị trí nhân vật.

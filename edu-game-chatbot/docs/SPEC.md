@@ -56,6 +56,19 @@ Bổ sung so với sơ đồ gốc (bắt buộc, đã chốt):
    khớp thì lấy nguyên văn làm mô tả tự do (không gọi LLM phân loại); chuỗi rỗng thì hỏi lại.
    Đủ 3 lựa chọn mới gửi tóm tắt và chạy N2. Ba lựa chọn lưu trong Session Memory
    (`gameplay`, `controls`, `controls_code`, `visual`) và là yêu cầu bắt buộc của N2 (chỉ sau yêu cầu chỉnh sửa).
+8. **Gợi ý ý tưởng game có chiều sâu tương tác (F02):** ngay trước bước cách chơi, hệ thống chạy nền
+   (`SUGGESTING_GAMES`, tiến độ "Đang gợi ý ý tưởng game…") node `game_ideas` (prompt `game_ideas`,
+   model thiết kế) với yêu cầu gốc, môn, lớp, chủ đề, thống kê bộ câu hỏi + tối đa 3 câu mẫu.
+   LLM trả **3 ý tưởng** khác nhau rõ rệt: câu hỏi gắn vào thế giới game (đáp án là cổng/làn/mục tiêu/
+   vật phẩm/mảnh ghép…), ≥ 2 lớp tương tác ngoài chọn đáp án, hệ quả & tiến triển (mạng, combo,
+   vật phẩm, màn khó dần), sai thì hiện giải thích. Bot liệt kê ý tưởng (tên, pitch, "Tương tác: …",
+   "Tiến triển: …") với nút `idea_1..idea_3` ("💡 " + tên, ≤ 40 ký tự), `ideas_more` "🔄 Gợi ý khác"
+   (gọi lại LLM kèm danh sách tên đã gợi ý để tránh lặp) và `gp_suggest` "Để trợ lý tự chọn".
+   Các nút tĩnh F01 (`gp_*`) và mô tả tự do vẫn dùng được. Chọn ý tưởng thì lưu `game_concept`
+   (đầy đủ) và `gameplay` = tên + pitch; ở bước điều khiển, các nút khớp `recommended_controls` lên đầu
+   kèm "(gợi ý)" (id không đổi). Gợi ý lỗi (LLM lỗi/sai định dạng) **không FAILED**: bot báo nhẹ và
+   hiện bộ nút tĩnh F01 (nếu đang "gợi ý khác" thì giữ các ý tưởng cũ).
+   N2/N3/FIX luôn yêu cầu chiều sâu tương tác (kể cả khi không chọn ý tưởng AI) mà vẫn giữ contract.
 
 ## 3. Trạng thái hội thoại (state machine)
 
@@ -64,9 +77,10 @@ Bổ sung so với sơ đồ gốc (bắt buộc, đã chốt):
 | `AWAIT_REQUEST` | Mô tả game | `AWAIT_SOURCE` / `REJECTED` |
 | `AWAIT_SOURCE` | Chọn nguồn câu hỏi (3 nút) | `AWAIT_SOURCE_INPUT` |
 | `AWAIT_SOURCE_INPUT` | Upload file câu hỏi / upload tài liệu / gõ chủ đề | `BUILDING_QUESTIONS` |
-| `BUILDING_QUESTIONS` | (đang chạy N1/N1b) | `AWAIT_QUESTION_APPROVAL` / `AWAIT_GAMEPLAY` (nguồn user) / `AWAIT_SOURCE_INPUT` (nếu file lỗi) |
-| `AWAIT_QUESTION_APPROVAL` | "Đồng ý" / "Tạo lại" + góp ý | `AWAIT_GAMEPLAY` / `BUILDING_QUESTIONS` |
-| `AWAIT_GAMEPLAY` | Cách chơi (6 nút hoặc mô tả tự do) | `AWAIT_CONTROLS` |
+| `BUILDING_QUESTIONS` | (đang chạy N1/N1b) | `AWAIT_QUESTION_APPROVAL` / `SUGGESTING_GAMES` (nguồn user) / `AWAIT_SOURCE_INPUT` (nếu file lỗi) |
+| `AWAIT_QUESTION_APPROVAL` | "Đồng ý" / "Tạo lại" + góp ý | `SUGGESTING_GAMES` / `BUILDING_QUESTIONS` |
+| `SUGGESTING_GAMES` | (đang gợi ý 3 ý tưởng game; lỗi thì rơi về nút tĩnh) | `AWAIT_GAMEPLAY` |
+| `AWAIT_GAMEPLAY` | Ý tưởng `idea_1..3` / `ideas_more` / `gp_suggest` (hoặc nút tĩnh `gp_*` khi gợi ý lỗi) / mô tả tự do | `AWAIT_CONTROLS` / `SUGGESTING_GAMES` (gợi ý khác) |
 | `AWAIT_CONTROLS` | Điều khiển: chuột / bàn phím / camera / micro (4 nút hoặc mô tả tự do) | `AWAIT_VISUAL` |
 | `AWAIT_VISUAL` | Giao diện (5 nút hoặc mô tả tự do) | `READY_TO_DESIGN` → `PIPELINE_RUNNING` |
 | `PIPELINE_RUNNING` | (đang chạy N2→N3→N4↔FIX) | `AWAIT_REVIEW` |
@@ -78,7 +92,8 @@ Bổ sung so với sơ đồ gốc (bắt buộc, đã chốt):
 Quy tắc chung:
 - Đang ở state "đang chạy" mà người dùng nhắn: trả lời "Đang xử lý bước X, vui lòng đợi". Không chạy song song.
 - Người dùng gõ chữ khi đang có nút bấm: dùng LLM phân loại ý định thành một trong các nút. Không chắc thì hỏi lại.
-  Ngoại lệ: 3 bước yêu cầu game (`AWAIT_GAMEPLAY/CONTROLS/VISUAL`) không gọi LLM; chữ không khớp nút là mô tả tự do.
+  Ngoại lệ: 3 bước yêu cầu game (`AWAIT_GAMEPLAY/CONTROLS/VISUAL`) không gọi LLM phân loại; chữ không khớp nút là mô tả tự do
+  (LLM chỉ được gọi để sinh ý tưởng ở `SUGGESTING_GAMES`).
 - Mọi lỗi ngoài dự kiến: báo lỗi thân thiện, lưu vào memory. Phiên giữ nguyên state để thử lại (nút "Thử lại").
 
 ## 4. Kịch bản hội thoại mẫu (chuẩn để viết test e2e)
@@ -94,12 +109,18 @@ GV  : Phân số lớp 4, 8 câu
 BOT : (tiến độ) Đang tạo bộ câu hỏi…
 BOT : Bộ câu hỏi: 8 câu, tổng 80 điểm. [xem trước 5 câu] [Đồng ý] [Tạo lại]
 GV  : Đồng ý
-BOT : Bộ câu hỏi đã sẵn sàng. Thầy/cô muốn học sinh chơi theo cách nào?
-      [Trả lời nhanh (trắc nghiệm)] [Đua về đích / vượt chướng ngại] [Chọn mục tiêu / bắn bóng]
-      [Ghép cặp / kéo thả] [Phiêu lưu qua từng màn] [Để trợ lý gợi ý]
-GV  : (bấm) Đua về đích / vượt chướng ngại
+BOT : (tiến độ) Đang gợi ý ý tưởng game…
+BOT : Bộ câu hỏi đã sẵn sàng. Mình gợi ý vài ý tưởng game có nhiều tương tác hơn là chỉ chọn đáp án:
+      1. **Tiệm pizza phân số**
+      Học sinh cắt và giao đúng phần pizza cho khách trước khi bánh nguội.
+      Tương tác: kéo dao cắt pizza, kéo lát pizza vào đĩa khách, né ruồi bay
+      Tiến triển: 3 trái tim, combo giao đúng liên tiếp, khách đến nhanh dần qua 3 màn
+      2. … 3. …
+      [💡 Tiệm pizza phân số] [💡 …] [💡 …] [🔄 Gợi ý khác] [Để trợ lý tự chọn]
+      (gợi ý lỗi → "Mình chưa nghĩ ra ý tưởng mới lúc này…" + 6 nút cách chơi tĩnh của F01)
+GV  : (bấm) 💡 Tiệm pizza phân số
 BOT : Học sinh điều khiển game bằng gì?
-      [Chuột / chạm màn hình] [Bàn phím] [Cử động cơ thể (camera)] [Âm thanh / giọng nói (micro)]
+      [Chuột / chạm màn hình (gợi ý)] [Bàn phím] [Cử động cơ thể (camera)] [Âm thanh / giọng nói (micro)]
 GV  : dùng phím mũi tên và chuột
 BOT : Thầy/cô muốn giao diện game trông thế nào? (gõ tự do màu sắc, nhân vật, bối cảnh)
       [Hoạt hình tươi sáng] [Vũ trụ / khoa học] [Thiên nhiên] [Tối giản, dễ đọc] [Pixel cổ điển]

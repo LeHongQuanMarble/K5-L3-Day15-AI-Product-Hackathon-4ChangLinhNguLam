@@ -41,7 +41,9 @@ async def run_smoke(topic: str, num_questions: int) -> dict:
     if s.state == State.AWAIT_QUESTION_APPROVAL:
         s = await step(s.id, action=replies.BTN_QB_APPROVE)
     if s.state == State.AWAIT_GAMEPLAY:
-        s = await step(s.id, action=replies.BTN_GP_QUIZ)
+        # có ý tưởng AI -> chọn idea_1; LLM gợi ý lỗi -> nút tĩnh
+        choice = replies.idea_button_id(1) if s.game_ideas else replies.BTN_GP_QUIZ
+        s = await step(s.id, action=choice)
     if s.state == State.AWAIT_CONTROLS:
         s = await step(s.id, action=replies.BTN_CTL_KEYBOARD)
     if s.state == State.AWAIT_VISUAL:

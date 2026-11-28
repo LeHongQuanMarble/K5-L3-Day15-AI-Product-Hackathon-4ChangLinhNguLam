@@ -38,6 +38,7 @@ app/
     intake.py            # cổng game học tập + phân loại ý định
     n1_read_docs.py
     n1b_questions.py     # tạo / nạp / sửa bộ câu hỏi
+    game_ideas.py        # gợi ý 3 ý tưởng game có chiều sâu tương tác (F02)
     n2_design.py
     n3_generate.py       # sinh HTML + inject_bank
     n4_test.py           # static_check + Playwright
@@ -63,7 +64,7 @@ sessions/  output/  main_inbox/   # runtime, .gitignore
 
 ```python
 class State(StrEnum): AWAIT_REQUEST, AWAIT_SOURCE, AWAIT_SOURCE_INPUT, BUILDING_QUESTIONS,
-    AWAIT_QUESTION_APPROVAL, AWAIT_GAMEPLAY, AWAIT_CONTROLS, AWAIT_VISUAL, READY_TO_DESIGN, PIPELINE_RUNNING, AWAIT_REVIEW,
+    AWAIT_QUESTION_APPROVAL, SUGGESTING_GAMES, AWAIT_GAMEPLAY, AWAIT_CONTROLS, AWAIT_VISUAL, READY_TO_DESIGN, PIPELINE_RUNNING, AWAIT_REVIEW,
     AWAIT_REVISION_TEXT, EXPORTING, DONE, REJECTED, CANCELLED, FAILED
 class Source(StrEnum): USER="user", DOCUMENT="document", TOPIC="topic"
 
@@ -84,6 +85,9 @@ class Session(BaseModel):
     question_bank: dict = {}; question_feedback: list[str] = []
     gameplay: str = ""; controls: str = ""; visual: str = ""   # nhãn nút hoặc mô tả tự do (F01)
     controls_code: str = ""             # mouse | keyboard | motion | voice | custom
+    game_ideas: list[dict] = []         # lần gợi ý ý tưởng gần nhất (F02)
+    game_concept: dict = {}             # ý tưởng được chọn đầy đủ: title, pitch, core_loop,
+                                        # question_integration, interactions, progression, recommended_controls
     design: dict = {}; design_history: list[dict] = []
     revisions: list[str] = []; versions: list[Version] = []
     messages: list[Message] = []; events: list[dict] = []
@@ -116,6 +120,9 @@ Event SSE (JSON):
 POST /messages ─► ChatEngine.handle(session, input)        (giữ lock phiên)
                    ├─ state chờ người dùng → xử lý nhanh, trả message
                    └─ cần chạy dài → đổi state *_RUNNING, asyncio.create_task(pipeline.run_*)
+pipeline.run_suggest_games(session, avoid):          (state bận SUGGESTING_GAMES)
+   game_ideas.suggest_ideas → message ý tưởng + nút idea_1..3/ideas_more/gp_suggest → AWAIT_GAMEPLAY
+   (lỗi bất kỳ khi gợi ý → nút tĩnh F01, không FAILED; nguồn user chạy bước này ngay trong run_build_questions)
 pipeline.run_design_cycle(session, revision):
    N2 design → (question_edit? → n1b.edit) → N3 generate → N4 test
    → while fail and fix_attempts < MAX_FIX: fixer → N4

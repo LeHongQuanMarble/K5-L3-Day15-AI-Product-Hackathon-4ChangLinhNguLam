@@ -11,8 +11,9 @@ import pytest
 
 from app.chatbot import replies
 from app.chatbot.engine import ChatEngine
-from app.core.models import State
+from app.core.models import BUSY_STATES, State
 from app.nodes.n4_test import TestReport
+from tests.conftest import ideas_reply, make_ideas
 
 DESIGN = {
     "title": "Phân số vui",
@@ -47,9 +48,13 @@ def llm(fake_llm, sample_bank, reference_html):
         "intake", json.dumps({"is_educational": True, "reason": "ôn tập", "subject": "Toán", "grade": "4"})
     )
     fake_llm.add("question_gen", json.dumps(sample_bank, ensure_ascii=False))
+    fake_llm.add("game_ideas", ideas_reply())
     fake_llm.add("design", json.dumps(DESIGN, ensure_ascii=False))
     fake_llm.add("codegen", f"```html\n{reference_html}\n```")
     return fake_llm
+
+
+IDEA_IDS = ["idea_1", "idea_2", "idea_3", replies.BTN_IDEAS_MORE, replies.BTN_GP_SUGGEST]
 
 
 def make_engine(store, llm, bus, settings, tester=None) -> ChatEngine:
@@ -91,8 +96,12 @@ async def answer_requirements(
 ):
     """Đi qua 3 bước yêu cầu game bằng nút; trả session sau bước cuối (đã chạy design cycle)."""
     assert s.state == State.AWAIT_GAMEPLAY, s.error
-    assert s.messages[-1].text == replies.ASK_GAMEPLAY
-    assert [b.id for b in s.messages[-1].buttons] == [b.id for b in replies.gameplay_buttons()]
+    if s.game_ideas:
+        assert s.messages[-1].text == replies.ideas_message(s.game_ideas)
+        assert [b.id for b in s.messages[-1].buttons] == IDEA_IDS
+    else:  # gợi ý lỗi -> nút tĩnh F01
+        assert s.messages[-1].text == replies.ASK_GAMEPLAY_FALLBACK
+        assert [b.id for b in s.messages[-1].buttons] == [b.id for b in replies.gameplay_buttons()]
     s = await run(engine, s.id, action=gameplay)
     assert s.state == State.AWAIT_CONTROLS
     assert [b.id for b in s.messages[-1].buttons] == [b.id for b in replies.controls_buttons()]
@@ -391,7 +400,8 @@ async def test_requirements_free_text_no_llm(store, llm, bus, settings, sample_b
 async def test_requirements_typed_label_matches_button(store, llm, bus, settings, sample_bank) -> None:
     engine = make_engine(store, llm, bus, settings)
     s = await to_gameplay(engine, len(sample_bank["questions"]))
-    s = await run(engine, s.id, text="Để trợ lý gợi ý")
+    s = await run(engine, s.id, text="Để trợ lý tự chọn")
+    assert s.state == State.AWAIT_CONTROLS and s.game_concept == {}
     s = await run(engine, s.id, text="cử động cơ thể (camera)")
     assert s.state == State.AWAIT_VISUAL and s.controls_code == "motion"
     assert s.controls == "Cử động cơ thể (camera)"
@@ -401,7 +411,7 @@ async def test_requirements_empty_reasks(store, llm, bus, settings, sample_bank)
     engine = make_engine(store, llm, bus, settings)
     s = await to_gameplay(engine, len(sample_bank["questions"]))
     for state, ask, nxt in (
-        (State.AWAIT_GAMEPLAY, replies.ASK_GAMEPLAY, replies.BTN_GP_RACE),
+        (State.AWAIT_GAMEPLAY, replies.ideas_message(s.game_ideas), replies.BTN_GP_RACE),
         (State.AWAIT_CONTROLS, replies.ASK_CONTROLS, replies.BTN_CTL_VOICE),
         (State.AWAIT_VISUAL, replies.ASK_VISUAL, None),
     ):
@@ -437,3 +447,89 @@ async def test_event_bus_publish_subscribe(bus) -> None:
     await asyncio.wait_for(task, 1)
     assert [e["type"] for e in got] == ["state", "progress"]
     assert bus.subscriber_count("s1") == 0
+
+
+async def test_ideas_offered_and_picked(store, fake_llm, sample_bank, reference_html, bus, settings) -> None:
+    fake_llm.add("intake", json.dumps({"is_educational": True, "subject": "Toán", "grade": "4"}))
+    fake_llm.add("question_gen", json.dumps(sample_bank, ensure_ascii=False))
+    fake_llm.add("game_ideas", ideas_reply("Pizza", controls=["motion", "mouse"]))
+    fake_llm.add("design", json.dumps(DESIGN, ensure_ascii=False))
+    fake_llm.add("codegen", f"```html\n{reference_html}\n```")
+    engine = make_engine(store, fake_llm, bus, settings)
+    states: list[State] = []
+    orig = engine._transition
+
+    async def spy(s, new_state):
+        states.append(new_state)
+        await orig(s, new_state)
+
+    engine._transition = spy
+    s = await to_gameplay(engine, len(sample_bank["questions"]))
+    assert State.SUGGESTING_GAMES in states and State.SUGGESTING_GAMES in BUSY_STATES
+    assert any(e["node"] == "IDEAS" for e in s.events)
+    msg = s.messages[-1]
+    assert [b.id for b in msg.buttons] == IDEA_IDS
+    assert msg.buttons[0].label == "💡 Pizza 1" and "**Pizza 2**" in msg.text and "Tương tác:" in msg.text
+    assert len(s.game_ideas) == 3
+    s = await run(engine, s.id, action="idea_2")
+    assert s.state == State.AWAIT_CONTROLS
+    assert s.game_concept == s.game_ideas[1] and s.game_concept["title"] == "Pizza 2"
+    assert s.gameplay == "Pizza 2: Mô tả ngắn Pizza 2."
+    ctl = s.messages[-1].buttons
+    assert [b.id for b in ctl] == ["ctl_mouse", "ctl_motion", "ctl_keyboard", "ctl_voice"]
+    assert ctl[0].label.endswith("(gợi ý)") and ctl[1].label.endswith("(gợi ý)")
+    assert not ctl[2].label.endswith("(gợi ý)")
+    s = await run(engine, s.id, action="ctl_motion")
+    assert s.controls_code == "motion" and s.controls == "Cử động cơ thể (camera)"
+    s = await run(engine, s.id, action=replies.BTN_VIS_SPACE)
+    assert s.state == State.AWAIT_REVIEW, s.error
+    user = fake_llm.calls_for("design")[0]["user"]
+    assert "Ý TƯỞNG GAME GIÁO VIÊN ĐÃ CHỌN" in user and "Pizza 2" in user and "né chướng ngại" in user
+    assert s.design["question_integration"] == "đáp án là các cổng trên đường"
+    assert "Pizza 2" in fake_llm.calls_for("codegen")[0]["user"]
+    assert not fake_llm.calls_for("intent")
+
+
+async def test_ideas_more_avoids_old_titles(store, llm, bus, settings, sample_bank) -> None:
+    llm.add("game_ideas", ideas_reply("Mới"), ideas_reply("Khác"))
+    engine = make_engine(store, llm, bus, settings)
+    s = await to_gameplay(engine, len(sample_bank["questions"]))
+    s = await run(engine, s.id, action=replies.BTN_IDEAS_MORE)
+    assert s.state == State.AWAIT_GAMEPLAY, s.error
+    calls = llm.calls_for("game_ideas")
+    assert len(calls) == 2 and all(f"Ý tưởng {i}" in calls[1]["user"] for i in (1, 2, 3))
+    assert s.messages[-1].buttons[0].label == "💡 Mới 1" and s.game_ideas[0]["title"] == "Mới 1"
+    s = await run(engine, s.id, text="🔄 Gợi ý khác")  # gõ đúng nhãn nút cũng được
+    third = llm.calls_for("game_ideas")[2]["user"]
+    assert "Ý tưởng 1" in third and "Mới 3" in third
+    assert s.game_ideas[0]["title"] == "Khác 1"
+    s = await run(engine, s.id, action="idea_1")
+    assert s.game_concept["title"] == "Khác 1"
+
+
+async def test_ideas_llm_error_falls_back(
+    store, fake_llm, sample_bank, reference_html, bus, settings
+) -> None:
+    fake_llm.add("intake", json.dumps({"is_educational": True}))
+    fake_llm.add("question_gen", json.dumps(sample_bank, ensure_ascii=False))
+    fake_llm.add("game_ideas", json.dumps({"ideas": make_ideas()["ideas"][:1]}))
+    fake_llm.add("design", json.dumps(DESIGN, ensure_ascii=False))
+    fake_llm.add("codegen", f"```html\n{reference_html}\n```")
+    engine = make_engine(store, fake_llm, bus, settings)
+    s = await to_gameplay(engine, len(sample_bank["questions"]))
+    assert s.error is None and not s.game_ideas
+    assert s.messages[-1].text == replies.ASK_GAMEPLAY_FALLBACK
+    s = await answer_requirements(engine, s, gameplay=replies.BTN_GP_RACE)
+    assert s.state == State.AWAIT_REVIEW, s.error
+    assert s.game_concept == {} and s.gameplay == "Đua về đích / vượt chướng ngại"
+
+
+async def test_ideas_more_error_keeps_old_ideas(store, llm, bus, settings, sample_bank) -> None:
+    llm.add("game_ideas", "không phải JSON")
+    engine = make_engine(store, llm, bus, settings)
+    s = await to_gameplay(engine, len(sample_bank["questions"]))
+    s = await run(engine, s.id, action=replies.BTN_IDEAS_MORE)
+    assert s.state == State.AWAIT_GAMEPLAY and s.messages[-1].text == replies.ASK_GAMEPLAY_FALLBACK
+    assert s.game_ideas[0]["title"] == "Ý tưởng 1"
+    s = await run(engine, s.id, action="idea_3")
+    assert s.state == State.AWAIT_CONTROLS and s.game_concept["title"] == "Ý tưởng 3"

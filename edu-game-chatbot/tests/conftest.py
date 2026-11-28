@@ -13,6 +13,28 @@ FIXTURES = Path(__file__).parent / "fixtures"
 Reply = str | Callable[[str, str], str]  # chuỗi cố định hoặc hàm (system, user) -> str
 
 
+def make_ideas(prefix: str = "Ý tưởng", controls: list[str] | None = None) -> dict:
+    """3 ý tưởng game hợp lệ (output prompt game_ideas) cho kịch bản FakeLLM."""
+    return {
+        "ideas": [
+            {
+                "title": f"{prefix} {i}",
+                "pitch": f"Mô tả ngắn {prefix} {i}.",
+                "core_loop": "di chuyển tới đáp án đúng",
+                "question_integration": "đáp án là các cổng trên đường",
+                "interactions": ["di chuyển nhân vật", "né chướng ngại"],
+                "progression": "3 mạng, combo, màn khó dần",
+                "recommended_controls": controls or ["keyboard", "mouse"],
+            }
+            for i in (1, 2, 3)
+        ]
+    }
+
+
+def ideas_reply(prefix: str = "Ý tưởng", controls: list[str] | None = None) -> str:
+    return json.dumps(make_ideas(prefix, controls), ensure_ascii=False)
+
+
 class FakeLLM:
     """LLM giả: chọn câu trả lời theo tên prompt (dòng đầu '# prompt: <name>' của system)."""
 
@@ -100,10 +122,11 @@ def reference_html() -> str:
 
 @pytest.fixture
 def happy_llm(fake_llm: FakeLLM, sample_bank: dict, reference_html: str) -> FakeLLM:
-    """Kịch bản trọn luồng thành công: intake ok -> question_gen -> design -> codegen(reference)."""
+    """Kịch bản trọn luồng thành công: intake ok -> question_gen -> game_ideas -> design -> codegen(reference)."""
     intake = {"is_educational": True, "reason": "ôn tập", "subject": "Toán", "grade": "4"}
     fake_llm.add("intake", json.dumps(intake, ensure_ascii=False))
     fake_llm.add("question_gen", json.dumps(sample_bank, ensure_ascii=False))
+    fake_llm.add("game_ideas", ideas_reply())
     fake_llm.add(
         "design",
         json.dumps(
