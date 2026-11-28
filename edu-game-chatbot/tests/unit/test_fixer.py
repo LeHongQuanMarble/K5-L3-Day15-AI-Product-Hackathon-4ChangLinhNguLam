@@ -29,9 +29,7 @@ async def test_fix_increments_attempts(tmp_path, settings, fake_llm, sample_bank
 async def test_fix_overwrites_same_version(tmp_path, settings, fake_llm, sample_bank, reference_html) -> None:
     session, v = _setup(tmp_path, sample_bank, reference_html)
     fixed = reference_html.replace("</body>", "<!--fixed--></body>", 1)
-    fake_llm.add("fix", f"```html
-{fixed}
-```")
+    fake_llm.add("fix", f"```html\n{fixed}\n```")
     await fix(fake_llm, settings, session, v, ["e1"])
     assert "<!--fixed-->" in _read(v)
     assert v.number == 1 and len(session.versions) == 0
