@@ -11,12 +11,15 @@ import json
 import sqlite3
 
 import contract
+import os
 import store
 
 SCHEMA_VERSION = "1.0"
 MOUSE_KIND = "mouse"
 SUPPORTED_MODEL_KINDS = ("hands", "image", "pose")
-UNSUPPORTED_RUNTIME_KINDS = ("audio",)
+# Audio (phân lớp âm thanh) có runtime host đầy đủ nhưng TẮT MẶC ĐỊNH để bảo toàn Frozen Evaluation
+# Registry (B24/B30). Bật đồng bộ với chatbot.catalog bằng AILAB_ENABLE_AUDIO=1.
+UNSUPPORTED_RUNTIME_KINDS = ("audio",) if os.environ.get("AILAB_ENABLE_AUDIO", "") != "1" else ()
 FALLBACK_CASES = (
     "no_model", "model_loading", "model_failed", "no_camera", "camera_denied", "camera_off",
 )
@@ -185,7 +188,9 @@ def validate_compatibility(player, model=None, exam=None, mapping=None, plan=Non
                                % (p["name"], e["name"]))
             else:
                 input_keys = {i.get("key") for i in man.get("inputs", [])}
-                if input_keys:
+                # Chỉ đối chiếu đáp án với input_keys khi player dùng input làm khóa đáp án (A..F / T / F);
+                # game hành động như grab/release (Tết 2027) nhận bộ đề câu hỏi độc lập với khóa cử chỉ.
+                if input_keys and (input_keys & set("ABCDEFT")):
                     unknown = sorted({q["answer"] for q in e["questions"]} - input_keys)
                     if unknown:
                         reasons.append("Bộ đề '%s' có đáp án %s nhưng player '%s' chỉ nhận %s."

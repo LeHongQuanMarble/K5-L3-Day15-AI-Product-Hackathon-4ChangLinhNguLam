@@ -29,6 +29,8 @@ import ai  # noqa: E402  (ProviderError — định nghĩa ở codebase/ai.py)
 import agent  # noqa: E402  (Shared Core, dùng chung với python run.py)
 import application_contract as ac  # noqa: E402
 import contract  # noqa: E402
+import conversation_state as conv_state  # noqa: E402
+import guardrails  # noqa: E402
 import store  # noqa: E402
 import tracing  # noqa: E402
 
@@ -73,8 +75,12 @@ def provider_error(exc):
     return BridgeError(status, code, hint)
 
 
-def trusted_registry(c, user=None):
-    """Registry tin cậy lấy từ Catalog hiện tại theo quyền của user (để validate_application_plan ở ranh giới)."""
+def trusted_registry(c, user=None, include_showcase=False):
+    """Registry tin cậy lấy từ Catalog hiện tại theo quyền của user (để validate_application_plan ở ranh giới).
+
+    `include_showcase=False` (mặc định): khớp frozen Catalog CLI/Eval (chỉ 2 player mẫu).
+    `include_showcase=True` (Web runtime): bao gồm cả game mẫu showcase đã duyệt (vd Tết 2027 hỗ trợ Model Bàn tay).
+    """
     def rows(sql, params=()):
         out = []
         for r in c.execute(sql, params).fetchall():
@@ -94,25 +100,26 @@ def trusted_registry(c, user=None):
 
     is_admin = isinstance(user, dict) and user.get("role") == "admin"
     uid = user.get("id") if isinstance(user, dict) else None
+    src_filter = "" if include_showcase else " AND source<>'showcase'"
 
     if is_admin:
-        players = rows("SELECT id,name,manifest FROM players WHERE status='approved' AND source<>'showcase' ORDER BY id")
-        models = rows("SELECT id,name,kind,outputs FROM models ORDER BY id")
+        players = rows("SELECT id,name,manifest FROM players WHERE status='approved'" + src_filter + " ORDER BY id")
+        models = rows("SELECT id,name,kind,outputs,status FROM models ORDER BY id")
         exams = rows("SELECT id,name,content FROM exams ORDER BY id")
     elif uid is not None:
         players = rows(
-            "SELECT id,name,manifest FROM players WHERE status='approved' AND source<>'showcase' "
-            "AND (visibility='public' OR owner_id IS NULL OR owner_id=?) ORDER BY id",
+            "SELECT id,name,manifest FROM players WHERE status='approved'" + src_filter +
+            " AND (visibility='public' OR owner_id IS NULL OR owner_id=?) ORDER BY id",
             (uid,),
         )
-        models = rows("SELECT id,name,kind,outputs FROM models WHERE visibility='public' OR owner_id=? ORDER BY id", (uid,))
+        models = rows("SELECT id,name,kind,outputs,status FROM models WHERE visibility='public' OR owner_id=? ORDER BY id", (uid,))
         exams = rows("SELECT id,name,content FROM exams WHERE owner_id IN (0, ?) ORDER BY id", (uid,))
     else:
         players = rows(
-            "SELECT id,name,manifest FROM players WHERE status='approved' AND source<>'showcase' "
-            "AND (visibility='public' OR owner_id IS NULL) ORDER BY id"
+            "SELECT id,name,manifest FROM players WHERE status='approved'" + src_filter +
+            " AND (visibility='public' OR owner_id IS NULL) ORDER BY id"
         )
-        models = rows("SELECT id,name,kind,outputs FROM models WHERE visibility='public' ORDER BY id")
+        models = rows("SELECT id,name,kind,outputs,status FROM models WHERE visibility='public' ORDER BY id")
         exams = rows("SELECT id,name,content FROM exams WHERE owner_id=0 ORDER BY id")
 
     return {"players": players, "models": models, "exams": exams}
@@ -128,10 +135,11 @@ def call(payload, case_id="web-req", registry=None):
     Không nuốt ProviderError — để server ánh xạ thành 502/503.
     """
     session_id = payload.get("session_id") if isinstance(payload, dict) else None
+    updated_state = None
     with _TRACE_LOCK:
         tracing.begin(str(session_id or case_id))
         try:
-            envelope = agent.run_agent(payload, registry=registry)
+            envelope, updated_state = agent.run_agent_with_state(payload, registry=registry)
         except ai.ProviderError as exc:
             # Kết thúc trace để ghi trung thực lỗi, rồi ném ra cho server ánh xạ 502/503.
             tracing.end()
@@ -148,7 +156,7 @@ def call(payload, case_id="web-req", registry=None):
     ui["knowledge_review_required"] = bool(needs_review)
     ui["hitl"] = {"status": "draft", "can_publish": False}
     return {"envelope": envelope, "ui": ui, "trace": summary, "events": events,
-            "knowledge_review_required": bool(needs_review)}
+            "knowledge_review_required": bool(needs_review), "conversation_state": updated_state}
 
 
 def plan_hash(plan):
@@ -468,6 +476,12 @@ def publish_and_persist(c, body, user, registry=None):
         )
         if ucur.rowcount != 1:
             raise BridgeError(409, "already_published", "Bản nháp này đã được xử lý đồng thời trước đó.")
+        # Đồng bộ trạng thái conversation nếu có bản ghi đang gắn với draft này
+        if c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='agent_conversations'").fetchone():
+            c.execute(
+                "UPDATE agent_conversations SET status='approved', updated=? WHERE active_draft_id=? AND user_id=?",
+                (now, row["id"], user["id"]),
+            )
         c.commit()
     except (BridgeError, store.Err):
         c.rollback()
@@ -484,3 +498,138 @@ def publish_and_persist(c, body, user, registry=None):
         "exam_id": exam_id,
         "share": 0,
     }
+
+
+# ---------- P0 Conversation Persistence (SQLite, user-isolated, sanitized) ----------
+def _ensure_conversations_table(c):
+    c.execute(
+        "CREATE TABLE IF NOT EXISTS agent_conversations("
+        "id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, title TEXT NOT NULL DEFAULT '', "
+        "state_json TEXT NOT NULL DEFAULT '{}', messages_json TEXT NOT NULL DEFAULT '[]', "
+        "active_draft_id INTEGER, active_plan_hash TEXT NOT NULL DEFAULT '', "
+        "status TEXT NOT NULL DEFAULT 'collecting', created REAL NOT NULL, updated REAL NOT NULL)"
+    )
+
+
+def _sanitize_stored_text(text, limit=2000):
+    """Không lưu API key/secret hoặc data:image/audio base64 vào SQLite."""
+    s = guardrails.redact_text(str(text or ""), limit)
+    if "data:image/" in s or "data:audio/" in s:
+        s = s.split("data:")[0].strip() + " [media omitted]"
+    return s[:limit]
+
+
+def list_conversations(c, user):
+    """Liệt kê các cuộc trò chuyện thuộc quyền sở hữu của user."""
+    _ensure_conversations_table(c)
+    rows = c.execute(
+        "SELECT id, title, active_draft_id, status, created, updated "
+        "FROM agent_conversations WHERE user_id=? ORDER BY updated DESC, id DESC LIMIT 100",
+        (user["id"],),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_conversation(c, conv_id, user):
+    """Đọc 1 cuộc trò chuyện theo conversation_id + user_id (chặn truy cập chéo user)."""
+    _ensure_conversations_table(c)
+    row = c.execute(
+        "SELECT * FROM agent_conversations WHERE id=? AND user_id=?",
+        (int(conv_id), user["id"]),
+    ).fetchone()
+    if not row:
+        raise BridgeError(404, "conversation_not_found", "Không tìm thấy cuộc trò chuyện hoặc bạn không có quyền truy cập.")
+    try:
+        raw_state = json.loads(row["state_json"] or "{}")
+    except ValueError:
+        raw_state = {}
+    try:
+        messages = json.loads(row["messages_json"] or "[]")
+    except ValueError:
+        messages = []
+    st = conv_state.normalize_state(raw_state, conversation_id=row["id"], user_id=user["id"])
+    st["active_draft_id"] = row["active_draft_id"]
+    st["active_plan_hash"] = row["active_plan_hash"] or None
+    if row["status"] in conv_state.VALID_CONVERSATION_STATUSES:
+        st["conversation_status"] = row["status"]
+    return {
+        "conversation_id": row["id"],
+        "user_id": row["user_id"],
+        "title": row["title"],
+        "messages": messages,
+        "conversation_state": st,
+        "missing_requirements": st.get("missing_requirements") or [],
+        "active_draft_id": row["active_draft_id"],
+        "active_plan_hash": row["active_plan_hash"] or None,
+        "conversation_status": st["conversation_status"],
+        "created": row["created"],
+        "updated": row["updated"],
+    }
+
+
+def create_conversation(c, user, title=""):
+    """Tạo cuộc trò chuyện mới hoàn toàn độc lập (không kế thừa state cũ)."""
+    _ensure_conversations_table(c)
+    now = time.time()
+    clean_title = _sanitize_stored_text(title or "Cuộc trò chuyện mới", 80)
+    cur = c.execute(
+        "INSERT INTO agent_conversations(user_id, title, state_json, messages_json, status, created, updated) "
+        "VALUES(?, ?, '{}', '[]', 'collecting', ?, ?)",
+        (user["id"], clean_title, now, now),
+    )
+    cid = cur.lastrowid
+    st = conv_state.new_state(conversation_id=cid, user_id=user["id"])
+    c.execute(
+        "UPDATE agent_conversations SET state_json=? WHERE id=?",
+        (json.dumps(st, ensure_ascii=False), cid),
+    )
+    c.commit()
+    return get_conversation(c, cid, user)
+
+
+def save_conversation_turn(c, conv_id, user, user_text, bot_resp, state, active_draft_id=None, active_plan_hash=None):
+    """Lưu lượt hội thoại + structured state vào SQLite (giữ tối đa 60 tin nhắn gần nhất, không lưu HTML thô/secrets)."""
+    conv = get_conversation(c, conv_id, user)
+    msgs = list(conv["messages"])
+    now = time.time()
+    clean_user = _sanitize_stored_text(user_text, 2000)
+    clean_bot = _sanitize_stored_text((bot_resp or {}).get("message") or "", 4000)
+    msgs.append({"role": "user", "text": clean_user, "at": now})
+    bot_entry = {
+        "role": "bot",
+        "text": clean_bot,
+        "decision": (bot_resp or {}).get("decision"),
+        "status": (bot_resp or {}).get("status"),
+        "draft_id": active_draft_id,
+        "at": now,
+    }
+    msgs.append(bot_entry)
+    msgs = msgs[-60:]
+
+    st = conv_state.normalize_state(state, conversation_id=int(conv_id), user_id=user["id"])
+    if active_draft_id is not None:
+        st["active_draft_id"] = int(active_draft_id)
+        st["active_plan_hash"] = active_plan_hash or None
+        st["conversation_status"] = "draft_pending"
+
+    title = conv["title"]
+    if not title or title == "Cuộc trò chuyện mới":
+        title = clean_user[:60] or "Cuộc trò chuyện mới"
+
+    c.execute(
+        "UPDATE agent_conversations SET title=?, state_json=?, messages_json=?, active_draft_id=?, active_plan_hash=?, status=?, updated=? "
+        "WHERE id=? AND user_id=?",
+        (
+            title,
+            json.dumps(st, ensure_ascii=False),
+            json.dumps(msgs, ensure_ascii=False),
+            st.get("active_draft_id"),
+            st.get("active_plan_hash") or "",
+            st.get("conversation_status") or "collecting",
+            now,
+            int(conv_id),
+            user["id"],
+        ),
+    )
+    c.commit()
+    return st

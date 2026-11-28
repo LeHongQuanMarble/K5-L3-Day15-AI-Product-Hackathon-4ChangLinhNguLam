@@ -3,11 +3,15 @@ import base64
 import re
 import hashlib
 import hmac
+import http.client
 import json
 import os
 import secrets
 import sqlite3
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 
 import contract
 import llm
@@ -146,7 +150,8 @@ def init(admin_password=None):
     c.executescript(SCHEMA)
     import rooms  # noqa: PLC0415  (rooms nhập store → nhập muộn để khỏi vòng)
     rooms.ensure(c)
-    for table, col, ddl in (("models", "image", "TEXT NOT NULL DEFAULT ''"), ("players", "image", "TEXT NOT NULL DEFAULT ''"),
+    for table, col, ddl in (("models", "image", "TEXT NOT NULL DEFAULT ''"), ("models", "status", "TEXT NOT NULL DEFAULT 'ready'"),
+                            ("players", "image", "TEXT NOT NULL DEFAULT ''"),
                             ("apps", "image", "TEXT NOT NULL DEFAULT ''"), ("apps", "exam_id", "INTEGER")):
         if col not in {r[1] for r in c.execute("PRAGMA table_info(%s)" % table)}:  # DB cũ: thêm cột, không mất dữ liệu
             c.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, col, ddl))
@@ -285,7 +290,119 @@ def model_row(r, user, apps_using=None):
     d["outputs"] = json.loads(d["outputs"])
     d["mine"] = r["owner_id"] == user["id"]
     d["usedBy"] = apps_using or 0
+    # Model sẵn sàng: status != 'broken' (URL chết / artifact 404 sẽ bị đánh dấu broken khi tạo)
+    d["ready"] = (d.get("status") or "ready") != "broken"
     return d
+
+
+# Host được phép cho kiểm artifact model (kể cả đích redirect — chống SSRF sang IP private/localhost):
+# URL nguồn bị clean_model giới hạn ở Teachable Machine; redirect của TM đi tới storage Google.
+_ALLOWED_MODEL_HOSTS = ("teachablemachine.withgoogle.com", "storage.googleapis.com", "storage.cloud.google.com")
+
+
+def _model_host_allowed(host):
+    """Chỉ chấp nhận host trong allow-list VÀ phân giải ra IP công khai (chặn SSRF về LAN/loopback)."""
+    import ipaddress
+    import socket
+    h = (host or "").lower()
+    if not any(h == s or h.endswith("." + s) for s in _ALLOWED_MODEL_HOSTS):
+        return False
+    try:
+        for _fam, _typ, _proto, _canon, sa in socket.getaddrinfo(h, 443):
+            ip = ipaddress.ip_address(sa[0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                return False
+    except (socket.gaierror, ValueError):
+        return False
+    return True
+
+
+def _model_verified_ip(host):
+    """Phân giải host trong allow-list, trả MỘT chuỗi IP công khai đã kiểm (None nếu không hợp lệ).
+    IP này được dùng TRỰC TIẾP để kết nối — diệt DNS rebinding (không resolve lần 2 lúc request)."""
+    import ipaddress
+    import socket
+    h = (host or "").lower()
+    if not any(h == s or h.endswith("." + s) for s in _ALLOWED_MODEL_HOSTS):
+        return None
+    try:
+        for _fam, _typ, _proto, _canon, sa in socket.getaddrinfo(h, 443, proto=socket.IPPROTO_TCP):
+            ip = ipaddress.ip_address(sa[0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                return None
+            return str(ip)  # IP đầu tiên hợp lệ — mọi IP khác cũng đã qua cùng bộ lọc ở _model_host_allowed
+    except (socket.gaierror, ValueError):
+        return None
+    return None
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """HTTPSConnection kết nối tới IP ĐÃ XÁC MINH nhưng giữ SNI/chứng chỉ theo hostname."""
+
+    def __init__(self, host, ip, timeout=None):
+        super().__init__(host, timeout=timeout)
+        self._pin_ip = ip
+
+    def connect(self):
+        import socket as _socket
+        self.sock = _socket.create_connection((self._pin_ip, self.port), timeout=self.timeout)
+        self.sock = self._context.wrap_socket(self.sock, server_hostname=self.host)
+
+
+def _model_check_get(url, timeout=2.5):
+    """GET model.json bằng kết nối ghim IP (chống DNS rebinding), tự theo redirect tối đa 3 hop,
+    mỗi hop kiểm lại scheme https + host allow-list + IP công khai. Trả True/False."""
+    u = urllib.parse.urlsplit(url)
+    for _hop in range(3):
+        if u.scheme != "https":
+            return False
+        ip = _model_verified_ip(u.hostname)
+        if ip is None:
+            return False
+        conn = _PinnedHTTPSConnection(u.hostname, ip, timeout=timeout)
+        try:
+            path = u.path or "/"
+            if u.query:
+                path += "?" + u.query
+            conn.request("GET", path, headers={"Host": u.hostname, "User-Agent": "ailab-model-check/1"})
+            resp = conn.getresponse()
+            body_head = resp.read(4096)
+            if resp.status in (301, 302, 303, 307, 308):
+                loc = resp.getheader("Location")
+                conn.close()
+                if not loc:
+                    return False
+                u2 = urllib.parse.urlsplit(urllib.parse.urljoin(u.geturl(), loc))
+                if u2.scheme != "https":
+                    return False
+                u = u2
+                continue
+            conn.close()
+            return resp.status < 400
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            raise
+
+
+def check_model_url(url, timeout=2.5):
+    """Kiểm nhanh artifact model có tải được không (GET model.json). `jl:builtin` luôn sẵn sàng.
+    An toàn SSRF (Codex round 2): kết nối ghim vào IP đã xác minh (diệt DNS rebinding), chỉ https +
+    host allow-list, mỗi hop redirect kiểm lại, chặn IP private. Trả True/False — không raise
+    (lỗi mạng/timeout chỉ nghĩa là 'chưa xác minh' → coi như sẵn sàng; broken chỉ khi chắc chắn
+    4xx/5xx hoặc đích không hợp lệ)."""
+    if not isinstance(url, str) or not url or url.startswith("jl:"):
+        return True
+    base = url if url.endswith("/") else url + "/"
+    u = urllib.parse.urlsplit(base)
+    if u.scheme != "https" or not _model_host_allowed(u.hostname):
+        return False  # ngoài allow-list (hoặc trông như URL nội bộ) → không được tin là READY
+    try:
+        return _model_check_get(base + "model.json", timeout=timeout)
+    except Exception:
+        return True  # mạng lỗi/timeout: không kết luận là broken
 
 
 def model_visible(r, user):

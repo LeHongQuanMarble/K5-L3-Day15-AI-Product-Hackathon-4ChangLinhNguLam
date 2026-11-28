@@ -7,6 +7,27 @@ if (room) { var backLink = document.getElementById('back'); backLink.href = '/ro
 var frame = document.getElementById('stage'), title = document.getElementById('title'), status = document.getElementById('status'), camBtn = document.getElementById('cam');
 var errBox = document.getElementById('play-error'), errText = document.getElementById('play-error-msg'), retryBtn = document.getElementById('retry');
 var data = null, host = null, speech = null, autoTried = false;
+var debugEnabled = new URLSearchParams(location.search).get('debug') === '1', debugPanel = null;
+var debugState = { lastRuntimeEvent: null };
+if (debugEnabled) {
+  debugPanel = document.createElement('pre'); debugPanel.setAttribute('aria-label', 'Chẩn đoán runtime');
+  debugPanel.style.cssText = 'position:fixed;z-index:9999;right:10px;bottom:10px;max-width:min(420px,calc(100vw - 20px));max-height:42vh;overflow:auto;margin:0;padding:10px 12px;border:1px solid #64748b;border-radius:8px;background:#07111eef;color:#e2e8f0;font:12px/1.45 ui-monospace,monospace;white-space:pre-wrap;pointer-events:none';
+  document.body.appendChild(debugPanel);
+}
+function updateDebug(next) {
+  if (!debugEnabled || !debugPanel) return;
+  if (next) debugState = Object.assign({}, debugState, next);
+  var pred = debugState.prediction;
+  debugPanel.textContent = 'RUNTIME DEBUG (real signals)\n' +
+    'Media: ' + (debugState.media || '—') + ' / ' + (debugState.mediaActive ? 'active' : 'inactive') + '\n' +
+    'Model: ' + (debugState.modelStatus || 'not-loaded') + '\n' +
+    'Inference: ' + (debugState.inferenceRunning ? 'running' : 'waiting') + ' / ' + (debugState.inferenceFps || 0) + ' FPS\n' +
+    'Prediction: ' + (pred ? pred.label + ' (' + Number(pred.confidence).toFixed(3) + ')' : '—') + '\n' +
+    'Mapped action: ' + (debugState.mappedAction || '—') + '\n' +
+    'Last event: ' + JSON.stringify(debugState.lastEvent || debugState.lastRuntimeEvent || null) + '\n' +
+    'Error: ' + (debugState.error || '—');
+}
+updateDebug();
 import('/js/host-input.js').then(function (mod) { speech = mod.createSpeech(frame, say); }).catch(function () {});
 function say(t) { status.textContent = t; }
 function toFrame(m, transfer) { frame.contentWindow.postMessage(m, '*', transfer || []); }
@@ -28,6 +49,7 @@ window.addEventListener('message', function (e) {
   }
   if (e.data.type === 'speech' && speech) speech.message(e.data);
   if (e.data.type === 'camera.want' || e.data.type === 'hands') {
+    updateDebug({ lastRuntimeEvent: { type: e.data.type, on: !!e.data.on, source: 'player' } });
     if (host) host.message(e.data);
     else if (e.data.type === 'hands' && e.data.on === true) toFrame({ type: 'camera.hand', hands: [], available: false });
   }
@@ -49,7 +71,8 @@ function makeHost(d) {
   camBtn.textContent = 'Bật ' + thing;
   return import('/js/host-input.js').then(function (mod) {
     host = mod.createHostInput({ frame: frame, model: d.model, mapping: d.mapping, sure: d.sure, holdMs: d.holdMs, fallbackHint: mouseHint(),
-      onSay: say, onRunning: function (r) { camBtn.disabled = r === null; camBtn.textContent = (r ? 'Tắt ' : 'Bật ') + thing; } });
+      onSay: say, onDiagnostics: updateDebug,
+      onRunning: function (r) { camBtn.disabled = r === null; camBtn.textContent = (r ? 'Tắt ' : 'Bật ') + thing; } });
   });
 }
 function stopHost(keep) { if (host) host.stop(keep); if (speech) speech.stop(); }

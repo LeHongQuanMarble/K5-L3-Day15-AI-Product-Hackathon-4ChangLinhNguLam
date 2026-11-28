@@ -38,6 +38,7 @@ class Keywords(unittest.TestCase):
         self.assertEqual(gf.keywords("bằng tư thế cơ thể")["interaction"], "pose")
         self.assertEqual(gf.keywords("dùng camera")["interaction"], "image")
         self.assertIsNone(gf.keywords("game tiếng Việt cho lớp 1")["interaction"])  # "tiếng" một mình không phải âm thanh
+        self.assertIsNone(gf.keywords("game tiếng Anh 4 đáp án")["interaction"])  # "tiếng Anh" không phải hình ảnh
 
     def test_subject_is_irrelevant(self):
         for msg in ("game Toán 4 đáp án chỉ chuột", "game Lịch sử 4 đáp án chỉ chuột"):
@@ -158,6 +159,73 @@ class Flow(unittest.TestCase):
             gf.fix(self.c, other, out["draft_id"], "sửa đi")
         with self.assertRaises(agent_bridge.BridgeError):
             gf.accept(self.c, other, out["draft_id"])
+
+    def test_parse_extract_json_without_decision(self):
+        raw = '```json\n{"intent": "create_game", "answers": 4, "interaction": "audio", "notes": "đổi màu", "name": "Quiz âm thanh"}\n```'
+        parsed = gf._parse_extract_json(raw)
+        self.assertIsInstance(parsed, dict)
+        self.assertEqual(parsed["answers"], 4)
+        self.assertEqual(parsed["interaction"], "audio")
+        self.assertIsNone(gf._parse_extract_json("không phải json"))
+
+    def test_catalog_list_query_shows_all_games_even_with_existing_brief(self):
+        prev = gf.clean_brief({"answers": 4, "interaction": "image"})
+        for q in ("show game trong kho", "trong kho trò chơi có những trò nào", "liệt kê các trò chơi có sẵn"):
+            r = gf.step(self.c, self.u, q, prev)
+            self.assertEqual(r["stage"], "catalog", msg=q)
+            self.assertEqual(len(r["players"]), len(FIXED_PLAYERS))
+            self.assertIn("Quiz ABCD bằng cử chỉ", r["message"])
+            self.assertIn("Vòng quay chọn tên", r["message"])
+            self.assertIn("Chim Bay Nói", r["message"])
+            self.assertEqual(r["brief"], prev)
+
+    def test_force_new_skips_quiz_reuse_and_chips_are_pure(self):
+        self.assertNotIn("Xem các game trong kho", gf.CHIPS_ANSWERS)
+        self.assertNotIn("Xem các game trong kho", gf.CHIPS_INTERACTION)
+        self.assertIn("Xem các game trong kho", gf.CHIPS_DISAMBIGUATE)
+        self.assertIn("Soạn trò chơi mới", gf.CHIPS_DISAMBIGUATE)
+        r = gf.step(self.c, self.u, "game ABCD bằng hình ảnh", None)
+        self.assertEqual(r["stage"], "plan")
+        self.assertEqual(r["plan"]["player"]["mode"], "reuse_existing")
+        r2 = gf.step(self.c, self.u, "đừng dùng game quiz hãy tạo game khác đi", r["brief"])
+        self.assertEqual(r2["stage"], "plan")
+        self.assertEqual(r2["plan"]["player"]["mode"], "generate_new")
+        self.assertTrue(r2["brief"].get("force_new"))
+
+    def test_vague_request_asks_disambiguate_before_answers_and_interaction(self):
+        for vague in ("tạo game từ model trong kho trò chơi", "tạo game"):
+            r = gf.step(self.c, self.u, vague, None)
+            self.assertEqual(r["stage"], "disambiguate", msg=vague)
+            self.assertEqual(r["quick_replies"], gf.CHIPS_DISAMBIGUATE)
+        r_new = gf.step(self.c, self.u, "Soạn trò chơi mới", r["brief"])
+        self.assertEqual(r_new["stage"], "ask")
+        self.assertIn("mấy đáp án", r_new["message"])
+        self.assertNotIn("Xem các game trong kho", r_new["quick_replies"])
+
+    def test_specific_game_idea_matches_penalty_or_generates_new_never_blind_quiz(self):
+        penalty_players = FIXED_PLAYERS + [{
+            "id": 4,
+            "name": "Sút Penalty 3D",
+            "manifest": {
+                "kinds": ["pose", "image", "audio", "hands"],
+                "questions": "exam",
+                "inputs": [{"key": k, "required": k in ("A", "B"), "accepts": ["action"]} for k in "ABCDEF"],
+            },
+        }]
+        agent_bridge.trusted_registry = lambda c, user=None: {"players": penalty_players, "models": [], "exams": []}
+        # 1. Yêu cầu Sút Penalty (gõ nhầm 'penaty') → khớp đúng Sút Penalty 3D (#4), không rơi về Quiz (#1)
+        r1 = gf.step(self.c, self.u, "làm game sút game penaty", gf.clean_brief({"answers": 4, "interaction": "image"}))
+        self.assertEqual(r1["stage"], "ask")  # đổi sang game mới -> không rò rỉ answers/interaction cũ
+        r2 = gf.step(self.c, self.u, "4 đáp án (A, B, C, D)", r1["brief"])
+        self.assertEqual(r2["stage"], "ask")
+        r3 = gf.step(self.c, self.u, "Tư thế", r2["brief"])
+        self.assertEqual(r3["stage"], "plan")
+        self.assertEqual(r3["plan"]["player"]["mode"], "reuse_existing")
+        self.assertEqual(r3["plan"]["player"]["player_id"], 4)
+        # 2. Yêu cầu game mới không có trong kho ('đua xe vượt chướng ngại vật') → generate_new, KHÔNG ép về Quiz (#1)
+        rc = gf.step(self.c, self.u, "làm game đua xe vượt chướng ngại vật 4 đáp án bằng tư thế", None)
+        self.assertEqual(rc["stage"], "plan")
+        self.assertEqual(rc["plan"]["player"]["mode"], "generate_new")
 
 
 if __name__ == "__main__":

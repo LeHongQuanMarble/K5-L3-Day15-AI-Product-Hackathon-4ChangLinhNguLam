@@ -11,6 +11,7 @@ Nhiệm vụ:
 Không có bất kỳ công cụ nào cấp APPROVED hoặc ghi vào Catalog chính thức.
 """
 import copy
+import json
 import os
 import re
 import sys
@@ -32,6 +33,8 @@ from chatbot import schemas  # noqa: E402
 MAX_MESSAGE_LEN = 4000
 ALLOWED_REQUEST_KEYS = {
     "session_id",
+    "conversation_id",
+    "conversation_state",
     "message",
     "history",
     "document_ids",
@@ -213,8 +216,17 @@ def validate_request_input(request):
     if mode not in (None, "auto", "reuse_existing", "generate_new"):
         return None, [ac.issue("invalid_input", "generation_mode không hợp lệ.", "generation_mode")]
 
+    conv_id = request.get("conversation_id")
+    if conv_id is not None and not (ac._id(conv_id) or (isinstance(conv_id, str) and 1 <= len(conv_id.strip()) <= 128)):
+        return None, [ac.issue("invalid_input", "conversation_id phải là số nguyên dương hoặc chuỗi 1–128 ký tự.", "conversation_id")]
+    conv_state = request.get("conversation_state")
+    if conv_state is not None and not isinstance(conv_state, dict):
+        return None, [ac.issue("invalid_input", "conversation_state phải là object JSON hoặc null.", "conversation_state")]
+
     return {
         "session_id": session_id.strip(),
+        "conversation_id": conv_id.strip() if isinstance(conv_id, str) else conv_id,
+        "conversation_state": conv_state,
         "message": message.strip(),
         "history": history,
         "document_ids": doc_ids,
@@ -355,16 +367,27 @@ def format_catalog_context(registry: dict) -> str:
                 cnt = 0
         lines.append("   - id=%s | name=\"%s\" | so_cau=%d" % (e["id"], e["name"], cnt))
     lines.append("4. GIỚI HẠN RUNTIME BẮT BUỘC:")
-    lines.append("   - Runtime hỗ trợ kinds: hands, image, pose (và chuột mouse).")
-    lines.append("   - Runtime CHƯA hỗ trợ audio / giọng nói (không được ghép hay bịa model giọng nói).")
+    from chatbot import catalog as _chatbot_catalog  # noqa: PLC0415  (nhập muộn tránh vòng)
+    _runtime_kinds = ", ".join(_chatbot_catalog.RUNTIME_KINDS)
+    lines.append("   - Runtime hỗ trợ kinds: %s (và chuột mouse)." % _runtime_kinds)
+    if "audio" in _chatbot_catalog.RUNTIME_KINDS:
+        lines.append("   - Model kind=`audio` (micro, phân lớp âm thanh) ĐÃ được Runtime hỗ trợ: ghép/GENERATE như image/pose; lớp vai trò empty/rest không ghép vào ô đáp án.")
+    else:
+        lines.append("   - Runtime CHƯA hỗ trợ audio / giọng nói (không được ghép hay bịa model giọng nói).")
     lines.append("   - Mọi trò chơi BẮT BUỘC bật Mouse Fallback (fallback='mouse', mouse_always_enabled=true).")
     lines.append("   - Chỉ ghép model với player khi player có `inputs` và `kinds` của player chứa `kind` của model; nếu thiếu `kinds` hoặc trùng lớp/sai vai trò `empty` thì báo rõ lý do và đề xuất dùng chuột hoặc chờ TV3 xác minh.")
     lines.append("   - Player có `content/questions = texts` chỉ nhận danh sách chữ (KHÔNG nhận bộ đề câu hỏi `exam` và KHÔNG gắn camera model nếu `inputs=[]`).")
     return "\n".join(lines)
 
 
+_SCRIPT_BLOCK_RE = re.compile(r"<script(?P<attrs>[^>]*)>(?P<body>.*?)</script>", re.S | re.I)
+_MANIFEST_JSON_RE = re.compile(
+    r'<script[^>]*\bid\s*=\s*["\']jl-camera["\'][^>]*>(?P<json>.*?)</script>', re.S | re.I
+)
+
+
 def validate_html_draft(html: str, check_fn=None) -> dict:
-    """Kiểm tra HTML nháp (nhánh GENERATE) bằng check_game + 0 cờ an toàn + chống cắt cụt."""
+    """Kiểm tra HTML nháp (nhánh GENERATE) theo 4 tầng: L1 Contract + L3 Security (0 cờ) + L4 Protocol/Functional cơ bản."""
     if not isinstance(html, str) or not html.strip():
         return {"ok": False, "error": "HTML nháp rỗng.", "flags": [], "name": ""}
     stripped = html.strip()
@@ -381,6 +404,47 @@ def validate_html_draft(html: str, check_fn=None) -> dict:
             "ok": False,
             "error": "HTML nháp chứa %d cờ an toàn bị chặn: %s" % (len(flags), flag_desc),
             "flags": flags,
+            "name": res.get("name", ""),
+        }
+    # L1 Contract: kiểm tra JSON manifest thô (trước khi contract.parse lược bỏ) để chặn xung đột questions="exam" + content.kind="texts"
+    m_raw = _MANIFEST_JSON_RE.search(stripped)
+    if m_raw:
+        try:
+            raw_man = json.loads(m_raw.group("json"))
+        except ValueError:
+            raw_man = None
+        if isinstance(raw_man, dict):
+            raw_content = raw_man.get("content")
+            content_kind = raw_content.get("kind") if isinstance(raw_content, dict) else None
+            if raw_man.get("questions") == "exam" and content_kind == "texts":
+                return {
+                    "ok": False,
+                    "error": "Manifest xung đột: không được khai đồng thời questions='exam' và content.kind='texts'.",
+                    "flags": [],
+                    "name": res.get("name", ""),
+                }
+    # L4 Protocol/Functional: bắt buộc có script thực thi gửi parent.postMessage ready
+    exec_scripts = []
+    for m in _SCRIPT_BLOCK_RE.finditer(stripped):
+        attrs = (m.group("attrs") or "").lower()
+        if "application/json" in attrs:
+            continue
+        body = (m.group("body") or "").strip()
+        if body:
+            exec_scripts.append(body)
+    joined_js = "\n".join(exec_scripts)
+    if not joined_js:
+        return {
+            "ok": False,
+            "error": "HTML nháp thiếu mã JavaScript thực thi gameplay.",
+            "flags": [],
+            "name": res.get("name", ""),
+        }
+    if "ready" not in joined_js or "postmessage" not in joined_js.lower():
+        return {
+            "ok": False,
+            "error": "HTML nháp chưa cài đặt đúng giao thức runtime (thiếu parent.postMessage ready).",
+            "flags": [],
             "name": res.get("name", ""),
         }
     return {"ok": True, "error": None, "flags": [], "name": res.get("name", "")}

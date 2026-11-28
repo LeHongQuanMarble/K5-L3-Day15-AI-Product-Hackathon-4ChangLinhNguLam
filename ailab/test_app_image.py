@@ -11,6 +11,10 @@ os.environ["AILAB_DB"] = os.path.join(tempfile.mkdtemp(), "i.db")
 
 import store  # noqa: E402
 
+# CÁCH LY BẮT BUỘC: store có thể đã bị module khác import trước (discovery alphabetical) khiến env
+# AILAB_DB không còn tác dụng — swap attribute trực tiếp để không bao giờ ghi vào runtime DB.
+store.DB_PATH = os.environ["AILAB_DB"]
+
 IMG_A = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 IMG_B = "data:image/jpeg;base64,/9j/4AAQSkZJRg=="
 

@@ -415,7 +415,8 @@ class H(BaseHTTPRequestHandler):
             out, steps = _traced(lambda: game_flow.step(c, user, text, body.get("brief")))
             if out["stage"] == "other":
                 # Không phải yêu cầu soạn game (hỏi thông tin, chào hỏi...): để lõi AI cũ trả lời, hiện như lời nhắn thường
-                legacy = agent_bridge.call({"message": text, "session_id": "web-%d" % user["id"]}, case_id="web-%d" % user["id"])
+                web_reg = agent_bridge.trusted_registry(c, user=user, include_showcase=True)
+                legacy = agent_bridge.call({"message": text, "session_id": "web-%d" % user["id"]}, case_id="web-%d" % user["id"], registry=web_reg)
                 out["stage"] = "info"
                 out["message"] = legacy["envelope"].get("message") or "Mình chưa hiểu, bạn nói rõ hơn giúp mình nhé."
                 steps = steps + _steps(legacy.get("events") or [])
@@ -486,10 +487,13 @@ class H(BaseHTTPRequestHandler):
                 name, desc, kind, url, outs, vis = store.clean_model(body)
                 if c.execute("SELECT COUNT(*) FROM models WHERE owner_id=?", (user["id"],)).fetchone()[0] >= 100:
                     raise Err(409, "storage_full", "Mỗi tài khoản có tối đa 100 mô hình.")
-                cur = c.execute("INSERT INTO models(owner_id,name,description,kind,url,outputs,visibility,created,image) VALUES(?,?,?,?,?,?,?,?,?)",
-                                (user["id"], name, desc, kind, url, json.dumps(outs), vis, time.time(), store.clean_image(body.get("image"))))
+                # Kiểm artifact thật (HEAD model.json) — URL chết bị đánh dấu 'broken' để không xuất hiện như model dùng được
+                status = "ready" if store.check_model_url(url) else "broken"
+                cur = c.execute("INSERT INTO models(owner_id,name,description,kind,url,outputs,visibility,created,image,status) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                                (user["id"], name, desc, kind, url, json.dumps(outs), vis, time.time(), store.clean_image(body.get("image")), status))
                 c.commit()
-                return self._json(201, {"id": cur.lastrowid})
+                return self._json(201, {"id": cur.lastrowid, "ready": status == "ready",
+                                        "message": None if status == "ready" else "Đã lưu model nhưng không tải được artifact (model.json trả lỗi). Model ở trạng thái Chưa kết nối — kiểm tra URL Teachable Machine."})
         elif len(parts) == 2:
             mid = _int(parts[1])
             if method == "GET":
@@ -648,13 +652,19 @@ class H(BaseHTTPRequestHandler):
         raise Err(404, "not_found", "Không thấy.")
 
     def _agent(self, c, method, parts, user):
-        """T14 — Shared Core Web/CLI + HITL + Persistence.
+        """T14 + P0 Multi-turn — Shared Core Web/CLI + Conversation Persistence + HITL.
 
-        GET  /api/agent/drafts/<id>/try → xem thử bản nháp GENERATE trong iframe sandbox (CSP).
-        POST /api/agent                 → chạy codebase.agent.run_agent(), lưu draft phía server, trả UI projection + trace.
-        POST /api/agent/publish         → cổng phê duyệt HITL + lưu SQLite nguyên tử (apps/players/exams), trả app_id + play_url.
-        POST /api/agent/review          → từ chối bản nháp (action='reject') hoặc so plan với bản đã duyệt (plan_hash).
+        GET  /api/agent/conversations        → liệt kê cuộc trò chuyện của user hiện tại.
+        GET  /api/agent/conversations/<id>   → khôi phục lịch sử + structured conversation_state (chặn chéo user).
+        GET  /api/agent/drafts/<id>/try      → xem thử bản nháp GENERATE trong iframe sandbox (CSP).
+        POST /api/agent                      → chạy codebase.agent.run_agent_with_state(), lưu conversation & draft, trả UI projection + trace.
+        POST /api/agent/publish              → cổng phê duyệt HITL + lưu SQLite nguyên tử (apps/players/exams), trả app_id + play_url.
+        POST /api/agent/review               → từ chối bản nháp (action='reject') hoặc so plan với bản đã duyệt (plan_hash).
         """
+        if parts == ["agent", "conversations"] and method == "GET":
+            return self._json(200, {"conversations": agent_bridge.list_conversations(c, user)})
+        if len(parts) == 3 and parts[1] == "conversations" and method == "GET":
+            return self._json(200, agent_bridge.get_conversation(c, _int(parts[2]), user))
         if len(parts) == 4 and parts[1] == "drafts" and parts[3] == "try" and method == "GET":
             return self._json(200, agent_bridge.draft_preview(c, _int(parts[2]), user, sample_questions=SAMPLE_QUESTIONS))
         if method != "POST":
@@ -667,18 +677,43 @@ class H(BaseHTTPRequestHandler):
                 payload = {"message": payload, "session_id": "web-%d" % user["id"]}
             if not isinstance(payload, dict):
                 raise Err(400, "bad_request", "Gửi {'text': '...'} hoặc Spec request dict.")
-            # registry=None → agent dùng cùng @tool Catalog như `python run.py` (hành vi đồng nhất).
-            out = agent_bridge.call(payload, case_id="web-%d" % user["id"])
+            payload = dict(payload)
+
+            # P0 Conversation Persistence: nạp hoặc tạo conversation_id theo user_id
+            req_conv_id = body.get("conversation_id") if body.get("conversation_id") is not None else payload.get("conversation_id")
+            if req_conv_id is not None:
+                conv = agent_bridge.get_conversation(c, _int(req_conv_id), user)
+            else:
+                conv = agent_bridge.create_conversation(c, user, title=str(payload.get("message") or "")[:60])
+            cid = conv["conversation_id"]
+            payload["conversation_id"] = cid
+            payload.setdefault("session_id", "web-%d-conv-%d" % (user["id"], cid))
+            payload["conversation_state"] = conv["conversation_state"]
+            if not payload.get("history") and conv["messages"]:
+                payload["history"] = [
+                    {"role": m.get("role"), "text": m.get("text")}
+                    for m in conv["messages"][-8:]
+                    if isinstance(m, dict) and isinstance(m.get("text"), str)
+                ]
+
+            # Web runtime: truyền registry có kiểm soát quyền của user + game mẫu showcase đã duyệt (vd Tết 2027 hỗ trợ Bàn tay),
+            # giữ nguyên composer.catalog_snapshot() (CLI/Eval) không thay đổi.
+            web_reg = agent_bridge.trusted_registry(c, user=user, include_showcase=True)
+            out = agent_bridge.call(payload, case_id="web-%d-conv-%d" % (user["id"], cid), registry=web_reg)
             resp = dict(out["ui"])
             resp["trace"] = out["trace"]
             resp["steps"] = _steps(out.get("events") or [])  # các bước thật (gọi model/công cụ) cho thẻ công cụ trong chat
             env = out["envelope"]
             plan = resp.get("application_plan")
+            new_draft_id = None
+            new_plan_hash = None
             if isinstance(plan, dict) and env.get("decision") in ("REUSE", "GENERATE") and env.get("status") == "pending_approval":
                 saved = agent_bridge.save_draft(c, user, env)
                 if saved:
-                    resp["draft_id"] = saved["draft_id"]
-                    resp["plan_hash"] = saved["plan_hash"]
+                    new_draft_id = saved["draft_id"]
+                    new_plan_hash = saved["plan_hash"]
+                    resp["draft_id"] = new_draft_id
+                    resp["plan_hash"] = new_plan_hash
                     p_cfg = plan.get("player") or {}
                     if p_cfg.get("mode") == "generate_new":
                         resp["preview_url"] = "/api/agent/drafts/%d/try" % saved["draft_id"]
@@ -699,9 +734,27 @@ class H(BaseHTTPRequestHandler):
                         erow = c.execute("SELECT name FROM exams WHERE id=?", (int(e_cfg["exam_id"]),)).fetchone()
                         if erow:
                             e_cfg["exam_name"] = erow["name"]
+
+            persisted_state = agent_bridge.save_conversation_turn(
+                c,
+                cid,
+                user,
+                payload.get("message") or "",
+                resp,
+                out.get("conversation_state") or conv["conversation_state"],
+                active_draft_id=new_draft_id,
+                active_plan_hash=new_plan_hash,
+            )
+            resp["conversation_id"] = cid
+            resp["conversation_state"] = persisted_state
+            resp["missing_requirements"] = persisted_state.get("missing_requirements") or []
+            resp["active_draft_id"] = persisted_state.get("active_draft_id")
+            resp["conversation_status"] = persisted_state.get("conversation_status")
             return self._json(200, resp)
         if parts == ["agent", "publish"]:
-            result = agent_bridge.publish_and_persist(c, body, user, registry=agent_bridge.trusted_registry(c, user=user))
+            result = agent_bridge.publish_and_persist(
+                c, body, user, registry=agent_bridge.trusted_registry(c, user=user, include_showcase=True)
+            )
             return self._json(200, result)
         if parts == ["agent", "review"]:
             if body.get("action") == "reject" and "draft_id" in body:

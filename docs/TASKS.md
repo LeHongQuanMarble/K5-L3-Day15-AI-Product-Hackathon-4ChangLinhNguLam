@@ -979,3 +979,41 @@ flowchart LR
 1. **T17 & T16 (TV4 – KHẨN cho CP2 19:30):** Nhánh `feat/t16-t17-cp2-data-eval` đang mở; cần TV4 xác nhận tiến độ, chốt cứng chuẩn "đạt" §7 với TV1 (đề xuất: `Overall ≥ 80%`, `Refusal = 100%`, `HITL Bypass = 0`) và merge `DATA_CARD.md`, `metric_spec.yaml` (≥3 metric, hiện 6 metric), `benchmark.csv` (≥10 câu) trước 19:30.
 2. **T06 (TV2 – KHẨN cho CP2 19:30):** Cần TV2 xác nhận enum `REFUSE` trong `ApplicationPlan` Contract v1.0 và hoàn thiện Mock Agent chạy qua `python run.py` cho CP2. *(Đã xong 27/11: mock chạy qua `run.py`, REFUSE đã chốt phía TV2; chờ TV1/TV3 xác nhận.)*
 3. **T03 (TV1 – CP2/CP3):** Cần ghi nhận tiến độ khảo sát/lịch hẹn phỏng vấn thực tế và sớm có số liệu thật cho `evidence/summary.md`, `spec.md` §2 và `cost/personas.yaml` (T20).
+
+### Cập nhật 28/11 (buổi chiều) — Phiên Sync & Stabilize Composer (Claude Code + GLM tiếp quản từ Antigravity)
+
+**Branch làm việc:** `fix/p0-composer-capability` · HEAD `76162e3` + fix assembler single-pass (chưa đẩy remote, chờ PM duyệt).
+
+1. **Phase 0 (Sync):** Bảo toàn checkpoint WIP Antigravity (`d337ac7` — Player Assembler + `/api/flow` UI), merge `origin/main` sạch 0 conflict (`40bbf99`) — nhận PR #28 (host camera/mic + speech-to-text + runtime audio). Baseline sau sync: **349/349 offline tests PASS**, `run.py check` PASS, protected artifacts nguyên vẹn.
+2. **P0 — Sửa blocker Real AI UAT (`invalid_player` MediaPipe):** Root cause: LLM phải tự viết toàn bộ runtime protocol jl-camera trong tối đa 2 lượt. Đã triển khai **Deterministic Runtime Wrapper repair** trong `_run_generate_html` (`codebase/agent.py` + `codebase/player_assembler.py`): khi validator chặn bản nháp model-aware, hệ thống lắp lại tất định (gameplay AI giữ nguyên, manifest từ GameSpec, protocol hands/ready/finish do Wrapper kiểm soát) — không nới lỏng validator, vẫn qua L1–L4. PoC2 mô phỏng đúng kịch bản UAT cũ (LLM sai protocol mọi lượt) → GENERATE vẫn thành công sau 1 lượt.
+3. **P1 — Audio ABCD (TC05):** Runtime host đã có sẵn từ PR #28 (speech-commands + `camera.result`). Bật có điều kiện qua **`AILAB_ENABLE_AUDIO=1`**, mặc định TẮT để bảo toàn Frozen Evaluation Registry (B24/B30 yêu cầu trả lời "chưa hỗ trợ audio"). Offline TC05 PASS (GENERATE player audio, mapping a→A…d→D, noise không map). Real E2E còn chờ: model TM audio thật (train qua Model Trainer) + UAT micro.
+4. **Model lái xe (TC04):** Không có kind/artifact "driving" trong repo — khả thi duy nhất qua model image/pose tự train (lớp trái/phải) trên Model Trainer. PENDING model.
+5. **Phase 7 — UI:** Sửa bong bóng chat ẩn mất `plan.message` khi ERROR/INFO/REFUSE; không leak JSON/trace.
+6. **Kiểm chứng:** 350/350 offline tests PASS (226 ailab + 124 codebase) · JS syntax check PASS · server `http://127.0.0.1:8800` chạy trên code mới. Codex Independent Review: *đang chạy, kết quả sẽ bổ sung*.
+
+### Cập nhật 28/11 (tối) — P0 Final Stabilization: Model Integration + sửa 3 bug UAT của PM
+
+**Branch:** `fix/p0-composer-capability` @ `298fb12` (chưa push/merge — chờ PM nghiệm thu).
+
+1. **Diệt gốc lỗi 404 `models/x/` (blocker PM báo nhiều lần):** nguyên nhân KHÔNG phải model thật — là **test suite nhiễm runtime DB**: unittest discovery import alphabetical khiến `store` được import trước khi 2 file test kịp đặt env cách ly → mỗi lần chạy suite chèn thêm model "M" placeholder + app "App thử" vào DB thật. Đã: swap `store.DB_PATH` trực tiếp (chứng minh chạy suite 2 lần liên tiếp DB nguyên vẹn), cleanup 10 row fixture (backup `evidence/db-backups/`), thêm cột `models.status` — model URL chết bị đánh dấu `broken`, không bao giờ hiển thị READY, GENERATE từ chối trung thực (TC05).
+2. **Model thật của team đã vào Catalog (live, ready=True):** #2 "Lái Xe" (pose, TM `a6Z7kwzyq/`, 4 lớp nghiêng trái/phải/bình thường/nitro) · #3 "Âm thanh A B C D" (audio, TM `eC5WQ6nj_/`, wordLabels A/B/C/D + Background Noise — metadata kiểm 200 OK). Bật runtime audio cho server qua `AILAB_ENABLE_AUDIO=1` (mặc định code vẫn TẮT để bảo toàn Frozen Eval B24/B30).
+3. **Module audit toàn repo:** các branch remote còn lại đã rà — `feat/update-tet-penalty-games` (TV3) ĐÃ MERGE + refresh 2 showcase player trong DB; `feat/ui-ux-refactor`, `feature/chatbot`, `feat/t08-t09-ai-core-takeover` (chỉ README) đã bị main vượt xa — không tích hợp; 2 docs branch thuộc TV3/TV4 — để owner tự merge.
+4. **Sửa 3 bug PM bắt được khi UAT:** (a) 2 camera trong Preview — Assembler strip `data-jl-camera` của AI, Wrapper sở hữu camera duy nhất; (b) HUD "Câu 0/0" nhưng kết thúc 0/2 — prompt giờ dạy JLRuntime + auto setProgress/setScore khi camera.init + quy tắc chấm `d.input === q.answer` (không so `d.label`); (c) giao diện sơ sài — JL Design System trong Wrapper (tokens, jl-opt/is-good/is-bad/jl-screen/jl-fadein) + AI được hướng dẫn dùng class.
+5. **REUSE rescue xếp hạng theo độ phủ mapping** (Tết 2027 2/2 thắng Penalty 3D 2/6).
+6. **Codex Independent Review:** vòng 1 **NO-SHIP** (1 HIGH SSRF qua redirect + 2 MEDIUM) → đã vá SSRF allow-list per-hop + escape `</style`; vòng sau sẽ review lại. Điểm còn mở: POST /api/models chờ check 2.5s (chấp nhận có ghi nhận — cần đăng nhập, cap 100 model/TK).
+7. **Kiểm chứng:** 353/353 offline tests PASS · L5 headless smoke PASS · screenshot `evidence/screenshots/shot-fixture.png` (HUD đồng bộ, 1 camera, design system) · server `http://127.0.0.1:8800` chạy bản mới nhất.
+
+### Cập nhật 28/11 (12:15) — Premium Generation + Audit restore + chốt RC
+
+1. **Audit restore (lệnh PM "dừng xoá")**: đối chiếu 3 backup — **0 game của team bị mất**; 7/7 showcase/sample nguyên vẹn + playable (API verify 11:58); mọi row bị xoá đều là test fixture do script UAT tạo trong ca này (bằng chứng: `evidence/audit-games-restore-20261128.md`). Chính sách cleanup mới: chỉ xoá nháp GENERATE thất bại/test fixture đã xác minh.
+2. **Multi-model routing**: `GAME_GENERATOR_MODEL`/`GAME_REPAIR_MODEL` qua env (gpt-4.1 sinh game, gpt-4o-mini routing/exam) — không hardcode.
+3. **Diệt nốt root cause audio GENERATE trên Real AI**: 3 chỗ hardcode "audio chưa hỗ trợ" trong routing prompt/catalog context/voice-note → dynamic theo `AUDIO_SUPPORTED`.
+4. **Premium Smoke Test (gpt-4.1, $0.24/$0.40)**: 4 Player mới — Lái Xe (/play/13), Âm thanh ABCD (/play/14), Hands (/play/15), mouse-only (/play/16) — publish + play + reload PASS; share=1 cho PM demo; PM đăng nhập demo admin để mở (server đang chạy AILAB_DEMO=1).
+5. **Chốt RC**: dừng mở rộng tính năng; việc còn lại là Human UAT của PM (inference camera/mic thật) + merge sau nghiệm thu.
+
+### Cập nhật 28/11 (12:25) — FINAL RC: Codex round 2 + GO có điều kiện
+
+1. **Codex round 2** (scope f5fb3b9..9933c8b): NO-SHIP ban đầu với 1 HIGH thật — **DNS rebinding** trong check_model_url (resolve 2 lần) + 1 MEDIUM camera regex ăn giá trị quoted + 1 LOW leak fp. **Đã vá hết**: `_PinnedHTTPSConnection` kết nối thẳng IP đã xác minh (SNI/cert theo hostname, redirect thủ công 3 hop mỗi hop kiểm lại) — sanity 7/7 (TM thật True, host lạ/http chặn, quoted value nguyên vẹn); `_ensure_single_camera` quét theo tag + blank-out quoted. Hai nhóm còn lại (multi-model routing, audio routing động) **OK**.
+2. **docs/UAT-CHECKLIST-RC.md** — checklist Human UAT cho PM: 4 game premium (/play/13–16, đăng nhập demo Admin), 1 ca GENERATE trong Trợ lý AI, 7 game team, catalog model + test model broken.
+3. **slides/rc-slides.html** (10 trang, in PDF được) + **slides/pitch-5min-rc.md** (kịch bản 5 phút + demo chính + phương án dự phòng) — số liệu có nguồn, phân biệt rõ benchmark/regression/smoke/UAT; ghi rõ benchmark Run 1–3 đo trên cấu hình gpt-4o-mini TRƯỚC nâng cấp generator.
+4. **GO CÓ ĐIỀU KIỆN**: 353/353 offline · L5 PASS · 3 model ready · 7/7 game team · 4 game premium share=1 · Codex r2 HIGH/MEDIUM đã vá + sanity PASS → chờ **PM Human UAT** (checklist) rồi push/merge.
