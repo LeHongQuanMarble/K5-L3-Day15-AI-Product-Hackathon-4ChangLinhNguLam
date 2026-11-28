@@ -93,6 +93,15 @@ def _generate_traced(msgs):
     return out, steps
 
 
+EDU_CHATBOT_DEFAULT = "http://127.0.0.1:8000"
+
+
+def _edu_chatbot_url():
+    """Địa chỉ Chatbot tạo game học tập (edu-game-chatbot) để nhúng vào giao diện. Chỉ nhận http(s)."""
+    url = (os.environ.get("AILAB_EDU_CHATBOT_URL") or "").strip()
+    return url if re.fullmatch(r"https?://[^\s\"'<>]+", url) else EDU_CHATBOT_DEFAULT
+
+
 def _need_admin(u):
     if u["role"] != "admin":
         raise Err(403, "forbidden", "Chỉ Admin được làm việc này.")
@@ -259,7 +268,8 @@ class H(BaseHTTPRequestHandler):
             if not user:
                 raise Err(401, "login", "Bạn cần đăng nhập.")
             if (method, p) == ("GET", "me"):
-                return self._json(200, {"user": user, "llm": "giả" if llm._real_model() is None else "thật"})
+                return self._json(200, {"user": user, "llm": "giả" if llm._real_model() is None else "thật",
+                                        "edu_chatbot": _edu_chatbot_url()})
             return self._authed(c, method, p, user)
         finally:
             c.close()

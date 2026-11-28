@@ -10,17 +10,18 @@ import { h, api, ico, toast, setOnUnauthorized } from './js/dom.js';
 import { stopTry } from './js/list-page.js';
 import { createHubView, homeView, modelsView, playersView, examsView, appsView, adminView, loginView } from './js/views-core.js';
 import { chatView } from './js/views-assistant.js';
+import { eduView } from './js/views-edu.js';
 import { motionsListView, motionView } from './js/motions.js';
 
 var root = document.getElementById('app');
-var me = null, llmMode = '', curTab = 'chat', curQuery = new URLSearchParams('');
+var me = null, llmMode = '', eduUrl = '', curTab = 'chat', curQuery = new URLSearchParams('');
 var railExpanded = sessionStorage.getItem('ail.rail') === '1';
 
 /* ---------- định nghĩa điều hướng (khớp 100% spec.md §4: Teacher Workspace + Thư viện Catalog) ---------- */
 /* Tạm ẩn 'Tạo' (#/create) và 'Motion' (#/motions) khỏi thanh bên, làm tiếp sau; trang và đường dẫn vẫn còn. */
-var NAV_MAIN = [['chat', 'Soạn trò chơi', 'chat'], ['apps', 'Trò chơi của tôi', 'grid'], ['exams', 'Bộ câu hỏi', 'edit']];
+var NAV_MAIN = [['chat', 'Soạn trò chơi', 'chat'], ['edu', 'Chatbot tạo game', 'sparkles'], ['apps', 'Trò chơi của tôi', 'grid'], ['exams', 'Bộ câu hỏi', 'edit']];
 var NAV_CATALOG = [['players', 'Kho mẫu game', 'play'], ['models', 'Mô hình tương tác', 'cube']];
-var TITLES = { create: 'Tạo', motions: 'Motion', chat: '', apps: 'Trò chơi của tôi', exams: 'Bộ câu hỏi', players: 'Kho mẫu game', models: 'Mô hình tương tác', admin: 'Quản trị', home: 'Tổng quan' };
+var TITLES = { edu: '', create: 'Tạo', motions: 'Motion', chat: '', apps: 'Trò chơi của tôi', exams: 'Bộ câu hỏi', players: 'Kho mẫu game', models: 'Mô hình tương tác', admin: 'Quản trị', home: 'Tổng quan' };
 var LIST_TABS = ['models', 'players', 'exams', 'apps'];
 
 /* Logo nhóm 4ChangLinhNguLam (huy hiệu 4 cánh + khiên học thuật) */
@@ -33,12 +34,12 @@ function teamLogo() {
 
 /* ctx chia cho các view; tạo mới mỗi lần route để me/llmMode luôn tươi */
 function ctx() {
-  return { me: me, llmMode: llmMode, query: curQuery, mount: mount, listMount: listMount, route: route, onLogin: onLogin, openDrawer: openDrawer };
+  return { me: me, llmMode: llmMode, eduUrl: eduUrl, query: curQuery, mount: mount, listMount: listMount, route: route, onLogin: onLogin, openDrawer: openDrawer };
 }
 function mount(el) {
   var m = document.getElementById('main');
   if (!m) return;
-  if (curTab === 'chat') {
+  if (curTab === 'chat' || curTab === 'edu') {
     m.className = 'ail-main is-chat';
     m.replaceChildren(el);
     return;
@@ -143,6 +144,7 @@ function onLogin(user) {
   toast('Đăng nhập thành công. Xin chào, ' + user.username + '!', 'ok');
   api('GET', '/api/me').then(function (d) {
     if (d && d.llm) llmMode = d.llm;
+    if (d && d.edu_chatbot) eduUrl = d.edu_chatbot;
   }).catch(function () {}).then(function () {
     /* hash rỗng: vào thẳng Trợ lý Game #/chat */
     if (!location.hash || location.hash === '#' || location.hash === '#/') location.hash = '#/chat';
@@ -180,7 +182,7 @@ function route() {
   var parts = hash ? hash.split('/') : [];
   var key = parts[0] || 'chat';
   if (key === 'assistant') { location.replace('#/chat'); return; } /* alias cũ → Trợ lý Game */
-  var views = { motions: function (c, p) { return p[1] ? motionView(c, p) : motionsListView(c); }, create: createHubView, home: homeView, models: modelsView, players: playersView, exams: examsView, apps: appsView, chat: chatView, admin: adminView };
+  var views = { motions: function (c, p) { return p[1] ? motionView(c, p) : motionsListView(c); }, create: createHubView, home: homeView, models: modelsView, players: playersView, exams: examsView, apps: appsView, chat: chatView, edu: eduView, admin: adminView };
   var view = views[key];
   if (!view) { location.replace('#/chat'); return; } /* hash lạ → về Trợ lý Game */
   var isList = LIST_TABS.indexOf(key) >= 0 && !parts[1];
@@ -195,4 +197,4 @@ function start() {
   if (!location.hash || location.hash === '#') location.hash = '#/chat'; /* vào thẳng Trợ lý Game */
   else route();
 }
-api('GET', '/api/me').then(function (d) { me = d.user; llmMode = d.llm; start(); }).catch(function () { loginView(ctx()); });
+api('GET', '/api/me').then(function (d) { me = d.user; llmMode = d.llm; eduUrl = d.edu_chatbot || ''; start(); }).catch(function () { loginView(ctx()); });

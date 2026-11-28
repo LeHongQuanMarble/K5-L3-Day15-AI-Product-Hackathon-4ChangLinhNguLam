@@ -58,6 +58,7 @@ Lần chạy đầu tạo file DB và tài khoản **admin** (mật khẩu lấy
 | `AILAB_DB` | `ailab/data/ailab.db` | Đường dẫn file SQLite (thư mục được tạo nếu chưa có) |
 | `AILAB_ADMIN_PASSWORD` | (tự sinh) | Mật khẩu admin lần đầu |
 | `AILAB_COOKIE_SECURE` | (tắt) | Đặt `1` khi chạy sau HTTPS để cookie có cờ Secure |
+| `AILAB_EDU_CHATBOT_URL` | `http://127.0.0.1:8000` | Địa chỉ Chatbot tạo game học tập (`edu-game-chatbot`), nhúng ở mục **Chatbot tạo game** trên thanh bên. Chỉ nhận `http(s)://` |
 
 Thư mục dữ liệu mặc định `ailab/data/` và mọi file `*.db` đã nằm trong `ailab/.gitignore`: **không commit dữ liệu thật, không commit file .db**.
 
