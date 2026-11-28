@@ -51,8 +51,8 @@ def test_truncate():
 
 def test_cp1258_fallback(tmp_path):
     f = tmp_path / "v.txt"
-    f.write_bytes("Bài học".encode("cp1258"))
-    assert read_file(f) == "Bài học"
+    f.write_bytes("Bà Nà".encode("cp1258"))
+    assert read_file(f) == "Bà Nà"
 
 
 def test_empty_pdf_scan_warning(tmp_path):
