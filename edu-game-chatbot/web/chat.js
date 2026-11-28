@@ -274,10 +274,9 @@ function initGamePane() {
     if (url) $("preview-frame").src = url + (url.includes("?") ? "&" : "?") + "r=" + Date.now();
   });
   $("new-session").addEventListener("click", () => {
-    if (!confirm("Bắt đầu phiên mới? Cuộc trò chuyện hiện tại vẫn được lưu và mở lại được bằng đường link cũ.")) return;
-    if (state.eventSource) state.eventSource.close();
-    state.eventSource = null;
-    createSession();
+    const ended = TERMINAL.includes(state.sessionState) || state.sessionState === "AWAIT_REQUEST";
+    if (!ended && !confirm("Bắt đầu phiên mới? Cuộc trò chuyện hiện tại vẫn được lưu và mở lại được bằng đường link cũ.")) return;
+    startNewSession();
   });
 }
 
@@ -299,6 +298,32 @@ function resetUi() {
   $("tab-game-dot").hidden = true;
   renderProgress("");
   setView("chat");
+}
+
+/** Phiên đã kết thúc (DONE/REJECTED/CANCELLED): hiện nút bắt đầu phiên mới ngay trong khung chat. */
+function renderRestart(show) {
+  let box = $("restart-box");
+  if (!show) { if (box) box.remove(); return; }
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "restart-box";
+    box.className = "restart";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn--primary";
+    btn.setAttribute("data-testid", "restart-session");
+    btn.textContent = "＋ Bắt đầu phiên mới";
+    btn.addEventListener("click", startNewSession);
+    box.appendChild(btn);
+  }
+  $("messages").appendChild(box);
+  scrollDown();
+}
+
+function startNewSession() {
+  if (state.eventSource) state.eventSource.close();
+  state.eventSource = null;
+  createSession();
 }
 
 function renderStepper(newState) {
@@ -326,6 +351,10 @@ function setState(newState) {
   $("attach-btn").hidden = newState !== "AWAIT_SOURCE_INPUT";
   $("attach-btn").disabled = busy;
   $("text-input").disabled = locked;
+  $("text-input").placeholder = TERMINAL.includes(newState)
+    ? "Phiên đã kết thúc — bấm “Bắt đầu phiên mới” để tạo game khác"
+    : busy ? "Trợ lý đang xử lý, vui lòng chờ…" : "Nhập tin nhắn cho trợ lý…";
+  renderRestart(TERMINAL.includes(newState));
   $("send-btn").disabled = locked;
   if (!busy) renderProgress("");
   renderStepper(newState);
