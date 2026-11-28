@@ -119,15 +119,15 @@ Chi tiết đầy đủ (output, trace, biên bản chấm chéo): `eval/report.
 
 ## 5. T10 → T19 Handoff (Dành cho TV4 chạy Evaluation Run 2)
 
-- **Branch:** `feat/t10-eval-driven-improvement` (tách từ `origin/main` @ `3227932`, đã bao gồm T14 & Run 1).
+- **Branch:** `feat/t10-eval-driven-improvement` (base T10 `fcb9c4d`, đã đồng bộ merge với `origin/main` @ `1c209a9` gồm PR #14/#15/#16/#17 của TV3).
 - **Model / Provider / Configuration (giữ nguyên 100% so với Run 1):**
   - `MODEL_PROVIDER=openai`, `MODEL_NAME=gpt-4o-mini`, `API_KEY=<key trong .env cục bộ>`
-- **Xác nhận toàn vẹn 5 artifact Run 1 (`git diff origin/main -- eval/ traces/ data/` = rỗng):**
-  - `eval/benchmark.csv`: disk sha256 `0236f1f7f2c4…` (`git` `990dc82e0a2c…`) — **KHÔNG ĐỔI**
-  - `eval/metric_spec.yaml`: disk sha256 `435d21ed7f67…` (`git` `bd96ed012874…`) — **KHÔNG ĐỔI**
-  - `data/catalog_snapshot.json`: disk sha256 `b3e68193d9d0…` (`git` `dba6c175186a…`) — **KHÔNG ĐỔI**
-  - `eval/run-1.csv`: disk sha256 `7e900f382b86…` (`git` `3ea6b4d14a50…`) — **KHÔNG ĐỔI**
-  - `traces/run-1.jsonl`: disk sha256 `75f34cafac22…` (`git` `d6c2442f3fee…`) — **KHÔNG ĐỔI**
+- **Xác nhận toàn vẹn 5 artifact Run 1 (`git diff origin/main -- eval/ traces/ data/` = rỗng; 5/5 LF git blob SHA256 tại `3227932` == `1c209a9`, sai khác hash 02:40 vs 07:01 đã chứng minh 100% do `core.autocrlf=true` LF/CRLF trên Windows):**
+  - `eval/benchmark.csv`: CRLF disk sha256 `0236f1f7f2c4…` (`git` LF blob `990dc82e0a2c…`) — **KHÔNG ĐỔI**
+  - `eval/metric_spec.yaml`: CRLF disk sha256 `435d21ed7f67…` (`git` LF blob `bd96ed012874…`) — **KHÔNG ĐỔI**
+  - `data/catalog_snapshot.json`: CRLF disk sha256 `b3e68193d9d0…` (`git` LF blob `dba6c175186a…`) — **KHÔNG ĐỔI**
+  - `eval/run-1.csv`: CRLF disk sha256 `7e900f382b86…` (`git` LF blob `3ea6b4d14a50…`) — **KHÔNG ĐỔI**
+  - `traces/run-1.jsonl`: CRLF disk sha256 `75f34cafac22…` (`git` LF blob `d6c2442f3fee…`) — **KHÔNG ĐỔI**
 - **Lệnh TV4 chạy Run 2 (T19) & Cost Simulation (T20):**
   ```powershell
   git fetch origin
@@ -139,3 +139,19 @@ Chi tiết đầy đủ (output, trace, biên bản chấm chéo): `eval/report.
   python run.py simulate --rate-from eval/run-2.csv
   ```
 - **Điều kiện nghiệm thu T10:** Chính thức đạt khi `python run.py score eval/run-2.csv` xác nhận **≥ 24/30 (≥ 80%)**, `tu_choi` **4/4 (100%)**, `HITL bypass = 0` *(không tuyên bố đạt trước khi TV4 hoàn tất Run 2)*.
+
+---
+
+## 6. Pre-push Integration Sync (`origin/main @ 1c209a9`)
+
+- **Nội dung đồng bộ từ `origin/main` (TV3 PR #14–#17):**
+  - Giữ nguyên 100% PR #15 (`8822ca9` — Demo login seed `AILAB_DEMO=1`), PR #16 (`ff615ff` — 5 game showcase + lọc `WHERE source<>'showcase'` trong `ailab/composer.py` giữ nguyên AI Catalog 2 player), PR #17 (`dfd01ad` — giao diện card 16:9).
+  - Xử lý conflict tại `codebase/agent.py` với PR #14 (`b7f294c`): giữ lõi T10 `fcb9c4d` (tuân thủ PM Condition A: không gắn `DRAFT` giả lên `ASK_CLARIFY` / câu hỏi thuần đếm số `B03`, không gọi lặp `load_live_registry()`), đồng thời tích hợp có chọn lọc safeguard `_VOICE_RE` (bắt cả có dấu/không dấu tiếng Việt) và Rule #10 (báo đúng số câu thật của bộ đề) từ `b7f294c`.
+  - Căn chỉnh `codebase/test_t10_finalize.py` (5 tests) theo PM Condition A.
+- **Kết quả kiểm thử sau tích hợp (Post-sync Offline Regression):**
+  - `python -m unittest discover -s codebase -p "test_*.py"`: **124/124 PASS**
+  - `python -m unittest discover -s ailab -p "test_*.py"`: **165/165 PASS** (gồm `test_demo.py`, `test_seed_players.py`, `test_agent_bridge.py`, `test_composer.py`)
+  - `python codebase/accept_t06_entrypoint.py`: **2/2 PASS**
+  - **Tổng Regression Suite:** **291/291 PASS** · `python run.py check`: **PASS (0 cảnh báo)**
+  - **Independent Integration Review (Agent C — Codex role):** **PASS WITH NOTES** (`0 CRITICAL`, `0 HIGH`; đã xử lý note `_VOICE_RE` tiếng Việt không dấu).
+  - *Lưu ý minh bạch:* Real AI Smoke Test (`$0.007944`, 9/11 phục hồi, 0/4 regression) chạy trên `fcb9c4d` (pre-sync); bản post-sync xác minh bằng 291/291 offline regression tests + Integration Review (không phát sinh thêm chi phí API khi chưa được PM duyệt).
