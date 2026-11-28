@@ -36,7 +36,8 @@ var DECISIONS = {
   REUSE: { badge: 'is-reuse', label: 'Tái sử dụng Catalog', icon: 'check' },
   GENERATE: { badge: 'is-generate', label: 'Tạo mới bản nháp DRAFT', icon: 'sparkles' },
   ASK_CLARIFY: { badge: 'is-ask', label: 'Cần làm rõ', icon: 'info' },
-  REFUSE: { badge: 'is-refuse', label: 'Từ chối theo chính sách', icon: 'shield' }
+  REFUSE: { badge: 'is-refuse', label: 'Từ chối theo chính sách', icon: 'shield' },
+  ERROR: { badge: 'is-refuse', label: 'Không thể tạo kế hoạch', icon: 'alert' }
 };
 /* Không có trạng thái “approved” ở đây: kế hoạch tối đa là pending_approval (HITL 1 chưa quyết). */
 var PLAN_STATUS = {
@@ -150,8 +151,8 @@ export function chatView(ctx) {
       h('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap' },
         h('span', { class: 'ail-llm-pill ' + (llmOk ? 'is-ok' : 'is-mock'), title: 'Chế độ model hiện hành' }, 'Model AI: ' + (llmMode || '…')),
         h('div', { class: 'ail-mode-switch', role: 'group', 'aria-label': 'Chế độ hoạt động' },
-          modeBtn('real', 'Chế độ thật', 'Gọi API thật (/api/chat).'),
-          modeBtn('mock', 'Mock (Plan v1.0)', 'Xem trước ApplicationPlan v1.0 — chờ T08/T14.'))));
+          modeBtn('real', 'Chế độ thật', 'Gọi Shared Core thật (/api/agent + HITL).'),
+          modeBtn('mock', 'Mock (Plan v1.0)', 'Xem trước ApplicationPlan v1.0 (cô lập, không ghi DB).'))));
   }
   function drawBanner() {
     bannerSlot.replaceChildren();
@@ -315,12 +316,12 @@ export function chatView(ctx) {
     real.msgs.push({ role: 'user', text: t });
     input.value = ''; input.style.height = '';
     drawLog(true);
-    api('POST', '/api/chat', { chatId: real.chatId, text: t }).then(function (d) {
-      real.chatId = d.chatId;
-      real.msgs.push(d.reply || { role: 'bot', text: '' });
-      drawSide(); // làm mới danh sách tiêu đề chat
+    api('POST', '/api/agent', { text: t }).then(function (d) {
+      var plan = d || {};
+      var topText = plan.application_plan ? (plan.message || '') : '';
+      real.msgs.push({ role: 'bot', text: topText, plan: plan, simulated: !!plan.simulated });
     }).catch(function (e) {
-      real.msgs.push({ role: 'bot', text: '', error: e.message, retryText: t });
+      real.msgs.push({ role: 'bot', text: '', error: e.message || 'Lỗi kết nối máy chủ AI.', retryText: t });
       if (!input.value.trim()) input.value = t; // KHÔNG làm mất nội dung người dùng đã gõ
     }).then(function () {
       real.busy = false; send.disabled = false; drawLog(); focusInput();
@@ -494,7 +495,7 @@ export function chatView(ctx) {
     if (ap.exam && ap.exam.content != null) qs = parseQuestionsClient(ap.exam.content);
     card.appendChild(h('div', { class: 'ail-plan-grid' },
       cellPlayer(ap), cellModel(ap), cellQuestions(ap, plan, qs, isMock), cellSafety(ap, plan)));
-    if (qs && qs.questions.length) card.appendChild(knowledgeWarn());
+    if ((qs && qs.questions.length) || plan.knowledge_review_required) card.appendChild(knowledgeWarn());
     card.appendChild(hitlBar(plan, ap, isMock));
     return wrap;
   }
@@ -516,7 +517,7 @@ export function chatView(ctx) {
     var md = ap.model || null, it = ap.interaction || {};
     var rows = [];
     if (md) {
-      rows.push(h('span', { class: 'ail-chip' }, 'Model: ' + (KIND[md.kind] || md.kind || '—') + (md.model_id != null ? ' #' + md.model_id : '')));
+      rows.push(h('span', { class: 'ail-chip' }, 'Model: ' + (md.model_name || KIND[md.kind] || md.kind || '—') + (md.model_id != null ? ' #' + md.model_id : '')));
       if (md.mapping && Object.keys(md.mapping).length)
         rows.push(h('span', { class: 'meta' }, 'Ánh xạ ô → lớp: ' + Object.keys(md.mapping).map(function (k) { return k + '→' + md.mapping[k]; }).join(', ')));
       if (md.sure != null || md.hold_ms != null)
@@ -586,8 +587,8 @@ export function chatView(ctx) {
     var exam = ap.exam || {};
     var rows = [];
     if (exam.mode) rows.push(h('span', { class: 'ail-chip ' + (exam.mode === 'generate_new' ? 'warn' : 'teal') },
-      exam.mode === 'generate_new' ? 'Bộ đề mới (chưa lưu vào Bộ đề)' : 'Dùng bộ đề có sẵn' + (exam.exam_id != null ? ' #' + exam.exam_id : '')));
-    if (exam.knowledge_review_required) rows.push(h('span', { class: 'meta' }, 'Kiểm duyệt kiến thức: BẮT BUỘC trước khi dùng trên lớp.'));
+      exam.mode === 'generate_new' ? 'Bộ đề mới (chưa lưu vào Bộ đề)' : 'Dùng bộ đề có sẵn' + (exam.exam_name ? ': ' + exam.exam_name : '') + (exam.exam_id != null ? ' #' + exam.exam_id : '')));
+    if (exam.knowledge_review_required || plan.knowledge_review_required) rows.push(h('span', { class: 'meta' }, 'Kiểm duyệt kiến thức: BẮT BUỘC trước khi dùng trên lớp.'));
     if (qs) {
       if (qs.questions.length) rows.push(questionList(qs.questions));
       if (qs.errors.length) rows.push(h('div', { class: 'ail-val-list' },
@@ -610,15 +611,23 @@ export function chatView(ctx) {
       rows.push(h('div', { class: 'ail-flag-item' }, ico('alert'),
         h('span', null, (f.label || f.code || 'Cờ cần xem') + (f.reason ? ' — ' + f.reason : ''))));
     });
-    rows.push(h('span', { class: 'meta' }, 'HITL 1: bạn duyệt kế hoạch → tạo bản Nháp. HITL 2: Admin duyệt bản Nháp → mới sẵn sàng cho lớp. Không bỏ qua bước nào.'));
-    rows.push(h('div', { class: 'row' }, sandboxBtn(ap)));
-    return h('div', { class: 'ail-plan-cell' }, h('h4', null, 'An toàn & Phê duyệt (HITL 2 bước)'), h('div', { style: 'display:flex;flex-direction:column;gap:8px' }, rows));
+    rows.push(h('span', { class: 'meta' }, 'HITL 1: bạn duyệt kế hoạch → lưu ứng dụng. Bản nháp HTML sinh mới giữ trạng thái riêng tư (DRAFT), không tự đưa vào Catalog công khai.'));
+    rows.push(h('div', { class: 'row' }, sandboxBtn(ap, plan)));
+    return h('div', { class: 'ail-plan-cell' }, h('h4', null, 'An toàn & Phê duyệt (HITL)'), h('div', { style: 'display:flex;flex-direction:column;gap:8px' }, rows));
   }
-  function sandboxBtn(ap) {
+  function sandboxBtn(ap, plan) {
     var p = ap.player || {};
     return btn('Xem thử trong sandbox', 'eye', { cls: 'sm', title: 'Chạy trình chơi trong iframe sandbox="allow-scripts"',
       onclick: function () {
-        if (p.mode === 'generate_new' && p.html) {
+        if (plan && plan.preview_url) {
+          var wp = previewFrame(plan.preview_url);
+          wp.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:60vh';
+          modal('Xem thử: ' + (p.player_name || ap.name || 'bản nháp'), flexModalBody([
+            h('span', { class: 'meta' }, p.mode === 'generate_new'
+              ? 'Bản nháp DRAFT do AI tạo — iframe sandbox="allow-scripts" có CSP, không chạy cùng nguồn với AI Lab.'
+              : 'Trình chơi từ Catalog chạy trong iframe sandbox="allow-scripts" (tái sử dụng nguyên bản, không sinh HTML mới).'),
+            wp]));
+        } else if (p.mode === 'generate_new' && p.html) {
           modal('Xem thử bản nháp (sandbox)', flexModalBody([
             h('span', { class: 'meta' }, 'Bản nháp DRAFT do AI tạo — iframe sandbox="allow-scripts", không chạy cùng nguồn với AI Lab.'),
             h('iframe', { sandbox: 'allow-scripts', title: 'Xem thử bản nháp DRAFT', srcdoc: p.html })]));
@@ -635,10 +644,26 @@ export function chatView(ctx) {
   }
   function hitlBar(plan, ap, isMock) {
     var bar = h('div', { class: 'ail-hitl-bar' });
-    var decided = plan._decided; // trạng thái HITL cục bộ của phiên Mock — không bao giờ là 'approved'
+    var decided = plan._decided;
+    if (decided === 'published') {
+      bar.appendChild(h('span', { class: 'ail-chip ok' }, ico('check'), 'Đã duyệt & lưu ứng dụng (#' + plan._appId + ')'));
+      if (plan._playUrl) {
+        bar.appendChild(btn('Mở chơi ngay', 'play', { cls: 'sm pri', href: plan._playUrl, target: '_blank' }));
+      }
+      bar.appendChild(btn('Xem trong Ứng dụng', 'grid', { cls: 'sm', href: '#/apps' }));
+      if (ap && ap.player && ap.player.mode === 'generate_new') {
+        bar.appendChild(h('span', { class: 'meta' }, 'Trình chơi nháp ở chế độ riêng tư (DRAFT), chưa vào Catalog công khai.'));
+      }
+      return bar;
+    }
+    if (decided === 'rejected') {
+      bar.appendChild(h('span', { class: 'ail-chip bad' }, 'Đã từ chối bản nháp' + (plan._rejectReason ? ' — ' + plan._rejectReason : '')));
+      bar.appendChild(h('span', { class: 'meta' }, 'Không lưu ứng dụng và không tạo liên kết chơi.'));
+      return bar;
+    }
     if (decided === 'accepted_mock') {
       bar.appendChild(h('span', { class: 'ail-chip ok' }, 'Đã tạo bản Nháp (bản trình diễn Mock — chưa ghi dữ liệu thật)'));
-      bar.appendChild(h('span', { class: 'meta' }, 'Khi T08/T14 nối thật: bản Nháp vào hàng chờ Admin duyệt (HITL 2) trước khi dùng cho lớp.'));
+      bar.appendChild(h('span', { class: 'meta' }, 'Chuyển sang Chế độ thật để lưu vào SQLite và mở chơi ngay.'));
       return bar;
     }
     if (decided === 'rejected_mock') {
@@ -648,8 +673,67 @@ export function chatView(ctx) {
     }
     bar.appendChild(h('span', { class: 'meta', style: 'margin-right:auto' }, 'Chưa có quyết định của bạn — không có gì được lưu hay công khai.'));
     if (!isMock) {
-      /* Chế độ thật: HITL kế hoạch chờ T08/T14 — hiển thị trạng thái rõ thay vì nút disabled gây hiểu nhầm hỏng. */
-      bar.appendChild(h('span', { class: 'ail-chip warn' }, ico('shield'), 'HITL 1 — chờ nối API duyệt (T08/T14)'));
+      if (!plan.draft_id || !plan.plan_hash) {
+        bar.appendChild(h('span', { class: 'ail-chip warn' }, ico('shield'), 'Thiếu mã bản nháp hợp lệ từ máy chủ — không thể xuất bản.'));
+        return bar;
+      }
+      if (plan.knowledge_review_required) {
+        var cb = h('input', { type: 'checkbox', checked: !!plan._reviewedKnowledge,
+          onchange: function () { plan._reviewedKnowledge = !!cb.checked; } });
+        bar.appendChild(h('label', { style: 'display:inline-flex;align-items:center;gap:6px;font-size:var(--jl-font-size-sm);cursor:pointer' },
+          cb, h('span', null, 'Tôi đã kiểm duyệt kiến thức & đáp án')));
+      }
+      var bPub = btn('Phê duyệt & Lưu ứng dụng', 'check', { cls: 'sm pri',
+        title: 'Phê duyệt bản nháp này và lưu vào SQLite để mở chơi ngay',
+        onclick: function () {
+          if (plan.knowledge_review_required && !plan._reviewedKnowledge) {
+            toast('Vui lòng đánh dấu xác nhận đã kiểm duyệt kiến thức trước khi phê duyệt.', 'err');
+            return;
+          }
+          bPub.disabled = true; bRej.disabled = true;
+          api('POST', '/api/agent/publish', {
+            draft_id: plan.draft_id,
+            plan_hash: plan.plan_hash,
+            approved: true,
+            reviewed_knowledge: !!plan._reviewedKnowledge
+          }).then(function (r) {
+            plan._decided = 'published';
+            plan._appId = r.app_id;
+            plan._playUrl = r.play_url;
+            toast('Đã phê duyệt và lưu ứng dụng #' + r.app_id + '!', 'ok');
+            drawLog();
+          }).catch(function (e) {
+            bPub.disabled = false; bRej.disabled = false;
+            toast(e.message || 'Không thể phê duyệt bản nháp.', 'err');
+            var old = bar.querySelector('.err'); if (old) old.remove();
+            bar.appendChild(errBox(e));
+          });
+        } });
+      var bRej = btn('Từ chối bản nháp', 'x', { cls: 'sm bad',
+        title: 'Từ chối bản nháp này — không lưu ứng dụng và không tạo link chơi',
+        onclick: function () {
+          promptModal('Từ chối bản nháp kế hoạch', 'Ghi lý do từ chối (tùy chọn):',
+            { confirmLabel: 'Xác nhận từ chối', fieldLabel: 'Lý do', placeholder: 'Ví dụ: bộ câu hỏi chưa đúng chủ đề, cách chơi chưa phù hợp lớp…', maxLen: 300 })
+            .then(function (reason) {
+              if (reason == null) return;
+              bPub.disabled = true; bRej.disabled = true;
+              api('POST', '/api/agent/review', {
+                draft_id: plan.draft_id,
+                action: 'reject',
+                reason: reason
+              }).then(function () {
+                plan._decided = 'rejected';
+                plan._rejectReason = reason;
+                toast('Đã từ chối bản nháp, không tạo ứng dụng.', 'ok');
+                drawLog();
+              }).catch(function (e) {
+                bPub.disabled = false; bRej.disabled = false;
+                toast(e.message || 'Không thể từ chối bản nháp.', 'err');
+              });
+            });
+        } });
+      bar.appendChild(bPub);
+      bar.appendChild(bRej);
       return bar;
     }
     bar.appendChild(btn('Duyệt kế hoạch (HITL 1 — tạo bản Nháp)', 'check', { cls: 'sm pri',

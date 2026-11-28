@@ -22,15 +22,16 @@ class TestFinalize(TempCatalogTestCase):
         m = env["message"]
         self.assertIn("Bàn tay (MediaPipe)", m)
         self.assertIn("DRAFT", m)
-        self.assertIn("không tự duyệt", m)
+        self.assertRegex(m, r"(?:từ chối|không) tự duyệt")
         self.assertRegex(m, "chưa được Runtime hỗ trợ")
         self.assertNotIn("```", m)
 
-    def test_ask_clarify_keeps_single_question_and_gets_draft_only(self):
+    def test_ask_clarify_keeps_single_question_without_false_draft(self):
         env = run("Làm game giúp tôi", {"decision": "ASK_CLARIFY", "message": "Bạn dạy môn gì"})
         m = env["message"]
         self.assertEqual(m.count("?"), 1)
-        self.assertIn("DRAFT", m)
+        self.assertNotIn("DRAFT", m)
+        self.assertNotIn("pending_approval", m)
         self.assertNotIn("Bàn tay (MediaPipe)", m)
 
     def test_refuse_untouched(self):
@@ -44,7 +45,8 @@ class TestFinalize(TempCatalogTestCase):
         self.assertEqual(env["message"], msg)
 
     def test_prompt_no_longer_forces_clarify_on_fallback_input(self):
-        self.assertIn("KHÔNG hỏi lại nếu đầu vào đã nêu", agent.ROUTING_SYSTEM_TEMPLATE)
+        self.assertIn("**KHÔNG** chọn `ASK_CLARIFY`", agent.ROUTING_SYSTEM_TEMPLATE)
+        self.assertIn("không cần camera", agent.ROUTING_SYSTEM_TEMPLATE)
 
 
 if __name__ == "__main__":

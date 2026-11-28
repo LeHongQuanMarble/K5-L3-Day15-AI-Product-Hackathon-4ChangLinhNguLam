@@ -29,7 +29,7 @@ AI Lab đang chạy: http://127.0.0.1:8800
 - **Smoke để lại** vài tài khoản `smoke_user_*` trong DB staging; `SKIP_SMOKE=1 bash scripts/staging.sh all` để bỏ bước này.
 - Cổng, địa chỉ, DB: `AILAB_PORT`, `AILAB_HOST`, `AILAB_DB` (bảng ở mục 1).
 
-Các lệnh con còn lại: `up` (chỉ chạy server) · `down` · `restart` · `status` · `test` · `smoke` · `logs` · `backup` · `reset` (chuyển dữ liệu cũ sang `ailab/data/old-<giờ>/`, không xoá).
+Các lệnh con còn lại: `check` (kiểm máy: Python, curl, Chrome, Playwright, model) · `deps` (tuỳ chọn: tạo `.venv` + cài Playwright cho Train mô hình, script tự dùng `.venv` nếu có) · `up` (chỉ chạy server) · `down` · `restart` · `status` · `test` · `smoke` · `logs` · `backup` · `reset` (chuyển dữ liệu cũ sang `ailab/data/old-<giờ>/`, không xoá).
 `bash scripts/staging.sh` không đối số in danh sách này. Các mục 1 đến 8 bên dưới là cách làm tay từng bước, dùng khi cần hiểu hoặc gỡ lỗi.
 
 ## 0. Cần gì

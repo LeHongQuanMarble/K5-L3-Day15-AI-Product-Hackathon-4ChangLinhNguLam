@@ -1,77 +1,107 @@
 # Tổng hợp bằng chứng pain
 
-> Điền ở guide bước 1.2, xong trước **CP3 10:00 Thứ Bảy 28/11**. Chấm ở rubric R1.
-> Ba nguồn ngang nhau — tối thiểu **≥1 nguồn đạt ngưỡng**. Mạnh nhất: đào data ra insight → hỏi người dùng để kiểm lại (hoặc ngược lại).
-> **Trạng thái hiện tại (CP2 · 27/11/2026 19:15):** Đã thu thập **6 phản hồi khảo sát thực tế** (`n = 6`, lưu ẩn danh tại `evidence/survey/results.csv`). Vì `n < 10`, chỉ ghi tỉ lệ `x/6`, **không ghi %** và **chưa đạt ngưỡng CP3** (cần ≥20 phiếu khảo sát hoặc ≥3 phỏng vấn sâu).
-> **Cập nhật CP3 (27/11/2026):** thêm **6 tình huống thật S1–S6 do TV1 cung cấp** (tóm tắt theo vai, không tên, không trích nguyên văn; xem `docs/HANDOFF-TV4-nguon-nguoi-dung.md` và `eval/benchmark.csv` B21–B30). Đây là nguồn cho cột `source` của benchmark, **không thay thế** 6 phiếu khảo sát hay phỏng vấn; T03 vẫn chưa đạt AC.
+> Điền ở guide bước 1.2, hoàn thiện trước **CP3 10:00 Thứ Bảy 28/11/2026**. Chấm ở rubric R1.
+> Ba nguồn ngang nhau — tối thiểu **≥1 nguồn đạt ngưỡng**.
+> **Trạng thái hiện tại (CP3 · 28/11/2026 08:55):** Đã thu thập và chốt **`n = 21` phản hồi khảo sát thực tế** (`P01`–`P21`, lưu ẩn danh tại `evidence/survey/results.csv`, **0 PII**, **0 hồ sơ trùng lặp hoàn toàn**). Ghi nhận minh bạch 1 phiếu mâu thuẫn nội tại (`P13` chọn tất cả phương án kể cả mục phủ định) và cụm 12 phiếu nộp nhanh sáng 28/11 (`P09`–`P20`, trống câu mở); giữ nguyên không tự ý xóa và báo cáo song song phân tích độ nhạy loại `P13` (**`n = 20` phiếu hợp lệ sạch**, vẫn **đạt đủ ngưỡng tối thiểu ≥20 phiếu khảo sát** theo Rubric R1 ngay cả khi loại `P13`).
+> **Nguồn bổ trợ benchmark (27/11/2026):** 6 tình huống thật S1–S6 tóm tắt từ 6 phiếu đầu (`P01`–`P06`, xem `docs/HANDOFF-TV4-nguon-nguoi-dung.md` và `eval/benchmark.csv` B21–B30) dùng cho cột `source` của benchmark, **không tính trùng** là nguồn riêng cho Rubric R1.
 
 ## 1. Nguồn đã dùng
 
 | Nguồn | Đạt ngưỡng? | File |
 |---|---|---|
 | Đào data (x/N, %, cách đếm chạy lại được, ≥5 ví dụ) | ☐ *(không sử dụng data thô BTC cho lát cắt A3)* | `evidence/data-mining.md` |
-| Phỏng vấn (≥3 người ngoài nhóm, đúng người dùng) | ☐ *(0/3 — đang triển khai)* | `evidence/interviews/` |
-| Khảo sát (≥20 người ngoài nhóm, đúng người dùng) | ☐ *(6/20 — đang tiếp tục thu thập)* | `evidence/survey/questions.md` · `evidence/survey/results.csv` |
-| Tình huống thật S1–S6 (tóm tắt, TV1 cung cấp) | ⚠️ *không tính ngưỡng R1* | `docs/HANDOFF-TV4-nguon-nguoi-dung.md` · `eval/benchmark.csv` B21–B30 |
+| Phỏng vấn (≥3 người ngoài nhóm, đúng người dùng) | ☐ *(0/3 — chưa thực hiện phỏng vấn sâu)* | `evidence/interviews/TEMPLATE.md` |
+| **Khảo sát (≥20 người ngoài nhóm, đúng người dùng)** | **☑ (`21/20` tổng; `20/20` hợp lệ khi loại `P13` — đạt vững ngưỡng R1)** | `evidence/survey/questions.md` · `evidence/survey/results.csv` |
+| Tình huống thật S1–S6 (tóm tắt từ `P01`–`P06`) | ⚠️ *không tính nguồn độc lập R1* | `docs/HANDOFF-TV4-nguon-nguoi-dung.md` · `eval/benchmark.csv` B21–B30 |
 
-## 2. Số chính *(dữ liệu sơ bộ từ khảo sát n = 6, không ghi % vì n < 10)*
+## 2. Số chính *(Khảo sát `evidence/survey/results.csv`, `n = 21`, thu từ 27/11/2026 18:12 đến 28/11/2026 08:54; độ nhạy loại `P13`: `n = 20`)*
 
-- **Khảo sát (`evidence/survey/results.csv`, n = 6, thu từ 18:12 đến 18:30 ngày 27/11/2026):**
-  - **Phân bố đối tượng:** Tiểu học `2/6` (`S1, S3`) · Mầm non `1/6` (`S4`) · Trung học cơ sở `1/6` (`S6`) · Cao đẳng/Đại học `1/6` (`S2`) · Lab Coach AI20k `1/6` (`S5`).
-  - **Tần suất tạo trò chơi (Câu 2 — trong 30 ngày gần đây / tháng):** `1–2 lần/tháng`: `4/6` (`S1, S2, S5, S6`) · `3–5 lần/tháng`: `1/6` (`S3`) · `Trên 10 lần/tháng`: `1/6` (`S4`). *(Câu 9 – lý do chưa tổ chức: trống `6/6` vì cả 6 người tham gia đều có tổ chức trong 30 ngày qua.)*
-  - **Công cụ đang sử dụng (chọn nhiều):** Quizizz/Wayground `5/6` · PowerPoint/Google Slides `4/6` · Kahoot `2/6` · Blooket `1/6` · tạo bot trên tele cho học viên thực hành tấn công `1/6`.
-  - **Khoảng thời gian chuẩn bị** *(dữ liệu dạng khoảng — không tính trung bình điểm vì không có giá trị phút cụ thể từng người)*:
-    - `Từ 10 đến dưới 20 phút`: `3/6` (`S1, S2, S6`)
-    - `Từ 20 đến dưới 30 phút`: `1/6` (`S3`)
-    - `Từ 30 đến dưới 60 phút`: `1/6` (`S5`)
-    - `Từ 60 phút trở lên`: `1/6` (`S4`)
-  - **Bước chuẩn bị tốn thời gian / khó khăn (chọn nhiều):** Soạn câu hỏi và đáp án `6/6` · Tìm kiếm công cụ phù hợp `4/6` · Nhập hoặc chuyển đổi bộ câu hỏi `2/6` · Thiết kế giao diện và luật chơi `2/6` · Kiểm tra tính chính xác của nội dung `2/6` · Lựa chọn hình thức tương tác `1/6` · Test bot & set system prompt/guardrails `1/6` (`S5`).
-  - **Pain point gặp phải (chọn nhiều):** Hạn chế về thời gian tổ chức `6/6` · Mất nhiều thời gian cấu hình `5/6` · Khó đưa bộ câu hỏi có sẵn vào trò chơi `2/6` · Câu hỏi hoặc đáp án có sai sót `2/6` · Công cụ không phù hợp với mục tiêu bài học `1/6` · Trò chơi gặp lỗi khi sử dụng trên lớp `1/6` · Thiết bị hoặc phần mềm không tương thích `1/6`.
-  - **Nhu cầu hình thức tương tác (chọn nhiều):** Chuột hoặc bàn phím `4/6` (`S1, S3, S5, S6`) · Điện thoại cá nhân `2/6` (`S2, S5`) · Trả lời trực tiếp trên lớp `1/6` (`S1`) · Cử chỉ hoặc chuyển động cơ thể `1/6` (`S4`) · Giọng nói `1/6` (`S4`) · Màn hình cảm ứng `1/6` (`S6`).
-- **Phỏng vấn:** `0/3` *(chưa có dữ liệu phỏng vấn thực tế)*.
+- **Phân bố đối tượng (Câu 1 — `n = 21`):**
+  - Giáo viên phổ thông & mầm non (**16/21 — 76.2%**; `n=20`: `15/20 = 75.0%`): Trung học cơ sở `6/21` (`28.6%`), Tiểu học `4/21` (`19.0%`), Trung học phổ thông `3/21` (`14.3%`), Mầm non `2/21` (`9.5%`), Tiểu học + THCS `1/21` (`4.8%`).
+  - Đào tạo bậc cao / trung tâm (**5/21 — 23.8%**; `n=20`: `5/20 = 25.0%`): Cao đẳng/Đại học `2/21` (`9.5%`), Trung tâm đào tạo `2/21` (`9.5%`), Lab Coach AI20k `1/21` (`4.8%`, `P05`).
+- **Tần suất tổ chức trò chơi (Câu 2 — trong 30 ngày gần đây / tháng):**
+  - `1–2 lần/tháng`: **7/21 (`33.3%`)** (`n=20`: `7/20 = 35.0%`) (`P01, P02, P05, P06, P07, P16, P18`)
+  - `3–5 lần/tháng`: **6/21 (`28.6%`)** (`n=20`: `6/20 = 30.0%`) (`P03, P08, P11, P12, P14, P21`)
+  - `6–10 lần/tháng`: **4/21 (`19.0%`)** (`n=20`: `4/20 = 20.0%`) (`P09, P10, P19, P20`)
+  - `Trên 10 lần/tháng`: **4/21 (`19.0%`)** (`n=20`: `3/20 = 15.0%`) (`P04, P13, P15, P17`)
+  - *(Tổng `≥ 3 lần/tháng`: **14/21 — 66.7%**; `n=20`: `13/20 = 65.0%`. Câu 9 – lý do chưa tổ chức: trống `21/21` vì 100% đều đã tổ chức trong 30 ngày qua.)*
+- **Công cụ đang sử dụng (Câu 3 — chọn nhiều):**
+  - `Quizizz/Wayground`: **12/21 (`57.1%`)** (`n=20`: `55.0%`) · `PowerPoint/Google Slides`: **10/21 (`47.6%`)** (`n=20`: `50.0%`) · `Kahoot`: **10/21 (`47.6%`)** (`n=20`: `45.0%`) · `Trò chơi trực tiếp không sử dụng phần mềm`: **4/21 (`19.0%`)** · `Blooket`: **2/21 (`9.5%`)** · `Công cụ tự xây dựng`: **2/21 (`9.5%`)** · `Wordwall`: **1/21 (`4.8%`)**.
+  - *Tự nhập khác:* `P05` (`"tạo bot trên tele cho học viên thực hành tấn công"`), `P07` (`"Agendaweb, yourhomework,…"`).
+- **Khoảng thời gian chuẩn bị 1 trò chơi (Câu 4 — dữ liệu dạng khoảng, không tự nội suy trung bình điểm):**
+  - `Từ 10 đến dưới 20 phút`: **8/21 (`38.1%`)** (`n=20`: `7/20 = 35.0%`)
+  - `Từ 20 đến dưới 30 phút`: **8/21 (`38.1%`)** (`n=20`: `8/20 = 40.0%`)
+  - `Từ 30 đến dưới 60 phút`: **3/21 (`14.3%`)** (`n=20`: `3/20 = 15.0%`) (`P05, P12, P20`)
+  - `Từ 60 phút trở lên`: **2/21 (`9.5%`)** (`n=20`: `2/20 = 10.0%`) (`P04, P15`)
+  - *Tổng hợp khoảng:* **`13/21` (`61.9%`)** tốn **`≥ 20 phút/trò chơi`** (`n=20`: `13/20 = 65.0%`); **`5/21` (`23.8%`)** tốn **`≥ 30 phút/trò chơi`** (`n=20`: `5/20 = 25.0%`).
+- **Bước chuẩn bị tốn thời gian nhất (Câu 5 — chọn nhiều):**
+  - `Soạn câu hỏi và đáp án`: **13/21 (`61.9%`)** (`n=20`: `12/20 = 60.0%`)
+  - `Lựa chọn hình thức tương tác`: **11/21 (`52.4%`)** (`n=20`: `10/20 = 50.0%`)
+  - `Tìm kiếm công cụ phù hợp`: **10/21 (`47.6%`)** (`n=20`: `9/20 = 45.0%`)
+  - `Thiết kế giao diện và luật chơi`: **8/21 (`38.1%`)** (`n=20`: `7/20 = 35.0%`)
+  - `Nhập hoặc chuyển đổi bộ câu hỏi`: **7/21 (`33.3%`)** (`n=20`: `6/20 = 30.0%`)
+  - `Kiểm tra tính chính xác của nội dung`: **4/21 (`19.0%`)** (`n=20`: `3/20 = 15.0%`)
+  - `Kiểm tra thiết bị và khả năng hoạt động`: **2/21 (`9.5%`)** (`n=20`: `1/20 = 5.0%`)
+  - `Không có công việc nào đặc biệt tốn thời gian`: **1/21 (`4.8%`, `P13` — chọn mâu thuẫn cùng 7 mục trên)**
+  - *Tự nhập khác:* `P05` (`"test bot tốn thời gian. Set system prompt và guardrails cho nó."`), `P07` (`"Ổn định học sinh"`).
+- **Pain point gặp phải trong 30 ngày gần đây (Câu 6 — chọn nhiều):**
+  - `Mất nhiều thời gian cấu hình`: **13/21 (`61.9%`)** (`n=20`: `12/20 = 60.0%`)
+  - `Hạn chế về thời gian tổ chức`: **11/21 (`52.4%`)** (`n=20`: `10/20 = 50.0%`)
+  - `Khó đưa bộ câu hỏi có sẵn vào trò chơi`: **8/21 (`38.1%`)** (`n=20`: `7/20 = 35.0%`)
+  - `Câu hỏi hoặc đáp án có sai sót`: **7/21 (`33.3%`)** (`n=20`: `6/20 = 30.0%`)
+  - `Thiết bị hoặc phần mềm không tương thích`: **5/21 (`23.8%`)** (`n=20`: `4/20 = 20.0%`)
+  - `Công cụ không phù hợp với mục tiêu bài học`: **4/21 (`19.0%`)** (`n=20`: `3/20 = 15.0%`)
+  - `Trò chơi gặp lỗi khi sử dụng trên lớp`: **3/21 (`14.3%`)** (`n=20`: `2/20 = 10.0%`)
+  - `Không gặp vấn đề đáng kể`: **2/21 (`9.5%`)** (`P15` phản hồi thực + `P13` mâu thuẫn; `n=20`: `1/20 = 5.0%`)
+  - `Hạn chế về chi phí`: **1/21 (`4.8%`, `P13`)**
+  - *Tổ hợp sự cố kỹ thuật (`không tương thích` HOẶC `lỗi khi dùng trên lớp`):* **7/21 (`33.3%`)** (`P05, P06, P08, P13, P17, P19, P20`; loại `P13`: `6/20 = 30.0%`).
+- **Nhu cầu hình thức tương tác (Câu 8 — chọn nhiều):**
+  - `Chuột hoặc bàn phím`: **14/21 (`66.7%`)** (`n=20`: `13/20 = 65.0%`)
+  - `Màn hình cảm ứng`: **6/21 (`28.6%`)** (`n=20`: `5/20 = 25.0%`)
+  - `Cử chỉ hoặc chuyển động cơ thể`: **5/21 (`23.8%`)** (`P04, P07, P08, P09, P11` — Mầm non, Tiểu học/THCS, THPT, CĐ/ĐH; `n=20`: `5/20 = 25.0%`)
+  - `Điện thoại cá nhân`: **5/21 (`23.8%`)** (`n=20`: `5/20 = 25.0%`)
+  - `Trả lời trực tiếp trên lớp`: **4/21 (`19.0%`)** (`n=20`: `4/20 = 20.0%`)
+  - `Giọng nói`: **1/21 (`4.8%`, `P04` Mầm non; `n=20`: `5.0%`)**
+- **Phỏng vấn sâu:** `0/3` *(không thực hiện trong khung CP3; dùng nguồn khảo sát `n = 21` — và `n = 20` khi loại `P13` — làm nguồn chính đạt vững ngưỡng R1)*.
 
-| | Vai | Gặp pain? | Số lần / 1 tháng qua | Lần gần nhất mất | Đang xoay xở bằng |
-|---|---|---|---|---|---|
-| P1 | *(chờ phỏng vấn)* | | | | |
-| P2 | *(chờ phỏng vấn)* | | | | |
-| P3 | *(chờ phỏng vấn)* | | | | |
+## 3. ≥5 trích dẫn nguyên văn ẩn danh (7 trích dẫn có mã `P01`–`P21`, 0 PII, giữ nguyên không diễn giải lại)
 
-## 3. ≥5 trích dẫn hoặc ví dụ nguyên văn (có nguồn, bỏ tên)
+1. `"Các cháu nó hiếu động quá nên bảo tập trung vào trò chơi hơi khó."` — `P04` (Mầm non · Câu 7)
+2. `"Nếu được tăng lương thì tốt, lúc đó tôi sẽ được dùng AI làm cho tiện."` — `P04` (Mầm non · Câu 10)
+3. `"Các LC khóa cũ thỉnh thoảng vẫn hay cho làm Quizz Kahoot cho học viên. Mọi người tham gia cũng khá hào hứng nhưng về sau spam nhiêu quizz quá thành ra nó cũng bị nhàm chán, nên khóa này ko dùng mấy nữa. Hơn nữa là chất lượng câu trả lời cũng chưa được kiểm định kỹ , câu trả lời thiếu thuyết phục, chưa kiểm soát đc hết các bạn cheating"` — `P05` (Lab Coach AI20k · Câu 7)
+4. `"Cần làm tốt khâu chuẩn bị nội dung cho từng Day. Câu hỏi phải thật hay và trọng tâm"` — `P05` (Lab Coach AI20k · Câu 10)
+5. `"Lớp học mất trật tự hơn hẳn khi các bạn được nghe sẽ có trò chơi, nên việc đau đầu nhất thực ra là ổn định lớp học và đưa hướng dẫn cho học sinh."` — `P07` (Tiểu học, trung học cơ sở · Câu 7)
+6. `"Thời gian soạn"` — `P02` (Cao đẳng/Đại học · Câu 10)
+7. *(Bổ sung nguyên văn mục tự nhập Câu 5)* `"test bot tốn thời gian. Set system prompt và guardrails cho nó."` — `P05` (Lab Coach AI20k · Câu 5)
 
-1. `"Các cháu nó hiếu động quá nên bảo tập trung vào trò chơi hơi khó."` — Phiếu khảo sát `S4` (Mầm non)
-2. `"Nếu được tăng lương thì tốt, lúc đó tôi sẽ được dùng AI làm cho tiện."` — Phiếu khảo sát `S4` (Mầm non)
-3. `"Các LC khóa cũ thỉnh thoảng vẫn hay cho làm Quizz Kahoot cho học viên. Mọi người tham gia cũng khá hào hứng nhưng về sau spam nhiêu quizz quá thành ra nó cũng bị nhàm chán, nên khóa này ko dùng mấy nữa. Hơn nữa là chất lượng câu trả lời cũng chưa được kiểm định kỹ , câu trả lời thiếu thuyết phục, chưa kiểm soát đc hết các bạn cheating"` — Phiếu khảo sát `S5` (Lab Coach AI20k)
-4. `"Cần làm tốt khâu chuẩn bị nội dung cho từng Day. Câu hỏi phải thật hay và trọng tâm"` — Phiếu khảo sát `S5` (Lab Coach AI20k)
-5. `"Thời gian soạn"` — Phiếu khảo sát `S2` (Cao đẳng/Đại học)
+*(Tất cả các ô câu mở để trống ở `P01, P03, P06, P08–P21` được giữ nguyên trạng thái trống, không suy diễn hay bịa lời trích dẫn.)*
 
-*(Các ô trả lời mở để trống ở `S1, S3, S6` được giữ nguyên trạng thái trống, không suy diễn. 6 tình huống S1–S6 là bản tóm tắt do TV1 cung cấp, **không được cộng vào 5 trích dẫn nguyên văn ở trên**.)*
+## 4. Đối chiếu giữa các nguồn & Hạn chế của mẫu
 
-## 4. Các nguồn có khớp nhau không
+- **Nguồn độc lập hiện có:** 1 nguồn đạt vững ngưỡng R1 (`evidence/survey/results.csv`, `n = 21`, và `n = 20` hợp lệ khi loại `P13`). Chưa có nguồn phỏng vấn sâu (`0/3`) để đối chiếu chéo định tính ở các phiếu `P09`–`P21`.
+- **Hạn chế mẫu cần ghi nhận minh bạch:**
+  1. **1 phiếu mâu thuẫn nội tại (`P13` — `28/11 08:20:41`, THCS):** chọn đồng thời tất cả lựa chọn (gồm cả `"Không có công việc nào đặc biệt tốn thời gian"` và `"Không gặp vấn đề đáng kể"`). Giữ nguyên trong dữ liệu gốc; nhờ bổ sung `P21`, phân tích độ nhạy loại `P13` vẫn giữ đủ **`n = 20` phiếu hợp lệ** và thứ hạng Top pain points & nhu cầu tương tác **không thay đổi**.
+  2. **Cụm thời gian thu thập (`P09`–`P20`):** 12 phiếu gửi tập trung trong 8 phút sáng 28/11 (`08:16–08:24`) và không điền câu mở Câu 7 (cùng `P21` lúc `08:54:30`), làm độ sâu định tính thấp hơn nhóm 8 phiếu đầu (`P01`–`P08`).
+  3. **Dữ liệu thời gian chuẩn bị (Câu 4) ở dạng khoảng:** không cho phép tính trung bình phút chính xác từng cá nhân; dùng phân bố theo khoảng và trung vị khoảng (`20–<30 phút`) làm Baseline.
+  4. **Đối tượng đa dạng:** 76.2% (`16/21`) là giáo viên Mầm non/Phổ thông; 23.8% (`5/21`) thuộc CĐ/ĐH, Trung tâm đào tạo và Lab Coach AI20k.
 
-Hiện có 1 nguồn sơ bộ (`evidence/survey/results.csv`, `n = 6`) và 6 tình huống tóm tắt S1–S6 do TV1 cung cấp; hai nguồn này cùng hướng nhưng S1–S6 không phải trích nguyên văn. Chưa có nguồn phỏng vấn (`0/3`) để đối chiếu chéo. Sẽ cập nhật sau khi thu thêm khảo sát (đạt ≥20) và/hoặc hoàn tất ≥3 phỏng vấn sâu trước CP3.
+## 5. Kết luận & Kiểm chứng giả thuyết (`evidence/hypothesis.md`)
 
-## 5. Kết luận & Kiểm chứng sơ bộ giả thuyết
+> **Phân biệt rõ 3 mức độ xác thực (không đánh đồng khảo sát nhu cầu với kiểm chứng sản phẩm):**
+> - **Problem Validation (Xác thực vấn đề):** **Có bằng chứng khảo sát (`n = 21`; loại `P13`: `n = 20`)** — xác nhận giáo viên thật sự gặp pain về cấu hình mất thời gian (`61.9%`), soạn câu hỏi/đáp án (`61.9%`), hạn chế thời gian tổ chức (`52.4%`), khó nạp bộ đề có sẵn (`38.1%`), sai sót câu hỏi/đáp án (`33.3%`) và lỗi tương thích/trên lớp (`33.3%`).
+> - **Hypothesis Validation (Kiểm chứng giả thuyết):** **Xác nhận phần lớn giả thuyết về pain & `Mouse Fallback`**, nhưng **tổ hợp `≥ 30 phút` hoặc lỗi kỹ thuật chỉ đạt `47.6%` (`n=20: 45.0%`), thấp hơn ngưỡng gốc `66.7%`** — cần ghi nhận trung thực.
+> - **Product Validation (Xác thực giải pháp/sản phẩm):** **CHƯA ĐẠT** — khảo sát chỉ đo hành vi & Baseline hiện tại; **chưa đo thời gian *With Agent* từ giáo viên thật (chờ T04 UAT)**, do đó **KHÔNG tuyên bố sản phẩm đã giảm thời gian chuẩn bị**.
 
-- **Kiểm chứng sơ bộ các giả thuyết trong `evidence/hypothesis.md` (trên mẫu nhỏ `n = 6`, chưa kết luận cuối cùng):**
-  1. *Giả thuyết về vấn đề cấu hình & đưa bộ đề vào trò chơi:* **Có tín hiệu ủng hộ mạnh ở khâu cấu hình & soạn bộ đề** — `6/6` gặp khó ở khâu soạn câu hỏi/đáp án và hạn chế thời gian tổ chức; `5/6` mất nhiều thời gian cấu hình; `2/6` khó đưa bộ câu hỏi có sẵn vào trò chơi; `2/6` gặp sai sót câu hỏi/đáp án.
-  2. *Giả thuyết về sự cố tương thích / lỗi trên lớp:* **Có tín hiệu xuất hiện nhưng chưa phải đa số trong mẫu nhỏ** — `1/6` (`S6`) gặp lỗi không tương thích thiết bị/phần mềm và `1/6` (`S5`) gặp lỗi trò chơi khi dùng trên lớp.
-  3. *Giả thuyết thay thế (điểm nghẽn thực sự nằm ở soạn câu hỏi & thời lượng lớp):* **Rất đáng lưu ý** — `6/6` chọn cả *"Soạn câu hỏi và đáp án"* lẫn *"Hạn chế về thời gian tổ chức"*. Điều này phù hợp trực tiếp với việc MVP v2.2 bổ sung **sinh bộ câu hỏi (`Question Set`) kèm kiểm duyệt HITL** thay vì chỉ chọn vỏ trò chơi.
-  4. *Giả thuyết về hình thức tương tác (`Mouse Fallback` & cử chỉ):* **Ủng hộ mạnh `Mouse Fallback`** (`4/6` chọn chuột/bàn phím); nhu cầu cử chỉ/giọng nói xuất hiện rõ ở nhóm Mầm non (`S4`, `1/6`), trong khi nhóm đại học/Lab Coach (`S2, S5`) chuộng điện thoại cá nhân hoặc chuột.
-  5. *Tiêu chí giả thuyết `≥30 phút`:* `2/6` (`S4, S5`) tốn `≥30 phút`; `4/6` (`S1, S2, S3, S6`) tốn `10–<30 phút`.
-- **Đối chiếu với Problem Statement, Small Slice & MVP v2.2:**
-  - Khớp với chiến lược **Reuse-first, Generate-if-needed + Question Generation + HITL + Mouse Fallback** (giảm công cấu hình `5/6`, hỗ trợ soạn & kiểm duyệt câu hỏi `6/6` & `2/6` sai sót đáp án, chống nhàm chán quiz lặp lại như `S5` nêu, đảm bảo chạy được bằng chuột `4/6`).
-  - *Lưu ý trung thực:* Chưa có thử nghiệm thực tế đo thời gian *With Agent*, nên **chưa** kết luận sản phẩm đã tiết kiệm thời gian hay chi phí.
-- **Hạn chế của mẫu khảo sát hiện tại:**
-  - Cỡ mẫu nhỏ (`n = 6`), **chưa đạt ngưỡng CP3 (≥20)**; phân tán qua 5 nhóm đối tượng khác nhau (Mầm non, Tiểu học, THCS, CĐ/ĐH, Lab Coach — trong đó `S5` là Lab Coach AI20k, không thuần giáo viên phổ thông).
-  - Dữ liệu thời gian chuẩn bị (Câu 4) ở dạng khoảng nên chưa tính được Baseline trung bình phút chính xác.
-  - Có `3/6` phiếu (`S1, S3, S6`) bỏ trống các ô trả lời mở (Câu 7, Câu 10); Câu 9 trống `6/6` vì cả 6 người đều đã tổ chức hoạt động trong 30 ngày qua.
-- **Baseline bổ sung từ S1–S6:** Thời gian chuẩn bị `10–<20 phút/trò chơi` (`3/6`: `S1, S2, S6`), `20–<30 phút` (`1/6`), `30–<60 phút` (`1/6`), `≥60 phút` (`1/6`); tần suất đã rõ khung **30 ngày (1 tháng)** (`1–2 / 3–5 / >10 lần/tháng`, TV4 có thể dùng làm cơ sở sơ bộ cho `cost/personas.yaml` và ghi rõ `n = 6` + `tự ước tính` nếu bổ sung); chưa có thời gian *With Agent* nên chưa tính Impact (T20).
-- **Tiến độ CP2 & CP3:**
-  - **CP2 (19:30 ngày 27/11):** Đã có bằng chứng đầu thực tế (`n = 6`), bộ câu hỏi gốc (`evidence/survey/questions.md`) và 5 trích dẫn nguyên văn hợp lệ.
-  - **CP3 (10:00 ngày 28/11):** Cần thu thêm tối thiểu **14 phiếu khảo sát nữa** (đạt `≥20`) **hoặc** hoàn thành tối thiểu **3 phỏng vấn sâu** (`P1.md`–`P3.md`).
-
-## Lịch hẹn (dùng cho CP2 — chỉ ghi vai và giờ, không tên)
-
-| Vai | Giờ hẹn | Đã xong? |
+| Giả thuyết / Tiêu chí | Trạng thái | Bằng chứng từ khảo sát (`n = 21` · nhạy `n = 20` loại `P13`) |
 |---|---|---|
-| *(Chưa có lịch hẹn phỏng vấn xác nhận — cập nhật ngay khi có lịch)* | | |
+| **H-Pain 1:** Giáo viên tốn nhiều công cấu hình, soạn/đưa bộ câu hỏi vào trò chơi | **XÁC NHẬN** | `Mất nhiều thời gian cấu hình` **61.9% (`13/21`; `n=20: 60.0%`)**; `Soạn câu hỏi và đáp án` **61.9% (`13/21`; `n=20: 60.0%`)**; `Khó đưa bộ câu hỏi có sẵn vào trò chơi` **38.1% (`8/21`; `n=20: 35.0%`)**; `Câu hỏi/đáp án sai sót` **33.3% (`7/21`; `n=20: 30.0%`)**. |
+| **H-Alt (Giả thuyết thay thế):** Điểm nghẽn thực sự nằm ở soạn câu hỏi & thời lượng lớp học | **XÁC NHẬN SONG SONG** | `Soạn câu hỏi và đáp án` (**61.9%**) và `Hạn chế về thời gian tổ chức` (**52.4%**) nằm trong Top 2 — chứng minh chỉ chọn vỏ game là chưa đủ, cần **sinh & chuẩn hóa bộ câu hỏi kèm HITL duyệt đáp án**. |
+| **H-Tech (Tiêu chí gốc ≥ 2/3 tốn ≥ 30 phút hoặc lỗi tương thích/trên lớp)** | **XÁC NHẬN MỘT PHẦN (CHƯA ĐẠT NGƯỠNG 66.7%)** | Tổ hợp `≥ 30 phút` (`23.8%`, `5/21`) HOẶC `không tương thích/lỗi lớp` (`33.3%`, `7/21`) đạt **47.6% (`10/21`; `n=20`: `45.0%`)** — thấp hơn ngưỡng giả thuyết ban đầu `66.7%`. Tuy nhiên, **61.9% (`13/21`; `n=20: 65.0%`)** tốn `≥ 20 phút/trò chơi` và **33.3%** thực sự gặp lỗi tương thích/trên lớp. |
+| **H-Interaction:** `Mouse Fallback` là nền tảng bắt buộc; cử chỉ có nhu cầu thực nhưng không phải số đông | **XÁC NHẬN** | `Chuột/bàn phím` **66.7% (`14/21`; `n=20: 65.0%`)**, `Màn hình cảm ứng` **28.6% (`6/21`)** vs `Cử chỉ/chuyển động cơ thể` **23.8% (`5/21`)**, `Giọng nói` **4.8% (`1/21`)**. Khẳng định bắt buộc giữ `Mouse Fallback` và giữ `audio` ngoài P0. |
+| **H-Value:** AI Game Composer giúp giảm thời gian chuẩn bị thực tế (*With Agent < Baseline*) | **CHƯA XÁC NHẬN** | Khảo sát chỉ đo **nhu cầu & Baseline hiện tại**; chưa có thử nghiệm đo thời gian *With Agent* trên giáo viên thật → **không kết luận** sản phẩm đã được product-validated. |
+| **Phản hồi bất lợi / ngoài phạm vi công cụ** | **GHI NHẬN TRUNG THỰC** | `P15` không gặp vấn đề đáng kể (chơi trực tiếp không phần mềm); `P07` đau đầu nhất là ổn định trật tự lớp; `P04` lo chi phí dùng AI; `P05` cảnh báo nhàm chán do spam quiz và cheating. |
+
+- **Baseline bàn giao cho TV4 (`cost/personas.yaml` & `data/DATA_CARD.md`):**
+  - **Tần suất tổ chức trò chơi / 30 ngày (tháng) (`n = 21` · nhạy `n = 20`):** `1–2 lần` (`33.3%` · `n=20: 35.0%`), `3–5 lần` (`28.6%` · `n=20: 30.0%`), `6–10 lần` (`19.0%` · `n=20: 20.0%`), `>10 lần` (`19.0%` · `n=20: 15.0%`) — gợi ý 3 persona khớp dữ liệu thật: **Ít (`1–2 lần/tháng`, 33.3% / 35.0%)**, **Vừa (`3–5 lần/tháng`, 28.6% / 30.0%)**, **Nhiều (`≥ 6 lần/tháng`, 38.1% / 35.0%)**.
+  - **Thời gian chuẩn bị Baseline / trò chơi:** `10–<20 phút` (`38.1%`), `20–<30 phút` (`38.1%`), `30–<60 phút` (`14.3%`), `≥ 60 phút` (`9.5%`) — **trung vị khoảng: `20–<30 phút/trò chơi`** (`61.9%` tốn `≥ 20 phút`; `n=20: 65.0%`).
+  - **Impact / tháng:** Chưa tính thành số tiết kiệm vì chưa có thời gian *With Agent* đo thực nghiệm (chờ T04 UAT).

@@ -101,7 +101,8 @@ class HitlGate(unittest.TestCase):
 
 class SharedCoreCall(unittest.TestCase):
     def test_call_returns_safe_ui_projection_and_draft_hitl(self):
-        with mock.patch.dict(os.environ, {"MODEL_PROVIDER": "fake", "AGENT_MODE": "t06_mock"}):
+        with mock.patch.dict(os.environ, {"MODEL_PROVIDER": "fake", "AGENT_MODE": "t06_mock"}), \
+             mock.patch.object(ai, "MODEL_PROVIDER", "fake"):
             out = agent_bridge.call({"message": "Tạo game ôn Toán", "session_id": "unit-1"}, case_id="unit-1")
         ui = out["ui"]
         self.assertTrue(ui["html_omitted"])

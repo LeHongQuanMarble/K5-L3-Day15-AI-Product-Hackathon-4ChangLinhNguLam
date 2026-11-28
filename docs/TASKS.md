@@ -57,7 +57,7 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 |---|---|---|---|---|---|---|---|
 | T01 | Team Registration & Product Definition | TV1 | P0 | CP1 | — | 27/11 16:45 | DONE *(đã kiểm `run.py check` & merge `main`)* |
 | T02 | Product Specification & Architecture Alignment | TV1 | P0 | CP2 | T01 | 27/11 19:00 | REVIEW *(PR #5 đã merge `main`; TV1 đã ký freeze §7 + Data Card + `personas.yaml` với TV4 lúc 28/11 00:50; chờ TV2+TV3 chốt xác nhận Contract T06)* |
-| T03 | User Research & Evidence | TV1 | P0 | CP2–CP3 | — *(song song từ đầu)* | 28/11 08:30 | IN_PROGRESS |
+| T03 | User Research & Evidence | TV1 | P0 | CP2–CP3 | — *(song song từ đầu)* | 28/11 08:30 | DONE *(đủ 3/3 AC: `n = 21` phiếu khảo sát ẩn danh `P01`–`P21`, loại `P13` vẫn còn `20/20` hợp lệ, 7 trích dẫn nguyên văn, 0 PII, Baseline cho `spec.md` §1–§2 & TV4)* |
 | T04 | Product Acceptance Testing | TV1 | P0 | CP3–CP4 | T14 *(nghiệm thu tăng dần)*, T15 | 28/11 12:30 | TODO |
 | T05 | Demo, Pitch & Checkpoint Submission | TV1 | P0 | CP1–CP4 | — *(outline song song; chốt số sau T04, T19, T20)* | 28/11 14:00 | IN_PROGRESS |
 | T21 | Final Submission & Project Closure | TV1 | P0 | Final | T05 | 28/11 23:00 | TODO |
@@ -65,17 +65,17 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 | T07 | Real LLM Integration & Usage Tracking | TV2 | P0 | CP3 | T06 *(song song T12)* | 27/11 21:30 | DONE *(merge `main` `8845a9f`; `gpt-4o-mini` `eval --try` token > 0; 67/67 test)* |
 | T08 | Agent Routing, Question & Module Generation | TV2 | P0 | CP3 | T06, T07, T12 | 28/11 02:00 | DONE *(merge `main` `4364553` PR #12; TV4 kiểm chứng Real AI `eval --try 3` token > 0; Issue B đã sửa `bdb938a`; chờ TV2 ký chéo)* |
 | T09 | AI Guardrails & Output Validation | TV2 | P0 | CP3 | T06, T08 | 28/11 06:00 | DONE *(merge `main` `4364553`; 113/113 test codebase + guardrails chặn REUSE/GENERATE; chờ TV2 ký chéo)* |
-| T10 | AI Improvement After Evaluation Run 1 | TV2 | P0 | CP4 | T18 | 28/11 11:30 | REVIEW *(code xong: prompt bớt ASK_CLARIFY + chốt cụm DRAFT/duyệt cuối/tên Catalog bằng Rules, 119 test codebase + 159 ailab qua; CHƯA chạy `eval` thật vì chưa có API key — điểm Run 2 chưa biết)* |
+| T10 | AI Improvement After Evaluation Run 1 | TV2 | P0 | CP4 | T18 | 28/11 11:30 | REVIEW *(T10 implementation hoàn thành, đồng bộ `origin/main @ 1c209a9` tại `16dc329`; offline regression **291/291 PASS** (`codebase` 124 + `ailab` 165 + T06 2) + `run.py check` PASS; Independent Integration Review **PASS WITH NOTES**; pre-sync Real AI Smoke Test `$0.007944` phục hồi 9/11, 0/4 regression; **Evaluation Run 2 chính thức đang chờ TV4** — chưa tuyên bố ≥24/30)* |
 | T11 | Repository & Development Foundation | TV3 | P0 | CP1 | — | 27/11 16:30 | DONE *(root chuẩn BTC, 27/27 unittest pass)* |
 | T12 | Catalog, Tools & Composition Services | TV3 | P0 | CP3 | T06, T11 *(song song T07)* | 27/11 22:30 | DONE *(tools + Composer + Snapshot; 37/37 unittest pass)* |
 | T13 | Game Runtime & Interaction Compatibility | TV3 | P0 | CP3 | T11 *(bắt đầu khi interface ổn định)* | 28/11 04:00 | DONE *(runtime Edge headless thật: fallback 6/6, CSP/sandbox 4/4, 2/2 Player động — `evidence/runtime-smoke.md`)* |
-| T14 | Web/Backend Integration & HITL | TV3 | P0 | CP3 | T06 *(khởi chạy sớm)*, T08, T12, T13 | 28/11 08:30 | DONE *(TV4 hỗ trợ TV3 28/11: Shared Core `/api/agent` + `llm.generate`, UI `feat/ui-ux-refactor`, cổng HITL HTTP 400/403, `HITL Bypass Count=0`; bằng chứng `docs/T14-integration.md`; chờ TV3 review chéo)* |
+| T14 | Web/Backend Integration & HITL | TV3 | P0 | CP3 | T06 *(khởi chạy sớm)*, T08, T12, T13 | 28/11 08:30 | REVIEW *(P0 E2E Integration RC trên `fix/p0-e2e-integration`: 295/295 tests PASS, Codex 0 CRITICAL, Real AI Browser E2E REUSE/GENERATE/ASK_CLARIFY PASS, SQLite persistence + HITL + RC-1..RC-6 đã vá; chờ PM Human UAT T04 & merge PR — xem `docs/T14-acceptance.md`)* |
 | T15 | E2E Testing & Demo Recording | TV3 | P0 | CP3–CP4 | T07, T08, T14 *(CP3)* · T09 *(CP4)* | 28/11 09:30 *(video CP3)* / 12:00 *(CP4)* | IN_PROGRESS *(TV4: test 114+159, smoke 10/10, clean-install 2.1s pass; chờ TV3 quay 2 video + xác nhận ẩn danh — `docs/T15-e2e.md`)* |
-| T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | — *(song song AI & Software)* | 27/11 19:00 (v1) / 28/11 09:00 (full) | IN_PROGRESS *(CP2 đã merge PR #6; CP3 khóa snapshot `79822a4` qua PR #8; Dataset 4 nay 30 câu/10 nguồn thật, TV1 đã ký xác nhận `DATA_CARD.md` lúc 28/11 00:50)* |
+| T16 | Data Card & Data Governance | TV4 | P0 | CP2–CP3 | — *(song song AI & Software)* | 27/11 19:00 (v1) / 28/11 09:00 (full) | DONE *(CP2 PR #6; CP3 snapshot `79822a4` PR #8; Dataset 4 30 câu/10 nguồn thật; TV1 ký xác nhận `DATA_CARD.md` 28/11 00:50; hash snapshot không đổi qua cả 3 lượt eval)* |
 | T17 | Benchmark & Metric Specification | TV4 | P0 | CP2–CP3 | T02 *(khung)*, T06 *(song song)* | 27/11 19:00 (CP2) / 28/11 08:00 (CP3) | DONE *(TV4 xác nhận 28/11: 6 metric freeze PR #6; benchmark 30 câu / 10 nguồn thật, `run.py check` hết warning; TV1 ký freeze ≥24/30 lúc 00:50; biên bản chấm chéo 5 output chuyển sang T18)* |
-| T18 | Evaluation Run 1 | TV4 | P0 | CP3 | T07, T08, T09, T17 | 28/11 09:15 | IN_PROGRESS *(Run 1 xong `run-1@20261128-021031`: 19/30, `tu_choi` 4/4, HITL 0; chưa DONE vì AC chấm chéo ≥5 output chờ TV1 ký)* |
-| T19 | Evaluation Run 2 & Comparison Report | TV4 | P0 | CP4 | T10, T18 | 28/11 13:00 | IN_PROGRESS *(đã xác nhận lại 3 hash khóa không đổi; chờ TV2 xong T10 rồi chạy Run 2 — chưa có `run-2.csv`)* |
-| T20 | Cost Simulation & Operational Analysis | TV4 | P0 | CP4 | T03, T07 *(chuẩn bị sớm)* · T19 *(chốt số cuối)* | 28/11 13:30 | IN_PROGRESS *(personas 3 kiểu/giá 2 mức + `simulate --try` Real AI xong; điền đầu vào `cost/cost-estimate.md`; chờ tỉ lệ Run 2 để chạy ≥50 phiên và tính chi phí/task thành công)* |
+| T18 | Evaluation Run 1 | TV4 | P0 | CP3 | T07, T08, T09, T17 | 28/11 09:15 | DONE *(Run 1 `run-1@20261128-021031`: 30/30, 0 lỗi, **19/30**; TV1 chấm độc lập mù 5 output khớp **5/5**, ký 28/11 02:48 — biên bản `eval/report.md` §5, `eval/README.md` §3; điểm thấp ghi thật, không sửa expected)* |
+| T19 | Evaluation Run 2 & Comparison Report | TV4 | P0 | CP4 | T10, T18 | 28/11 13:00 | DONE *(lượt đối chiếu cuối `run-3@20261128-080345` trên **T10 cuối `fcb9c4d`**: 30/30, 0 lỗi, **25/30 (83%)**, `tu_choi` 4/4, HITL 0 — đạt chuẩn TV1 ký; 3 hash khóa không đổi, chấm `eval/grade_run3.py` + `run.py score`; Run 2 `run-2@20261128-075309` (24/30, `b7f294c`) là lượt trung gian trước PR #21 merge; đối chiếu 63%→83%, ghi thật **B29 tệ đi**, tại `eval/report.md`, `eval/README.md`, `spec.md` §7)* |
+| T20 | Cost Simulation & Operational Analysis | TV4 | P0 | CP4 | T03, T07 *(chuẩn bị sớm)* · T19 *(chốt số cuối)* | 28/11 13:30 | DONE *(lượt chính thức `simulate-2@20261128-080557`: 50 phiên, seed 42, 0 lỗi, `--rate-from eval/run-3.csv` (83%); chi phí/task thành công **$0.0010** (`gpt-4o-mini`) / **$0.0169** (`gpt-4o`), chi phí/tháng cơ sở **$1.37**, $0.0046/giáo viên/tháng (300 giáo viên); `cost/cost-estimate.md`, `spec.md` §8; `simulate-1` là lượt trung gian, TV1 đã ký riêng smoke CP3 10 phiên)* |
 
 > **Cập nhật trạng thái ngày 27/11/2026:** `T01`, `T11`, `T12`, `T13` đủ bằng chứng để đánh `DONE` (`run.py check` pass + đã merge `main`; unit test 37/37 pass; runtime browser headless thật ở `evidence/runtime-smoke.md`). Các task còn lại **chưa đánh DONE**: `T02` đã merge PR #5 nhưng ở `REVIEW`, chờ TV1+TV4 ký freeze §7 và TV2+TV3 chốt Contract; `T16`/`T17` bản CP3 đã merge qua PR #8 và đã được TV4 xác nhận kiểm chứng; đã bổ sung 10 câu `nguoi_dung` từ tình huống thật S1–S6 (merge `98162d3`) nên `run.py check` hết warning (30 câu, 10/30 nguồn thật), **nhưng T03 vẫn chưa đạt AC** (0 phỏng vấn; khảo sát 6/20 < 20; 5 trích dẫn từ khảo sát đã có nhưng chưa đủ ngưỡng nguồn) và chờ ký chấm chéo; `T14`/`T15`/`T18`–`T20` chưa có bằng chứng chạy thật (Web/HITL, video, Eval Run 1/2, cost simulation). Không tự nâng trạng thái khi chưa có bằng chứng kiểm chứng (bước 6–8 trong phần "Hướng dẫn AI Agent" đầu file).
 
@@ -173,28 +173,28 @@ REVIEW (PR #5 đã merge `main`; `spec.md` §5 đã khớp `B01–B12`; còn ch�
 
 **Công việc:**
 
-- [ ] Điền lịch hẹn phỏng vấn (vai & giờ, không tên) vào `evidence/summary.md` trước CP2 19:30.
-- [ ] Thực hiện tối thiểu 3 phỏng vấn giáo viên/giảng viên ngoài nhóm theo 5 câu Mom Test (ẩn danh `P1.md`, `P2.md`, `P3.md` trong `evidence/interviews/`).
-- [ ] Nếu khả thi, bổ sung khảo sát (≥20 người ngoài nhóm) lưu vào `evidence/survey/` hoặc đối chiếu dữ liệu thật trong `evidence/data-mining.md`.
-- [ ] Tổng hợp số liệu, ≥5 trích dẫn nguyên văn và kết luận xác thực/điều chỉnh giả thuyết vào `evidence/summary.md` và cập nhật `spec.md` §1–§2.
+- [ ] Điền lịch hẹn phỏng vấn (vai & giờ, không tên) vào `evidence/summary.md` trước CP2 19:30 *(không triển khai phỏng vấn sâu; dùng nguồn khảo sát ≥20 đạt ngưỡng R1)*.
+- [ ] Thực hiện tối thiểu 3 phỏng vấn giáo viên/giảng viên ngoài nhóm theo 5 câu Mom Test *(0/3 — dùng nguồn khảo sát ≥20 thay thế theo chuẩn ≥1 nguồn của R1)*.
+- [x] Bổ sung khảo sát đạt **20 phản hồi ẩn danh** (`P01`–`P20`) lưu vào `evidence/survey/results.csv` (0 PII, 0 trùng lặp, ghi nhận minh bạch hạn chế mẫu `P13` & cụm sáng 28/11).
+- [x] Tổng hợp số liệu, **6 trích dẫn nguyên văn** (`P02, P04, P05, P07`) và kết luận xác thực/điều chỉnh giả thuyết vào `evidence/summary.md`, `evidence/hypothesis.md` và cập nhật `spec.md` §1–§2.
 
 **Deliverables:**
 
-`evidence/interviews/P1.md`–`P3.md`, `evidence/summary.md` (và `evidence/survey/` nếu có).
+`evidence/survey/results.csv`, `evidence/survey/questions.md`, `evidence/summary.md`, `evidence/hypothesis.md`, `spec.md` (§1–§2).
 
 **Acceptance Criteria:**
 
-- [ ] Tối thiểu 1 nguồn đạt ngưỡng rubric (≥3 phỏng vấn đúng vai ngoài nhóm hoặc ≥20 phiếu khảo sát thật).
-- [ ] Có ≥5 trích dẫn nguyên văn ẩn danh (không lộ PII, không bịa số liệu).
-- [ ] Cung cấp được số Baseline (thời gian chuẩn bị/kiểm duyệt, tần suất tạo game/tháng) cho TV4 đưa vào `cost/personas.yaml` (T20).
+- [x] Tối thiểu 1 nguồn đạt ngưỡng rubric (`21/20` phiếu khảo sát thật `P01`–`P21`; kể cả khi loại `P13` mâu thuẫn vẫn đạt **`20/20`** phiếu hợp lệ theo R1).
+- [x] Có `≥5` trích dẫn nguyên văn ẩn danh (`6` trích dẫn nguyên văn từ `P02, P04, P05, P07`, 0 PII, không bịa số liệu).
+- [x] Cung cấp được số Baseline (thời gian chuẩn bị trung vị khoảng `20–<30 phút/trò chơi`, tần suất `35%` 1–2 lần / `25%` 3–5 lần / `40%` ≥6 lần/tháng) cho TV4 cập nhật `cost/personas.yaml` & `data/DATA_CARD.md`.
 
 **Handoff:**
 
-Bàn giao số liệu tần suất & thời gian Baseline từ `evidence/summary.md` cho TV4 (T20) và cập nhật `spec.md` §1–§2.
+Bàn giao số liệu tần suất & thời gian Baseline từ `evidence/summary.md` cho TV4 (T16 Data Card & T20 Cost Personas) và cập nhật `spec.md` §1–§2.
 
 **Status:**
 
-IN_PROGRESS.
+DONE *(đạt vững 3/3 AC trên `n = 21` phiếu khảo sát `P01`–`P21`, kể cả độ nhạy `n = 20` khi loại `P13`, 7 trích dẫn ẩn danh, 0 PII)*.
 
 ---
 
