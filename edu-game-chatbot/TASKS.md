@@ -58,7 +58,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Kiểm tra:** `pytest tests/unit/test_contract.py -q`
 - **Bẫy:** regex cho `alert(` không được bắt nhầm `obj.alert(`/`myalert(`. Dùng lookbehind `(?<![\w.$])`.
 
-### [ ] T05. Models + Session Memory (store)
+### [x] T05. Models + Session Memory (store)
 - **Đọc:** ARCHITECTURE §3
 - **File:** `app/core/models.py`, `app/core/store.py`, `tests/unit/test_store.py`
 - **Làm:** các model Pydantic như §3. `SessionStore(root)` gồm: `create()`, `get(id)` (không có thì `KeyError`), `save(session)` (ghi nguyên tử), `lock(id)` (`asyncio.Lock`), `session_dir(id)`, `safe_path(id, filename)` (chống `..`, đường dẫn tuyệt đối, ký tự lạ). Thêm helper `add_message`, `add_event`.
