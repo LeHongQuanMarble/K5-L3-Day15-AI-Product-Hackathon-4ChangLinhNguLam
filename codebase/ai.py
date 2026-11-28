@@ -53,7 +53,7 @@ API_KEY = (os.environ.get("API_KEY") or "").strip()
 
 
 SHOW_RAW = False   # True: in nguyên phản hồi của API khi cần tìm tên trường
-MAX_OUT = 8192     # trả về cả một file game HTML nên cần nhiều token ra hơn ví dụ mẫu (1024)
+MAX_OUT = 12000    # trả về cả một file game HTML nên cần nhiều token ra hơn ví dụ mẫu (1024); 8192 từng làm game tự sinh bị cắt cụt
 
 
 def _http_body(e):
@@ -149,7 +149,7 @@ def call_claude(system, user):
     data = post_json("https://api.anthropic.com/v1/messages",
                      {"x-api-key": API_KEY, "anthropic-version": "2023-06-01"},
                      {"model": MODEL_NAME, "max_tokens": MAX_OUT, "system": system or "",
-                      "messages": [{"role": "user", "content": user}]}, provider="anthropic")
+                      "messages": [{"role": "user", "content": user}]}, timeout=240, provider="anthropic")
     tin, tout = extract_usage("anthropic", data)
     blocks = data.get("content")
     if not isinstance(blocks, list) or not all(isinstance(b, dict) for b in blocks):

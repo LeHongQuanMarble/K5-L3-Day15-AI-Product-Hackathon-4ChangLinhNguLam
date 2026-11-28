@@ -136,7 +136,7 @@ def call(payload, case_id="web-req", registry=None):
             # Kết thúc trace để ghi trung thực lỗi, rồi ném ra cho server ánh xạ 502/503.
             tracing.end()
             raise provider_error(exc) from None
-        summary, _ = tracing.end()
+        summary, events = tracing.end()
     if not isinstance(envelope, dict):
         raise BridgeError(502, "bad_envelope", "Lõi AI trả kết quả không hợp lệ.")
     # Ranh giới Web không tin status do model/plan gửi lên: mọi output đều ở dạng nháp.
@@ -147,7 +147,7 @@ def call(payload, case_id="web-req", registry=None):
     needs_review = any(isinstance(w, dict) and w.get("code") == KNOWLEDGE_CODE for w in warnings)
     ui["knowledge_review_required"] = bool(needs_review)
     ui["hitl"] = {"status": "draft", "can_publish": False}
-    return {"envelope": envelope, "ui": ui, "trace": summary,
+    return {"envelope": envelope, "ui": ui, "trace": summary, "events": events,
             "knowledge_review_required": bool(needs_review)}
 
 

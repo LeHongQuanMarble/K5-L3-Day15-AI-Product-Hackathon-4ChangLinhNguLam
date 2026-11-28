@@ -144,6 +144,8 @@ def init(admin_password=None):
     """Tạo bảng, tài khoản admin lần đầu, và hai trình chơi mẫu. Trả mật khẩu admin nếu vừa tạo (để in ra một lần)."""
     c = connect()
     c.executescript(SCHEMA)
+    import rooms  # noqa: PLC0415  (rooms nhập store → nhập muộn để khỏi vòng)
+    rooms.ensure(c)
     for table, col, ddl in (("models", "image", "TEXT NOT NULL DEFAULT ''"), ("players", "image", "TEXT NOT NULL DEFAULT ''"),
                             ("apps", "image", "TEXT NOT NULL DEFAULT ''"), ("apps", "exam_id", "INTEGER")):
         if col not in {r[1] for r in c.execute("PRAGMA table_info(%s)" % table)}:  # DB cũ: thêm cột, không mất dữ liệu
@@ -165,6 +167,8 @@ def init(admin_password=None):
         c.execute("INSERT INTO models(owner_id,name,description,kind,url,outputs,visibility,created) VALUES(0,?,?,?,?,?, 'public',?)",
                   ("Bàn tay (MediaPipe)", "Nhận diện bàn tay: nắm tay, xòe tay và vị trí tay. Không cần huấn luyện.", "hands", HANDS_URL,
                    json.dumps([{"key": "fist", "role": "action"}, {"key": "open", "role": "action"}, {"key": "none", "role": "empty"}]), time.time()))
+    import motions
+    motions.init(c)
     seed_players(c)
     seed_exams(c)
     seed_images(c)
@@ -581,8 +585,18 @@ def clean_app(c, user, d, existing=None):
     return name, desc, pid, model_id, mapping, content, sure, hold, share_flag, exam_id, image
 
 
-def app_row(r, user):
+KIND_ART = {"image": "/kindart/image.jpg", "pose": "/kindart/pose.jpg", "audio": "/kindart/audio-spectrogram.png"}
+
+
+def app_row(r, user, c=None):
+    """c (kết nối DB, tuỳ chọn): ứng dụng chưa có ảnh riêng thì lấy ảnh của mô hình nó dùng làm ảnh mặc định (ai tự đặt ảnh thì giữ nguyên)."""
     d = {k: r[k] for k in ("id", "owner_id", "name", "description", "image", "player_id", "model_id", "exam_id", "content", "sure", "hold_ms", "share", "created")}
+    d["image_from_model"] = False
+    if not d["image"] and d["model_id"] and c is not None:
+        m = c.execute("SELECT image, kind FROM models WHERE id=?", (d["model_id"],)).fetchone()
+        art = m and (m["image"] or KIND_ART.get(m["kind"], ""))  # mô hình tự train chưa có ảnh: dùng ảnh minh hoạ theo loại
+        if art:
+            d["image"], d["image_from_model"] = art, True
     d["mapping"] = json.loads(r["mapping"])
     d["mine"] = r["owner_id"] == user["id"]
     return d
@@ -595,11 +609,12 @@ def get_app(c, aid, user, edit=False):
     return r
 
 
-def play_data(c, aid, user):
-    """Dữ liệu để chạy ứng dụng. user có thể None: chỉ chạy được khi ứng dụng có Chia sẻ và trình chơi đã duyệt."""
+def play_data(c, aid, user, force=False):
+    """Dữ liệu để chạy ứng dụng. user có thể None: chỉ chạy được khi ứng dụng có Chia sẻ và trình chơi đã duyệt.
+    force=True (phòng chơi: rooms.py) bỏ yêu cầu Chia sẻ của ứng dụng, nhưng vẫn đòi trình chơi đã duyệt với người không phải chủ/Admin."""
     a = c.execute("SELECT * FROM apps WHERE id=?", (aid,)).fetchone()
     is_owner_or_admin = bool(a and user and (a["owner_id"] == user["id"] or user["role"] == "admin"))
-    ok = a and (a["share"] or is_owner_or_admin)
+    ok = a and (force or a["share"] or is_owner_or_admin)
     if not ok:
         raise Err(404, "not_found", "Không thấy ứng dụng này, hoặc chủ ứng dụng chưa chia sẻ.")
     p = c.execute("SELECT * FROM players WHERE id=?", (a["player_id"],)).fetchone()
