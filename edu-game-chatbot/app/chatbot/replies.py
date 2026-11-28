@@ -123,6 +123,18 @@ def failed(error: str) -> str:
     return f"Rất tiếc, đã có lỗi xảy ra: {error}\nThầy/cô bấm Thử lại để mình làm lại nhé."
 
 
+def retry_button() -> Button:
+    return Button(id=BTN_RETRY, label="Thử lại")
+
+
+def fix_progress(attempt: int, max_attempts: int) -> str:
+    return f"Đang sửa lỗi lần {attempt}/{max_attempts}…"
+
+
+def document_error(detail: str) -> str:
+    return f"Mình chưa đọc được tài liệu: {detail}"
+
+
 def too_many_revisions(limit: int) -> str:
     """Vượt quá số vòng chỉnh sửa."""
     return f"Đã vượt quá {limit} lần chỉnh sửa cho game này. Thầy/cô hãy xuất file hoặc bắt đầu game mới nhé."

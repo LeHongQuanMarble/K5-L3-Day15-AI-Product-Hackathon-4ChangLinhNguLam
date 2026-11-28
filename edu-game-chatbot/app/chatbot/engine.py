@@ -35,12 +35,6 @@ def _bot(text: str, buttons: list[Button] | None = None) -> Message:
     return Message(role="bot", text=text, buttons=buttons or [])
 
 
-def _retry_button() -> Button:
-    """Nút Thử lại (label lấy từ replies nếu có)."""
-    factory = getattr(replies, "retry_button", None)
-    return factory() if factory else Button(id=replies.BTN_RETRY, label=replies.BTN_RETRY)
-
-
 def _last_event(s: Session, node: str) -> dict | None:
     return next((e for e in reversed(s.events) if e.get("node") == node), None)
 
@@ -265,7 +259,7 @@ class ChatEngine:
         error = str(exc) or type(exc).__name__
         s.error = error
         self.store.add_event(s, "error", error, **info)
-        await self._reply(s, _bot(replies.failed(error), [_retry_button()]))
+        await self._reply(s, _bot(replies.failed(error), [replies.retry_button()]))
         await self._transition(s, State.FAILED)
 
     async def _dispatch(self, s: Session, state: State, text: str | None, action: str | None) -> None:
@@ -279,7 +273,7 @@ class ChatEngine:
             await self._fail(s, exc, step="handle", state=state.value, text=text, action=action)
 
     async def _on_failed_input(self, s: Session, text: str | None, action: str | None) -> None:
-        retry = _retry_button()
+        retry = replies.retry_button()
         if action is None and text:
             action = intake.match_button(text, [retry])
         err = _last_event(s, "error") or {}

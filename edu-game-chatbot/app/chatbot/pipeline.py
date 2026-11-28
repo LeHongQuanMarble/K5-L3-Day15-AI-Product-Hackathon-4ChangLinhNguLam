@@ -115,7 +115,7 @@ async def run_design_cycle(engine: ChatEngine, session_id: str, revision: str | 
     await _test(engine, work, version)
     limit = settings.max_fix_attempts
     while not version.test_passed and version.fix_attempts < limit:
-        await emit_progress(engine, work, "FIX", f"{version.fix_attempts + 1}/{limit}")
+        await emit_progress(engine, work, "FIX", replies.fix_progress(version.fix_attempts + 1, limit))
         await fixer.fix(llm, settings, work, version, list(version.test_errors))
         await _commit(engine, work, "versions")
         await emit_progress(engine, work, "N4", f"{version.fix_attempts}/{limit}")
