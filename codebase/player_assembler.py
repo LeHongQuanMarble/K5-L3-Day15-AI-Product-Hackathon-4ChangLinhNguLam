@@ -67,7 +67,7 @@ def assemble_player(spec: dict, gameplay_snippet: str, demo_questions: list | No
     cam_box = '<div class="jl-cam-pip" data-jl-camera aria-label="Khung camera"></div>' if has_model else ""
     hand_cursor = '<div id="jl-hand-cursor" class="jl-hand-cursor" aria-hidden="true"></div>' if uses_hands else ""
 
-    return """<!doctype html>
+_TEMPLATE = """<!doctype html>
 <html lang="vi">
 <head>
 <meta charset="utf-8">
@@ -189,11 +189,33 @@ __AI_JS__
 })();
 </script>
 </body>
-</html>""".replace("__TITLE_ESC__", title_esc) \
-           .replace("__MANIFEST_JSON__", _safe_json(man)) \
-           .replace("__AI_CSS__", css) \
-           .replace("__AI_MARKUP__", markup) \
-           .replace("__CAM_BOX__", cam_box) \
-           .replace("__HAND_CURSOR__", hand_cursor) \
-           .replace("__USES_HANDS__", "true" if uses_hands else "false") \
-           .replace("__AI_JS__", js)
+</html>"""
+
+_PLACEHOLDER_RE = re.compile(
+    r"__(?:TITLE_ESC|MANIFEST_JSON|AI_CSS|AI_MARKUP|CAM_BOX|HAND_CURSOR|USES_HANDS|AI_JS)__")
+
+
+def assemble_player(spec: dict, gameplay_snippet: str, demo_questions: list | None = None) -> str:
+    """Lắp Deterministic Runtime Wrapper + AI-generated Gameplay thành 1 file HTML tự đủ (0 cờ an toàn)."""
+    man = build_manifest_from_spec(spec, demo_questions=demo_questions)
+    title_esc = _html.escape(man["name"], quote=True)
+    mc = spec.get("model_capabilities")
+    has_model = isinstance(mc, dict) and bool(mc.get("kind"))
+    uses_hands = bool(has_model and mc.get("uses_hand_landmarks"))
+    css, markup, js = extract_gameplay_parts(gameplay_snippet)
+    cam_box = '<div class="jl-cam-pip" data-jl-camera aria-label="Khung camera"></div>' if has_model else ""
+    hand_cursor = '<div id="jl-hand-cursor" class="jl-hand-cursor" aria-hidden="true"></div>' if uses_hands else ""
+
+    # Thay placeholder MỘT lượt (single-pass): nội dung AI chèn vào không bị các lần replace sau đụng tới,
+    # kể cả khi gameplay/manifiest vô tình chứa chữ giống placeholder.
+    values = {
+        "__TITLE_ESC__": title_esc,
+        "__MANIFEST_JSON__": _safe_json(man),
+        "__AI_CSS__": css,
+        "__AI_MARKUP__": markup,
+        "__CAM_BOX__": cam_box,
+        "__HAND_CURSOR__": hand_cursor,
+        "__USES_HANDS__": "true" if uses_hands else "false",
+        "__AI_JS__": js,
+    }
+    return _PLACEHOLDER_RE.sub(lambda m: values[m.group(0)], _TEMPLATE)

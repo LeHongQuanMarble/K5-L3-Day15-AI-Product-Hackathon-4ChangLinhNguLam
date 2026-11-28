@@ -979,3 +979,14 @@ flowchart LR
 1. **T17 & T16 (TV4 – KHẨN cho CP2 19:30):** Nhánh `feat/t16-t17-cp2-data-eval` đang mở; cần TV4 xác nhận tiến độ, chốt cứng chuẩn "đạt" §7 với TV1 (đề xuất: `Overall ≥ 80%`, `Refusal = 100%`, `HITL Bypass = 0`) và merge `DATA_CARD.md`, `metric_spec.yaml` (≥3 metric, hiện 6 metric), `benchmark.csv` (≥10 câu) trước 19:30.
 2. **T06 (TV2 – KHẨN cho CP2 19:30):** Cần TV2 xác nhận enum `REFUSE` trong `ApplicationPlan` Contract v1.0 và hoàn thiện Mock Agent chạy qua `python run.py` cho CP2. *(Đã xong 27/11: mock chạy qua `run.py`, REFUSE đã chốt phía TV2; chờ TV1/TV3 xác nhận.)*
 3. **T03 (TV1 – CP2/CP3):** Cần ghi nhận tiến độ khảo sát/lịch hẹn phỏng vấn thực tế và sớm có số liệu thật cho `evidence/summary.md`, `spec.md` §2 và `cost/personas.yaml` (T20).
+
+### Cập nhật 28/11 (buổi chiều) — Phiên Sync & Stabilize Composer (Claude Code + GLM tiếp quản từ Antigravity)
+
+**Branch làm việc:** `fix/p0-composer-capability` · HEAD `76162e3` + fix assembler single-pass (chưa đẩy remote, chờ PM duyệt).
+
+1. **Phase 0 (Sync):** Bảo toàn checkpoint WIP Antigravity (`d337ac7` — Player Assembler + `/api/flow` UI), merge `origin/main` sạch 0 conflict (`40bbf99`) — nhận PR #28 (host camera/mic + speech-to-text + runtime audio). Baseline sau sync: **349/349 offline tests PASS**, `run.py check` PASS, protected artifacts nguyên vẹn.
+2. **P0 — Sửa blocker Real AI UAT (`invalid_player` MediaPipe):** Root cause: LLM phải tự viết toàn bộ runtime protocol jl-camera trong tối đa 2 lượt. Đã triển khai **Deterministic Runtime Wrapper repair** trong `_run_generate_html` (`codebase/agent.py` + `codebase/player_assembler.py`): khi validator chặn bản nháp model-aware, hệ thống lắp lại tất định (gameplay AI giữ nguyên, manifest từ GameSpec, protocol hands/ready/finish do Wrapper kiểm soát) — không nới lỏng validator, vẫn qua L1–L4. PoC2 mô phỏng đúng kịch bản UAT cũ (LLM sai protocol mọi lượt) → GENERATE vẫn thành công sau 1 lượt.
+3. **P1 — Audio ABCD (TC05):** Runtime host đã có sẵn từ PR #28 (speech-commands + `camera.result`). Bật có điều kiện qua **`AILAB_ENABLE_AUDIO=1`**, mặc định TẮT để bảo toàn Frozen Evaluation Registry (B24/B30 yêu cầu trả lời "chưa hỗ trợ audio"). Offline TC05 PASS (GENERATE player audio, mapping a→A…d→D, noise không map). Real E2E còn chờ: model TM audio thật (train qua Model Trainer) + UAT micro.
+4. **Model lái xe (TC04):** Không có kind/artifact "driving" trong repo — khả thi duy nhất qua model image/pose tự train (lớp trái/phải) trên Model Trainer. PENDING model.
+5. **Phase 7 — UI:** Sửa bong bóng chat ẩn mất `plan.message` khi ERROR/INFO/REFUSE; không leak JSON/trace.
+6. **Kiểm chứng:** 350/350 offline tests PASS (226 ailab + 124 codebase) · JS syntax check PASS · server `http://127.0.0.1:8800` chạy trên code mới. Codex Independent Review: *đang chạy, kết quả sẽ bổ sung*.
