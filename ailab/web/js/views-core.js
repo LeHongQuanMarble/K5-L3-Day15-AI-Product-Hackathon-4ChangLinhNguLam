@@ -9,6 +9,9 @@ import { h, api, ico, btn, errBox, STATUS, fmtStatus, KIND, srcOf, QHELP,
          toast, modal, confirmModal, promptModal, copyText,
          validateQuestionsClient, serializeQuestionsClient } from './dom.js';
 import { listPage, previewFrame, cameraTry, imageField, pickField } from './list-page.js';
+import { trainPage } from './train.js';
+import { showIntro } from './motion-intro.js';
+import { kindChooser, kindPicker } from './kindart.js';
 
 var KEYS = 'ABCD';
 
@@ -204,15 +207,25 @@ function examsCfg(ctx, items, o) {
 }
 
 /* ---------- Màn hình thư viện: danh sách + form thêm/sửa ---------- */
+/* Trang "Tạo mô hình": bấm vào ra 3 thẻ (Hình ảnh · Tư thế · Âm thanh), mỗi thẻ có video giới thiệu; chọn thẻ thì sang trang train. */
+function createModelPage(ctx) {
+  ctx.mount(h('div', { class: 'ail-create' },
+    h('div', { class: 'ail-tb-top' }, h('div', null, h('h2', null, 'Tạo mô hình'),
+      h('p', { class: 'meta' }, 'Chọn loại mô hình bạn muốn dạy. Bạn tải ảnh hoặc âm thanh, chia lớp ngay trên AI Lab; Teachable Machine huấn luyện giúp. Bấm “Xem giới thiệu” ở mỗi thẻ để xem video trước.')),
+      h('a', { class: 'ail-btn', href: '#/models' }, 'Quay lại danh sách')),
+    kindPicker(function (k) { location.hash = '#/models/train/' + k; }, function (k) { showIntro(k === 'image' ? 'overview' : k); })));
+}
+
 export function modelsView(ctx, parts) {
+  if (parts[1] === 'train') return trainPage(ctx, parts[2]);
+  if (parts[1] === 'create') return createModelPage(ctx);
   if (parts[1] === 'new') return modelForm(ctx, null, parts[2] === 'create');
   if (parts[1] && /^\d+$/.test(parts[1])) return modelForm(ctx, parseInt(parts[1], 10));
   api('GET', '/api/models?scope=usable').then(function (d) {
     /* Theo spec.md §4 (Không làm: Không huấn luyện mô hình AI tương tác từ đầu):
        giáo viên chỉ xem danh mục Model Registry có sẵn; Admin mới thấy nút nạp thêm vào Catalog. */
-    var actions = ctx.me && ctx.me.role === 'admin'
-      ? [btn('Thêm mô hình vào Catalog', 'plus', { href: '#/models/new' })]
-      : [];
+    var actions = [btn('Tạo mô hình', 'wand', { cls: 'pri', href: '#/models/create' }), btn('Giới thiệu JULY Aura', 'play', { onclick: function () { showIntro('overview'); } })];
+    if (ctx.me && ctx.me.role === 'admin') actions.push(btn('Thêm mô hình vào Catalog', 'plus', { href: '#/models/new' }));
     ctx.listMount('Mô hình tương tác', listPage(modelsCfg(ctx, d.models, { actions: actions })));
   }).catch(function (e) { ctx.mount(errBox(e)); });
 }
@@ -505,6 +518,8 @@ function modelForm(ctx, id, create) {
     var desc = h('textarea', { maxlength: 300, style: 'min-height:70px' }); desc.value = state.description;
     var kind = h('select', null, Object.keys(KIND).filter(function (k) { return k !== 'hands'; }).map(function (k) { return h('option', { value: k, selected: k === state.kind }, KIND[k]); }));
     var url = h('input', { type: 'text', placeholder: 'https://teachablemachine.withgoogle.com/models/…', value: state.url, required: true });
+    /* Thêm mới: 3 thẻ chọn loại (tái sử dụng từ learning); chọn thẻ thì đặt luôn ô "Loại" bên dưới */
+    var chooser = id ? null : kindChooser(state.kind, function (k) { state.kind = k; kind.value = k; });
     var vis = h('select', null, [['private', 'Riêng tư (chỉ mình tôi)'], ['public', 'Công khai (mọi người dùng được)']].map(function (o) { return h('option', { value: o[0], selected: o[0] === state.visibility }, o[1]); }));
     var outs = h('div'), outMsg = h('div');
     function drawOuts() {
@@ -538,7 +553,8 @@ function modelForm(ctx, id, create) {
         .then(function () { toast(id ? 'Đã lưu mô hình.' : 'Đã thêm mô hình.', 'ok'); location.hash = '#/models'; })
         .catch(function (x) { msg.replaceChildren(errBox(x)); });
     } },
-      h('h2', null, id ? 'Sửa mô hình' : (create ? 'Tạo mô hình' : 'Thêm mô hình')), intro,
+      h('h2', null, id ? 'Sửa mô hình' : (create ? 'Tạo mô hình' : 'Thêm mô hình')), intro, chooser,
+      h('div', { class: 'meta', style: 'margin-top:6px' }, id ? '' : 'Bước 2 · Sau khi bấm “Upload my model” ở Teachable Machine, dán đường dẫn vào đây.'),
       h('label', { class: 'l' }, 'Tên mô hình', name),
       h('label', { class: 'l' }, 'Mô tả (không bắt buộc)', desc),
       h('label', { class: 'l' }, 'Loại', kind, h('small', null, 'Hình ảnh và Tư thế chạy được; Âm thanh mới chỉ lưu, chưa chạy ở bản này.')),

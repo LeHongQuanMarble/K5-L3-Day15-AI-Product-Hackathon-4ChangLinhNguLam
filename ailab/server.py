@@ -28,6 +28,7 @@ for _stream in (sys.stdout, sys.stderr):
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import agent_bridge  # noqa: E402  (T14: Shared Core + HITL)
+import train_jobs  # noqa: E402  (train mô hình qua Teachable Machine)
 import contract  # noqa: E402
 import llm  # noqa: E402
 import store  # noqa: E402
@@ -36,6 +37,7 @@ from store import Err  # noqa: E402
 WEB = os.path.join(store.HERE, "web")
 COOKIE = "ailab_sid"
 MAX_BODY = 3 * 1024 * 1024
+MAX_TRAIN_BODY = 80 * 1024 * 1024  # ảnh của một việc train (JPEG đã thu nhỏ, base64)
 FAILS = {}  # ip -> [thời điểm đăng nhập sai]
 
 
@@ -94,9 +96,9 @@ class H(BaseHTTPRequestHandler):
             return None
         return c[COOKIE].value if COOKIE in c else None
 
-    def _body(self):
+    def _body(self, limit=None):
         n = int(self.headers.get("Content-Length") or 0)
-        if n > MAX_BODY:
+        if n > (limit or MAX_BODY):
             raise Err(413, "too_big", "Dữ liệu gửi lên quá lớn.")
         if n == 0:
             return {}
@@ -143,6 +145,17 @@ class H(BaseHTTPRequestHandler):
             traceback.print_exc()
             self._json(500, {"error": "server", "message": "Có lỗi ở máy chủ. Thử lại, nếu vẫn lỗi hãy báo Admin."})
 
+    def _motion_page(self, full):
+        """Bài giới thiệu (motion) chỉ nhận lệnh từ trang có nguồn gốc nằm trong `origins` của chính bài: thêm nguồn gốc của AI Lab vào danh sách."""
+        host = self.headers.get("Host") or ""
+        if not re.match(r"^[A-Za-z0-9.\-]+(:\d{1,5})?$", host):
+            raise Err(400, "bad_host", "Địa chỉ máy chủ không hợp lệ.")
+        origin = ("https://" if os.environ.get("AILAB_COOKIE_SECURE") == "1" else "http://") + host
+        with open(full, encoding="utf-8") as f:
+            html = f.read()
+        html = html.replace('"origins":[', '"origins":[%s,' % json.dumps(origin), 1)
+        self._send(200, html, "text/html; charset=utf-8")
+
     def _static(self, path):
         if path in ("/", ""):
             path = "/index.html"
@@ -152,6 +165,8 @@ class H(BaseHTTPRequestHandler):
         full = os.path.normpath(os.path.join(WEB, path.lstrip("/")))
         if not full.startswith(WEB + os.sep) or not os.path.isfile(full):
             raise Err(404, "not_found", "Không thấy trang này.")
+        if path.startswith("/motion/") and path.endswith(".html"):
+            return self._motion_page(full)
         ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
         with open(full, "rb") as f:
             self._send(200, f.read(), ctype + ("; charset=utf-8" if ctype.startswith("text/") or ctype.endswith("javascript") else ""))
@@ -220,6 +235,8 @@ class H(BaseHTTPRequestHandler):
             return self._json(200, {"ok": True})
         if res == "exams":
             return self._exams(c, method, parts, user)
+        if res == "train":
+            return self._train(c, method, parts, user)
         if res == "models":
             return self._models(c, method, parts, user)
         if res == "players":
@@ -277,6 +294,21 @@ class H(BaseHTTPRequestHandler):
                 c.execute("DELETE FROM exams WHERE id=?", (eid,))
                 c.commit()
                 return self._json(200, {"ok": True})
+        raise Err(404, "not_found", "Không thấy.")
+
+    def _train(self, c, method, parts, user):
+        """Train mô hình qua Teachable Machine: gửi ảnh theo lớp, xem tiến độ, huỷ. Xong thì mô hình tự được tạo cho người gửi."""
+        if len(parts) == 1:
+            if method == "POST":
+                jid = train_jobs.submit(c, user, self._body(MAX_TRAIN_BODY))
+                return self._json(201, {"job": train_jobs.get(c, user, jid)})
+            if method == "GET":
+                return self._json(200, {"jobs": train_jobs.mine(c, user)})
+        elif len(parts) == 2 and method == "GET":
+            return self._json(200, {"job": train_jobs.get(c, user, _int(parts[1]))})
+        elif len(parts) == 3 and parts[2] == "cancel" and method == "POST":
+            train_jobs.cancel(c, user, _int(parts[1]))
+            return self._json(200, {"ok": True})
         raise Err(404, "not_found", "Không thấy.")
 
     def _models(self, c, method, parts, user):
@@ -659,6 +691,7 @@ def main():
     if made:
         print("Tài khoản Admin đầu tiên: admin / %s   (hiện một lần — hãy đổi bằng set-password)" % made
               if not os.environ.get("AILAB_ADMIN_PASSWORD") else "Tài khoản Admin đầu tiên: admin (mật khẩu từ AILAB_ADMIN_PASSWORD)")
+    train_jobs.start()
     ThreadingHTTPServer((host, port), H).serve_forever()
 
 

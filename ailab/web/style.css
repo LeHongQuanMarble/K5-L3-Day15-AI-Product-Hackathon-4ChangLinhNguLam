@@ -423,3 +423,106 @@ code,kbd{font-family:var(--jl-font-mono);font-size:var(--jl-font-size-sm)}
    Bỏ qua .jlps-shell (modal.picker): con của nó là jlps-header/jlps-main, tự canh lề. */
 .modal .box:not(.jlps-shell)>.bar{margin:0;padding:12px 16px;border-bottom:1px solid var(--jl-border-divider)}
 .modal .box:not(.jlps-shell)>:not(.bar):not(.modal-head):not(.modal-body):not(.modal-foot){margin:14px 16px}
+
+/* Trang Train mô hình (ảnh + lớp, huấn luyện qua Teachable Machine) */
+.ail-tr-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.ail-tr-card{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--jl-border-default);border-radius:12px;background:var(--jl-surface-default)}
+.ail-tr-grid{display:flex;flex-wrap:wrap;gap:4px;min-height:8px}
+.ail-tr-th{width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--jl-border-default)}
+.ail-tr-video{width:100%;max-height:220px;border-radius:8px;background:#0f172a;transform:scaleX(-1)}
+.ail-tr-cam{display:grid;gap:8px}
+.ail-tr-adv summary{cursor:pointer;font-weight:500}
+.ail-tr-clip{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:6px;background:var(--jl-au-soft);color:var(--jl-brand-600);font-size:14px}
+
+/* Video giới thiệu (motion) */
+.modal.ail-motion .box{width:min(960px,96vw);max-width:96vw}
+.ail-motion-wrap{aspect-ratio:16/9;width:100%;background:#000;border-radius:8px;overflow:hidden}
+.ail-motion-frame{width:100%;height:100%;border:0;display:block}
+
+/* Trang Train: 3 cột (lớp → Huấn luyện → Xem thử) nối bằng đường mảnh, như learning */
+.ail-tb-top{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+.ail-tb-top h2{margin:0 0 4px}
+.ail-tb{position:relative;display:grid;grid-template-columns:minmax(300px,1.05fr) minmax(300px,.95fr) minmax(300px,1.3fr);gap:48px;align-items:start}
+@media(max-width:1000px){.ail-tb{grid-template-columns:1fr;gap:16px}}
+.ail-tb-wires{position:absolute;inset:0;pointer-events:none;z-index:0;overflow:visible}
+.ail-tb-wires path{fill:none;stroke:var(--jl-au-p1,#8b5cf6);stroke-width:1.5;opacity:.55}
+.ail-tb-col{position:relative;z-index:1;display:flex;flex-direction:column;gap:12px;min-width:0}
+.ail-tb-intro{margin:0 0 4px;color:var(--jl-text-muted);font-size:var(--jl-font-size-sm)}
+.ail-tb-card{background:linear-gradient(180deg,#fff,#faf8ff);border:1px solid color-mix(in srgb,var(--jl-au-p1,#8b5cf6) 22%,var(--jl-border-default));border-radius:16px;padding:14px;box-shadow:0 6px 20px rgba(109,40,217,.08)}
+.ail-tb-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ail-tb-head h3{margin:0;font-size:17px;font-weight:600}
+.ail-tb-badge{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:12px;color:#fff}
+.ail-tb-badge svg{width:20px;height:20px}
+.ail-tb-badge.tone-mint{background:linear-gradient(135deg,#10d3a5,#0aa58a)}
+.ail-tb-badge.tone-blue{background:linear-gradient(135deg,#38a1ff,#1a6df0)}
+.ail-tb-classhead{position:relative;display:flex;align-items:center;gap:6px}
+.ail-tb-classhead input[type=text]{flex:1;border:0;background:transparent;font-size:15px;padding:6px 4px;min-height:34px;box-shadow:none}
+.ail-tb-classhead input[type=text]:focus-visible{outline:0;border-bottom:2px solid var(--jl-au-p1,#8b5cf6)}
+.ail-tb-icon{all:unset;display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;cursor:pointer;color:var(--jl-brand-600)}
+.ail-tb-icon:hover{background:var(--jl-au-soft)}.ail-tb-icon[disabled]{opacity:.35;cursor:default}
+.ail-tb-icon:focus-visible{outline:2px solid var(--jl-brand-600)}
+.ail-tb-menu{position:absolute;right:0;top:36px;z-index:5;background:#fff;border:1px solid var(--jl-border-default);border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.15);display:flex;flex-direction:column;min-width:150px;overflow:hidden}
+.ail-tb-menu[hidden]{display:none}
+.ail-tb-menu button{all:unset;padding:9px 14px;cursor:pointer;font-size:14px}.ail-tb-menu button:hover{background:var(--jl-au-soft)}.ail-tb-menu .bad{color:var(--jl-status-danger-strong,#b91c1c)}
+.ail-tb-addlabel{font-size:13px;color:var(--jl-text-muted);margin:6px 0}
+.ail-tb-addrow{display:flex;gap:12px;align-items:stretch}
+.ail-tb-drop{all:unset;box-sizing:border-box;flex:1;min-height:112px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1.5px dashed #1f1f3d;border-radius:10px;cursor:pointer;font-weight:500;background:rgba(255,255,255,.6)}
+.ail-tb-drop:hover,.ail-tb-drop.is-over{background:var(--jl-au-soft);border-color:var(--jl-brand-600)}
+.ail-tb-drop:focus-visible{outline:2px solid var(--jl-brand-600);outline-offset:2px}
+.ail-tb-dropico,.ail-tb-capico{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:12px;background:#e7ddff;color:#5b21b6}
+.ail-tb-capico{background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;width:36px;height:36px}
+.ail-tb-cap{all:unset;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:96px;text-align:center;font-size:13px;cursor:pointer;border-radius:10px}
+.ail-tb-cap:hover{background:var(--jl-au-soft)}.ail-tb-cap:focus-visible{outline:2px solid var(--jl-brand-600)}
+.ail-tb-count{margin-top:8px;font-size:14px}.ail-tb-count.ok{color:var(--jl-status-success-strong,#047857)}
+.ail-tb-fine{font-size:13px;color:var(--jl-text-muted);margin-top:4px}
+.ail-tb-class.is-locked{opacity:.7}
+.ail-tb-addclass{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border:1px dashed #b9a6f5;border-radius:10px;background:rgba(255,255,255,.55);cursor:pointer;font-size:14px;width:100%}
+.ail-tb-addclass:hover{background:var(--jl-au-soft)}.ail-tb-addclass:focus-visible{outline:2px solid var(--jl-brand-600)}
+.ail-tb-addclass[disabled]{opacity:.45;cursor:default}
+.ail-tb-addclass.solid{border-style:solid;border-color:var(--jl-border-default);background:#fff;width:auto;align-self:flex-start;box-shadow:var(--jl-shadow-s1)}
+.ail-tb-addrowbtns{display:flex;flex-direction:column;gap:8px}
+.ail-tb-trainbody{display:flex;flex-direction:column;gap:12px}
+.ail-tb-consent{display:flex;gap:10px;align-items:flex-start;font-weight:500;line-height:1.4;cursor:pointer}
+.ail-tb-consent input{width:22px;height:22px;margin-top:2px;accent-color:var(--jl-brand-600);flex:none}
+.ail-tb-train-btn{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:12px;background:var(--jl-brand-600);color:#fff;font-weight:600;cursor:pointer;font-size:15px}
+.ail-tb-train-btn[disabled]{background:#ececf2;color:#1f1f3d;cursor:default;font-weight:500}
+.ail-tb-train-btn:not([disabled]):hover{filter:brightness(1.08)}.ail-tb-train-btn:focus-visible{outline:2px solid var(--jl-brand-600);outline-offset:2px}
+.ail-tb-hint{font-size:13px;color:var(--jl-text-muted)}
+.ail-tb-adv{border-top:1px solid var(--jl-border-default);padding-top:10px}
+.ail-tb-adv summary{cursor:pointer;font-weight:500;display:flex;justify-content:space-between;list-style:none}
+.ail-tb-adv summary::-webkit-details-marker{display:none}
+.ail-tb-adv[open] .ail-tb-chev{transform:rotate(180deg)}.ail-tb-chev{transition:transform .2s}
+.ail-tb-advbody{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.ail-tb-actions{display:flex;gap:8px;flex-wrap:wrap}
+.ail-tb-prevbody{display:flex;flex-direction:column;gap:10px}
+.ail-tb-bars{display:flex;flex-direction:column;gap:6px}
+.ail-tb-bar{display:grid;grid-template-columns:110px 1fr 44px;gap:8px;align-items:center;font-size:14px}
+.ail-tb-track{height:12px;border-radius:999px;background:#e8e8f0;overflow:hidden;display:block}
+.ail-tb-fill{display:block;height:100%;width:0;background:linear-gradient(90deg,#8b5cf6,#6d28d9);transition:width .12s}
+.ail-tb-pct{text-align:right;font-variant-numeric:tabular-nums}
+.ail-train{max-width:none!important;width:100%;margin:0!important;padding:0 8px}
+.ail-tb{grid-template-columns:minmax(260px,1fr) minmax(260px,.9fr) minmax(260px,1.2fr);gap:44px}
+.ail-page:has(.ail-train){max-width:1440px}
+.ail-tb-trainbody a,.ail-tb-trainbody p{overflow-wrap:anywhere}
+/* Thẻ chọn loại mô hình (Hình ảnh · Tư thế · Âm thanh), tái sử dụng từ learning */
+.ail-kinds{display:grid;gap:10px;margin:8px 0 14px}
+.ail-kind-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media(max-width:720px){.ail-kind-row{grid-template-columns:1fr}}
+.ail-kind-card{display:flex;flex-direction:column;gap:8px;padding:8px;border:1px solid var(--jl-border-default);border-radius:12px;background:var(--jl-surface-default);transition:box-shadow .2s,border-color .2s}
+.ail-kind-card.is-on{border-color:var(--jl-brand-600);box-shadow:inset 0 0 0 1px var(--jl-brand-600)}
+.ail-kind-pick{all:unset;display:flex;flex-direction:column;gap:6px;cursor:pointer;border-radius:8px}
+.ail-kind-pick:focus-visible{outline:2px solid var(--jl-brand-600);outline-offset:2px}
+.ail-kind-art{position:relative;display:block;aspect-ratio:4/3;overflow:hidden;border-radius:8px;background:#0f172a}
+.ail-kind-art img{width:100%;height:100%;object-fit:cover;display:block}
+.ail-kind-art .ail-kind-skel{position:absolute;inset:0;width:100%;height:100%}
+.ail-kind-badge{position:absolute;left:8px;top:8px;padding:2px 8px;border-radius:999px;background:rgba(15,23,42,.72);color:#fff;font-size:12px}
+.ail-kind-guide{margin:0}
+
+/* Trang Tạo mô hình: 3 thẻ chọn loại + video giới thiệu ở chân thẻ */
+.ail-create{max-width:none}
+.ail-kind-pickrow{gap:18px}
+.ail-kind-pickcard{padding:12px;border-radius:16px;background:linear-gradient(180deg,#fff,#faf8ff);box-shadow:0 6px 20px rgba(109,40,217,.08);transition:transform .2s,box-shadow .2s,border-color .2s}
+.ail-kind-pickcard:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(109,40,217,.16);border-color:var(--jl-brand-600)}
+.ail-kind-title{font-size:18px}
+.ail-kind-foot{border-top:1px solid var(--jl-border-default);padding-top:10px;margin-top:2px}
+.ail-page:has(.ail-create){max-width:1100px}

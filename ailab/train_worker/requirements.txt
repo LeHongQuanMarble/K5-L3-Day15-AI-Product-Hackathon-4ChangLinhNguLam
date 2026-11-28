@@ -1,0 +1,5 @@
+# Chỉ cần khi bật tính năng "Train mô hình" (trang Mô hình → Tạo mô hình → Train qua Teachable Machine).
+# Phần còn lại của dự án chỉ dùng thư viện chuẩn. Dùng Chrome có sẵn trên máy (đặt AILAB_CHROME nếu không ở đường dẫn mặc định),
+# nên KHÔNG cần chạy "playwright install".
+# Import ở: ailab/train_worker/tm_page.py, tm_trainer.py. Kiểm: python3 -c "import playwright"
+playwright==1.58.0
