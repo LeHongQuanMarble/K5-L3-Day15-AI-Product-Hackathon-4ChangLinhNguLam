@@ -2,7 +2,7 @@
  *   ảnh minh hoạ và khung xương: packages/train-builder/src/kindart (ảnh Wikimedia CC0, phổ tụ âm do sinh ra)
  *   chữ: packages/train-builder/src/i18n.vi.json (kind.hint, kindArt, classes.help, sound.help)
  *   thẻ chọn loại: KindChooser.tsx. Ở đây viết lại thành JS thuần để dùng trong AI Lab (không React). */
-import { h } from './dom.js';
+import { h, ico } from './dom.js';
 
 /**
  * The 33 body points a pose model finds in kindart/pose.jpg (MediaPipe Pose Landmarker, full model; the student with the raised hand), as
@@ -80,13 +80,34 @@ function skeleton() {
   return s;
 }
 
+/** Thẻ ảnh minh hoạ của một loại (ảnh thật + khung xương cho tư thế + nhãn kết quả). */
+export function kindArt(k) {
+  return h('span', { class: 'ail-kind-art' }, h('img', { src: k.art, alt: '' }), k.kind === 'pose' ? skeleton() : null, h('span', { class: 'ail-kind-badge' }, k.badge));
+}
+export var KIND_LIST = KINDS;
+
+/** Trang "Tạo mô hình": ba thẻ chọn loại, mỗi thẻ có "Xem giới thiệu" (video) ở chân thẻ, như KindChooser của learning.
+ *  onPick(kind) mở trang train của loại đó; onIntro(kind) mở video giới thiệu. */
+export function kindPicker(onPick, onIntro) {
+  var titles = { image: 'Giới thiệu JULY Aura', pose: 'Xem giới thiệu Aura Flow', audio: 'Xem giới thiệu Aura Echo' };
+  return h('div', { class: 'ail-kind-row ail-kind-pickrow', role: 'list' }, KINDS.map(function (k) {
+    return h('div', { class: 'ail-kind-card ail-kind-pickcard', role: 'listitem' },
+      h('button', { type: 'button', class: 'ail-kind-pick', 'aria-label': 'Tạo mô hình ' + k.label.toLowerCase(), onclick: function () { onPick(k.kind); } },
+        kindArt(k),
+        h('strong', { class: 'ail-kind-title' }, k.label, h('span', { 'aria-hidden': 'true' }, ' →')),
+        h('span', { class: 'meta' }, k.hint)),
+      h('div', { class: 'ail-kind-foot' },
+        h('button', { type: 'button', class: 'ail-btn sm', onclick: function () { onIntro(k.kind); } }, ico('play'), titles[k.kind])));
+  }));
+}
+
 /** Ba thẻ chọn loại mô hình + lời hướng dẫn của loại đang chọn. onPick(kind) được gọi khi bấm thẻ. */
 export function kindChooser(current, onPick) {
   var guide = h('p', { class: 'ail-kind-guide meta' });
   var cards = KINDS.map(function (k) {
     var card = h('div', { class: 'ail-kind-card', role: 'listitem' },
       h('button', { type: 'button', class: 'ail-kind-pick', 'aria-label': 'Chọn loại ' + k.label, onclick: function () { pick(k.kind); } },
-        h('span', { class: 'ail-kind-art' }, h('img', { src: k.art, alt: '' }), k.kind === 'pose' ? skeleton() : null, h('span', { class: 'ail-kind-badge' }, k.badge)),
+        kindArt(k),
         h('strong', null, k.label), h('span', { class: 'meta' }, k.hint)),
       h('a', { class: 'ail-btn sm', href: TM_TRAIN_URL[k.kind], target: '_blank', rel: 'noopener' }, 'Mở trang tạo ' + k.label.toLowerCase() + ' ↗'));
     card.dataset.kind = k.kind;

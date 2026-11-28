@@ -11,7 +11,7 @@ import { h, api, ico, btn, errBox, STATUS, fmtStatus, KIND, srcOf, QHELP,
 import { listPage, previewFrame, cameraTry, imageField, pickField } from './list-page.js';
 import { trainPage } from './train.js';
 import { showIntro } from './motion-intro.js';
-import { kindChooser } from './kindart.js';
+import { kindChooser, kindPicker } from './kindart.js';
 
 var KEYS = 'ABCD';
 
@@ -207,14 +207,24 @@ function examsCfg(ctx, items, o) {
 }
 
 /* ---------- Màn hình thư viện: danh sách + form thêm/sửa ---------- */
+/* Trang "Tạo mô hình": bấm vào ra 3 thẻ (Hình ảnh · Tư thế · Âm thanh), mỗi thẻ có video giới thiệu; chọn thẻ thì sang trang train. */
+function createModelPage(ctx) {
+  ctx.mount(h('div', { class: 'ail-create' },
+    h('div', { class: 'ail-tb-top' }, h('div', null, h('h2', null, 'Tạo mô hình'),
+      h('p', { class: 'meta' }, 'Chọn loại mô hình bạn muốn dạy. Bạn tải ảnh hoặc âm thanh, chia lớp ngay trên AI Lab; Teachable Machine huấn luyện giúp. Bấm “Xem giới thiệu” ở mỗi thẻ để xem video trước.')),
+      h('a', { class: 'ail-btn', href: '#/models' }, 'Quay lại danh sách')),
+    kindPicker(function (k) { location.hash = '#/models/train/' + k; }, function (k) { showIntro(k === 'image' ? 'overview' : k); })));
+}
+
 export function modelsView(ctx, parts) {
   if (parts[1] === 'train') return trainPage(ctx, parts[2]);
+  if (parts[1] === 'create') return createModelPage(ctx);
   if (parts[1] === 'new') return modelForm(ctx, null, parts[2] === 'create');
   if (parts[1] && /^\d+$/.test(parts[1])) return modelForm(ctx, parseInt(parts[1], 10));
   api('GET', '/api/models?scope=usable').then(function (d) {
     /* Theo spec.md §4 (Không làm: Không huấn luyện mô hình AI tương tác từ đầu):
        giáo viên chỉ xem danh mục Model Registry có sẵn; Admin mới thấy nút nạp thêm vào Catalog. */
-    var actions = [btn('Giới thiệu JULY Aura', 'play', { onclick: function () { showIntro('overview'); } }), btn('Train mô hình hình ảnh', 'wand', { cls: 'pri', href: '#/models/train/image' }), btn('Train mô hình tư thế', 'wand', { href: '#/models/train/pose' }), btn('Train mô hình âm thanh', 'wand', { href: '#/models/train/audio' })];
+    var actions = [btn('Tạo mô hình', 'wand', { cls: 'pri', href: '#/models/create' }), btn('Giới thiệu JULY Aura', 'play', { onclick: function () { showIntro('overview'); } })];
     if (ctx.me && ctx.me.role === 'admin') actions.push(btn('Thêm mô hình vào Catalog', 'plus', { href: '#/models/new' }));
     ctx.listMount('Mô hình tương tác', listPage(modelsCfg(ctx, d.models, { actions: actions })));
   }).catch(function (e) { ctx.mount(errBox(e)); });
