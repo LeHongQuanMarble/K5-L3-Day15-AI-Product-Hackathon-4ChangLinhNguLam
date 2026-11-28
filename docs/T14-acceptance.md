@@ -6,9 +6,10 @@
 
 ## Tổng quan trạng thái nghiệm thu T14
 
-- **Backend Shared Core & HITL API (`ailab/agent_bridge.py`, `ailab/server.py`, `ailab/llm.py`):** `INTEGRATION_VERIFIED` (10/10 unit tests `test_agent_bridge.py`, HTTP Real AI test trong `docs/T14-integration.md`).
-- **Frontend Integration (`ailab/web/js/views-assistant.js`) & Application Persistence (SQLite `apps`):** `NOT_READY / FAIL` — `git grep "/api/agent" origin/main -- ailab/web/` trả **0 kết quả**; chế độ Real trên UI vẫn gọi legacy `POST /api/chat`, `hitlBar()` chỉ render chip tĩnh `HITL 1 — chờ nối API duyệt (T08/T14)` (chưa có nút duyệt thật), và `POST /api/agent/publish` chưa lưu bản App `approved` vào SQLite (`apps`) để mở `/play/<app_id>`.
-- **Kết luận nghiệm thu hiện tại:** **CHƯA ĐẠT (`IN_PROGRESS`)** — chặn luồng E2E Web thật và Video 30s Real AI (`T15`).
+- **Cập nhật tích hợp P0 E2E (`fix/p0-e2e-integration`, kế thừa `origin/main @ 133cc21`):**
+  - **Backend Shared Core, HITL Draft Lifecycle & SQLite Persistence (`ailab/agent_bridge.py`, `ailab/server.py`, `ailab/store.py`, `ailab/composer.py`, `codebase/agent.py`):** `INTEGRATION_VERIFIED` — **294/294** tests PASS (`codebase` 124 + `ailab` 170 gồm `test_p0_e2e_integration.py`), `python run.py check` PASS, Codex Independent Security Review: **0 CRITICAL**, đã khắc phục toàn bộ `HIGH`/`MEDIUM` (clean_app single source of truth, atomic state transition chống race condition, quét `contract.scan` thật, khóa RC-4 public share, khóa leak `catalog_snapshot`, chuẩn hóa numeric string ID RC-3).
+  - **Frontend Integration (`ailab/web/js/views-assistant.js`):** `INTEGRATION_VERIFIED (Offline + Browser 0-token)` — Real Mode đã nối `POST /api/agent`, xem thử sandbox qua `preview_url` (`GET /api/agent/drafts/<id>/try` & `/api/players/<id>/try`), checkbox xác nhận kiểm duyệt kiến thức, nút **Phê duyệt & Lưu ứng dụng** (`POST /api/agent/publish` trả `app_id` + `play_url` mở thẳng `/play/<app_id>`), nút **Từ chối bản nháp** (`POST /api/agent/review`). Đã xác minh trên trình duyệt thật tại `http://127.0.0.1:8800` (0 console errors, 0 token).
+- **Kết luận nghiệm thu hiện tại:** **RELEASE CANDIDATE READY — CHỜ PM DUYỆT NGÂN SÁCH REAL AI SMOKE (Phase 5) & HUMAN UAT (T04)** *(không tự đánh `DONE` cho Real AI E2E và Human UAT trước khi PM nghiệm thu trực tiếp).*
 
 ---
 
