@@ -219,7 +219,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Làm:** chạy uvicorn trên cổng ngẫu nhiên với FakeLLM (inject qua `app.dependency_overrides` hoặc factory `create_app(llm=...)`). Playwright mở `/` và đi đúng kịch bản SPEC §4: chủ đề → duyệt câu hỏi → chơi thử (iframe hiển thị) → chỉnh sửa → v2 → hài lòng → thấy link zip; kiểm `main_inbox/<id>.json` tồn tại.
 - **Kiểm tra:** `pytest tests/e2e -q -m browser`
 
-### [ ] T22. Smoke test với LLM thật (thủ công)
+### [x] T22. Smoke test với LLM thật (thủ công)
 - **File:** `scripts/smoke_real_llm.py`
 - **Làm:** chạy pipeline không giao diện với `OPENAI_API_KEY` thật, chủ đề cố định, 5 câu. In ra số lần sửa, kết quả N4, đường dẫn output. **Không** chạy trong `pytest` mặc định.
 - **Kiểm tra:** người dùng tự chạy `python scripts/smoke_real_llm.py`
