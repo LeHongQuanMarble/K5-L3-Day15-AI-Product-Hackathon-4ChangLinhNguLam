@@ -122,7 +122,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Test:** sinh hợp lệ ngay lần 1; lần 1 sai, lần 2 đúng (kiểm prompt lần 2 có chứa lỗi); sai 3 lần thì raise; edit giữ id.
 - **Kiểm tra:** `pytest tests/unit/test_n1b.py -q`
 
-### [ ] T11. N2 — Thiết kế game
+### [x] T11. N2 — Thiết kế game
 - **Đọc:** ARCHITECTURE §5, prompt `design`
 - **File:** `app/nodes/n2_design.py`, `tests/unit/test_n2.py`
 - **Làm:** `design(llm, session, revision=None) -> dict`. Prompt gồm: ngữ cảnh phiên (yêu cầu, chủ đề, môn/lớp, các lần chỉnh sửa trước), thống kê bộ câu hỏi (số câu, loại, maxScore, 3 câu mẫu), thiết kế hiện tại nếu có, `revision` được đánh dấu **ưu tiên cao nhất**. Thiếu key bắt buộc thì raise. Đọc và ghi `session.design` / `design_history` (Session Memory).
