@@ -293,6 +293,14 @@ def _run_generate_html(user_message: str, game_idea: str, need_exam: bool, spec:
         if isinstance(spec, dict) and 'id="jl-camera"' not in html and "id='jl-camera'" not in html:
             html = player_assembler.assemble_player(spec, html)
         vres = guardrails.validate_html_draft(html, check_fn=check_game)
+        if not vres["ok"] and isinstance(spec, dict):
+            # Sửa tất định: giữ nguyên gameplay AI, thay phần protocol sai bằng Deterministic Runtime Wrapper
+            # (không nới lỏng validator — bản lắp lại vẫn phải tự vượt L1–L4 và GameSpec).
+            repaired = player_assembler.assemble_player(spec, html)
+            vrep = guardrails.validate_html_draft(repaired, check_fn=check_game)
+            if vrep["ok"]:
+                html, vres = repaired, vrep
+                note("GENERATE lượt %d: sửa tất định bản nháp bằng Runtime Wrapper" % step)
         if not vres["ok"]:
             last_err = vres["error"]
             note("GENERATE lượt %d bị chặn: %s" % (step, last_err))
@@ -300,9 +308,16 @@ def _run_generate_html(user_message: str, game_idea: str, need_exam: bool, spec:
         if isinstance(spec, dict):
             spec_errs = game_spec.validate_html_against_spec(html, spec)
             if spec_errs:
-                last_err = "; ".join(spec_errs)
-                note("GENERATE lượt %d sai GameSpec: %s" % (step, last_err))
-                continue
+                # LLM tự viết manifest/protocol jl-camera sai (nguyên nhân UAT thất bại) → lắp lại tất định
+                # bằng Runtime Wrapper: manifest dẫn xuất từ GameSpec, protocol hands/ready/finish do hệ thống kiểm soát.
+                repaired = player_assembler.assemble_player(spec, html)
+                if guardrails.validate_html_draft(repaired, check_fn=check_game)["ok"] and not game_spec.validate_html_against_spec(repaired, spec):
+                    html = repaired
+                    note("GENERATE lượt %d: sửa tất định protocol bằng Runtime Wrapper (không cần lượt sinh lại)" % step)
+                else:
+                    last_err = "; ".join(spec_errs)
+                    note("GENERATE lượt %d sai GameSpec: %s" % (step, last_err))
+                    continue
         note("GENERATE đạt sau %d lượt: %s (0 cờ an toàn)" % (step, vres.get("name", "")))
         return html.strip(), msg, None
     note("dừng GENERATE: sau %d lượt vẫn không đạt hợp đồng/an toàn" % MAX_STEPS)

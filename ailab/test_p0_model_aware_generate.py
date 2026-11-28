@@ -8,8 +8,8 @@ Kiểm chứng toàn bộ luồng Spec-driven Model-aware GENERATE (không gọi
          dùng landmark ngón trỏ lm[8] + chống chọn lặp.
 - PoC 3: Mouse-only Free-form Regression (kéo thả phân loại động vật) — không bị ép vào Matching Cards / True-False.
 - PoC 4: Custom trained Pose/Image Model (fixture) → GENERATE player bind đúng model riêng tư + cô lập giữa user.
-- Negative Cases: GameSpec mismatch (thiếu camera.hand) bị L1/L2 chặn và tự sửa ở bước 2; audio model bị chặn trung thực;
-                  Frozen Evaluation Catalog (`composer.catalog_snapshot()`) hoàn toàn cách ly.
+- Negative Cases: GameSpec mismatch (thiếu camera.hand) được sửa TẤT ĐỊNH bởi Runtime Wrapper (không cần lượt sinh lại);
+                  audio model bị chặn trung thực; Frozen Evaluation Catalog (`composer.catalog_snapshot()`) hoàn toàn cách ly.
 """
 import io
 import json
@@ -235,8 +235,9 @@ class ModelAwareGenerateTests(unittest.TestCase):
         self.assertEqual(play_d["mapping"], {"grab": "fist", "release": "open"})
         self.assertEqual(len(play_d["questions"]), 5)
 
-    def test_poc2_mediapipe_hands_planets_and_retry_on_missing_hand_protocol(self):
-        """PoC 2: Missing camera.hand on step 1 is caught by GameSpec validator and repaired on step 2."""
+    def test_poc2_mediapipe_hands_planets_and_deterministic_protocol_repair(self):
+        """PoC 2 (UAT blocker): LLM viết sai protocol hands ở MỌI lượt → Runtime Wrapper vẫn lắp Player hợp lệ
+        (manifest từ GameSpec, gửi {type:'hands',on:true}, đọc d.hands trong camera.hand) mà không cần lượt sinh lại."""
         prompt = (
             "Tạo một trò chơi mới chọn đáp án bằng cách chỉ ngón tay vào một trong bốn hành tinh trên màn hình. "
             "Chủ đề hệ Mặt Trời lớp 5, gồm 4 câu hỏi mới. Dùng MediaPipe Hands và chuột dự phòng."
@@ -247,7 +248,7 @@ class ModelAwareGenerateTests(unittest.TestCase):
             "Hành tinh nào có màu đỏ? | Sao Kim | Trái Đất | Sao Hỏa | Sao Thủy | =C\n"
             "Hành tinh nào có vành đai nổi bật? | Sao Thổ | Sao Thủy | Sao Hỏa | Sao Kim | =A"
         )
-        bad_step1_html = POC2_HANDS_PLANETS_HTML.replace("camera.hand", "noop").replace("'hands'", "'none'")
+        bad_html = POC2_HANDS_PLANETS_HTML.replace("camera.hand", "noop").replace("'hands'", "'none'")
         gen_attempts = {"n": 0}
 
         def _mock_llm(system, user):
@@ -262,19 +263,32 @@ class ModelAwareGenerateTests(unittest.TestCase):
                     "game_idea": "Chỉ ngón tay vào 4 hành tinh trên màn hình",
                 }, ensure_ascii=False), "model": "gpt-4o-mini", "tokens_in": 140, "tokens_out": 90}
             gen_attempts["n"] += 1
-            if gen_attempts["n"] == 1:
-                return {"text": "Lần 1 thiếu camera.hand.\n```html\n%s\n```" % bad_step1_html,
-                        "model": "gpt-4o-mini", "tokens_in": 200, "tokens_out": 300}
-            self.assertIn("camera.hand", user)
-            return {"text": "Lần 2 đã sửa.\n```html\n%s\n```" % POC2_HANDS_PLANETS_HTML,
-                    "model": "gpt-4o-mini", "tokens_in": 220, "tokens_out": 320}
+            # LLM CỨNG viết sai protocol ở mọi lượt (đúng kịch bản UAT thất bại trước đây)
+            return {"text": "Thiếu camera.hand.\n```html\n%s\n```" % bad_html,
+                    "model": "gpt-4o-mini", "tokens_in": 200, "tokens_out": 300}
 
         with mock.patch.object(agent, "call_model", side_effect=_mock_llm):
             st, res, _ = _req("POST", "/api/agent", {"text": prompt}, self.cookie_a)
         self.assertEqual(st, 200)
-        self.assertEqual(gen_attempts["n"], 2)
+        self.assertEqual(gen_attempts["n"], 1)  # sửa tất định — không tốn lượt gọi model thứ 2
         self.assertEqual(res["decision"], "GENERATE")
-        self.assertEqual(res["application_plan"]["model"]["kind"], "hands")
+        plan = res["application_plan"]
+        self.assertEqual(plan["model"]["kind"], "hands")
+        self.assertEqual(plan["model"]["mapping"], {"grab": "fist", "release": "open"})
+        # Lấy HTML thật của bản nháp qua preview sandbox (srcdoc đã chèn CSP + HELPER)
+        st_prev, prev, _ = _req("GET", res["preview_url"], cookie=self.cookie_a)
+        self.assertEqual(st_prev, 200)
+        html = prev["srcdoc"]
+        # Protocol runtime do Wrapper kiểm soát: manifest đúng GameSpec + handshake hands + camera.hand + ô camera
+        self.assertIn("window.JLRuntime", html)
+        self.assertIn("camera.hand", html)
+        self.assertIn("type: 'hands', on: true", html)
+        self.assertIn("data-jl-camera", html)
+        self.assertIn('id="jl-camera"', html)
+        # Gameplay do AI sinh (markup sân chơi + logic dwell chống chọn lặp) vẫn được giữ nguyên trong Player cuối
+        self.assertIn('id="planets"', html)
+        self.assertIn("dwellSince", html)
+        self.assertIn("hành tinh", html.lower())
 
     def test_poc3_mouse_only_freeform_not_forced_into_matching_or_true_false(self):
         """PoC 3: Free-form mouse-only classification game stays Free-form (not forced into Matching/True-False)."""
