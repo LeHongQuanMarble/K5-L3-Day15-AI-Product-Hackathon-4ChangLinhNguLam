@@ -4,6 +4,15 @@
 
 *Lát cắt:* Một giáo viên cần tạo trò chơi ôn tập từ yêu cầu giảng dạy; AI phân tích và làm rõ yêu cầu, quyết định tái sử dụng (`REUSE`) hoặc tạo mới (`GENERATE`) module game (`Model + Player`), đồng thời sinh bộ câu hỏi (`Question Set`) phù hợp để giáo viên kiểm duyệt (HITL), có hỗ trợ `Mouse Fallback`.
 
+> **Trạng thái RC 28/11 (chiều)** — nhánh `fix/p0-composer-capability` @ `22dad47` (chờ PM nghiệm thu rồi merge):
+> · **353/353** offline tests · L5 browser smoke PASS · `python run.py check` PASS
+> · **Multi-model routing**: `gpt-4o-mini` (router/exam) + `gpt-4.1` (game generation/repair, qua env `GAME_GENERATOR_MODEL`/`GAME_REPAIR_MODEL`)
+> · **3 Model thật** sẵn sàng: Bàn tay MediaPipe (hands) · Lái Xe (pose) · Âm thanh A B C D (audio — bật `AILAB_ENABLE_AUDIO=1`); model URL hỏng bị đánh dấu `broken`, không thể dùng trong GENERATE
+> · **Premium Smoke Test** (~$0.24): 4 Player mới do gpt-4.1 sinh — Đua xe chọn làn (`/play/13`), Quiz Hệ Mặt Trời audio (`/play/14`), Thu hoạch táo hands (`/play/15`), Phân loại động vật mouse-only (`/play/16`)
+> · Benchmark lịch sử (frozen, gpt-4o-mini): Run 1 `19/30` → Run 2 `24/30` → Run 3 `25/30` — **chưa đo lại trên cấu hình RC**
+> · Human UAT chờ PM: `docs/UAT-CHECKLIST-RC.md` · Slide CP4: `slides/rc-slides.html` + kịch bản `slides/pitch-5min-rc.md`
+> · Chạy demo: `python ailab/server.py` (env: `AILAB_ENABLE_AUDIO=1 AILAB_DEMO=1 GAME_GENERATOR_MODEL=gpt-4.1 GAME_REPAIR_MODEL=gpt-4.1`) → http://127.0.0.1:8800
+
 ---
 
 ## Nhóm làm gì, khung làm gì
