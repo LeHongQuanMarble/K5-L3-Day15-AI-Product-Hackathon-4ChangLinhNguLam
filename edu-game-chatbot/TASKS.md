@@ -182,7 +182,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Làm:** mọi câu chữ và nút của bot là hằng/hàm ở đây (`GREETING`, `ASK_SOURCE`, `BTN_SOURCE_USER`…, `reject(reason)`, `progress(node, detail)`). Code khác **không** được hard-code chuỗi hiển thị.
 - **Kiểm tra:** `ruff check app/chatbot/replies.py`
 
-### [ ] T18. ChatEngine — state machine
+### [x] T18. ChatEngine — state machine
 - **Đọc:** SPEC §3 (toàn bộ), ARCHITECTURE §5
 - **File:** `app/chatbot/engine.py`, `app/chatbot/pipeline.py`, `app/core/events.py`, `tests/integration/test_engine.py`
 - **Làm:**

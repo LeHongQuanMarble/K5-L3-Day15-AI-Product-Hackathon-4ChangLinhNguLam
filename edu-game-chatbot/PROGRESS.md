@@ -21,6 +21,7 @@ T14 | 2026-11-28 | fix(): ≤20 lỗi, extract_html, inject_bank lại, ghi đè
 T13 | 2026-11-28 | N4: static rồi Playwright 7 bước × 2 viewport, chặn mạng, 4 ảnh chụp | 6 browser test; reference_game pass §5
 T16 | 2026-11-28 | N6: slug, copy html/questions/screenshots/manifest, zip, notify_main inbox + webhook retry | thêm kw-only transport=None
 T15 | 2026-11-28 | N5: preview_url, nút theo test_passed, ≤8 lỗi gọn | lỗi kỹ thuật chưa dịch sang tiếng Việt
+T18 | 2026-11-28 | ChatEngine bảng dispatch, pipeline design/export, FIX ≤2, retry, EventBus | 14 test; upload đọc sessions/<id>/uploads
 
 ## Câu hỏi cần người dùng trả lời
 
