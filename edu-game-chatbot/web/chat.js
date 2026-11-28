@@ -96,6 +96,7 @@ function connectEvents(sessionId) {
     if (!d.type) d.type = fallbackType;
     handleEvent(d);
   };
+  es.onopen = () => resync(sessionId);
   es.onmessage = parse(null);
   for (const t of ["message", "progress", "state"]) es.addEventListener(t, parse(t));
   es.onerror = () => {
@@ -104,6 +105,17 @@ function connectEvents(sessionId) {
       if (state.eventSource === es && state.sessionId === sessionId) connectEvents(sessionId);
     }, 2000);
   };
+}
+
+/** Sau khi SSE (re)connect: lấy lại phiên, vẽ message bot bị lỡ trong lúc chưa kết nối, cập nhật state. */
+async function resync(sessionId) {
+  try {
+    const r = await fetch(api("/" + encodeURIComponent(sessionId)));
+    if (!r.ok || state.sessionId !== sessionId) return;
+    const data = await r.json();
+    (data.messages || []).filter((m) => m.role !== "user").forEach(renderMessage);
+    setState(data.state);
+  } catch (e) { /* lần kết nối sau sẽ thử lại */ }
 }
 
 async function post(path, opts) {
