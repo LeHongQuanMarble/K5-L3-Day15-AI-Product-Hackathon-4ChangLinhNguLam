@@ -356,7 +356,9 @@ export function chatView(ctx) {
     drawLog(true);
     api('POST', '/api/agent', { text: t }).then(function (d) {
       var plan = d || {};
-      var topText = plan.application_plan ? (plan.message || '') : '';
+      // Khi chưa có ApplicationPlan (ERROR/INFO/REFUSE/ASK_CLARIFY) vẫn hiện lời giải thích tiếng Việt trong chat,
+      // không để bong bóng trống và không lộ JSON/trace nội bộ.
+      var topText = plan.message || '';
       real.msgs.push({ role: 'bot', text: topText, plan: plan, simulated: !!plan.simulated });
     }).catch(function (e) {
       real.msgs.push({ role: 'bot', text: '', error: e.message || 'Lỗi kết nối máy chủ AI.', retryText: t });

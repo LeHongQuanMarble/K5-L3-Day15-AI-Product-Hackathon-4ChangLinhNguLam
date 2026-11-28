@@ -11,7 +11,16 @@ import store
 from . import conversation as C
 from . import schemas as S
 
+import os as _os
+
+# Kind "audio" (phân lớp âm thanh A/B/C/D kiểu Teachable Machine speech-commands) có runtime đọc đầy đủ
+# ở trang cha (web/js/host-input.js — micro + camera.result qua decide()) nhưng TẮT MẶC ĐỊNH ở tầng AI
+# để bảo toàn kỳ vọng của Frozen Evaluation Registry (B24/B30 yêu cầu trả lời trung thực "chưa hỗ trợ
+# audio/giọng nói"). Bật có chủ ý cho demo/UAT bằng biến môi trường AILAB_ENABLE_AUDIO=1.
 RUNTIME_KINDS = ("image", "pose", "hands")
+if _os.environ.get("AILAB_ENABLE_AUDIO", "") == "1":
+    RUNTIME_KINDS = RUNTIME_KINDS + ("audio",)
+AUDIO_SUPPORTED = "audio" in RUNTIME_KINDS
 DEFAULT_KINDS = ("image", "pose")
 FORBIDDEN_MSG = "Không thấy game này hoặc bạn không có quyền dùng."
 KIND_LABELS = {"questions": "game câu hỏi", "list": "game danh sách (chọn tên/mục)", "other": "game khác"}
@@ -244,7 +253,7 @@ def select_model(manifest, models, interaction):
         return _selection("conflict", msg, conflicts=[_conflict("incompatible_model", msg, [
             "Cho phép dùng model cho game này", "Chọn game không cần camera"])])
 
-    if requested and all(k == "audio" for k in requested):
+    if requested and all(k == "audio" for k in requested) and not AUDIO_SUPPORTED:
         msg = "Model âm thanh (audio) chưa chạy được trong game (chỉ lưu); không tạo App audio được."
         return _selection("conflict", msg, conflicts=[_conflict("unsupported_interaction", msg, [
             "Dùng model %s thay cho audio" % _kinds_text(info["runtimeKinds"]), "Chọn game không cần camera"])])

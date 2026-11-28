@@ -387,6 +387,93 @@ JLRuntime.onAction(function(a){ if(a.input==='grab'){ sc++; JLRuntime.setScore(s
         self.assertIn("window.JLRuntime", full_html)
         self.assertIn("data-jl-camera", full_html)
 
+    def test_tc05_audio_abcd_generate_when_runtime_enabled(self):
+        """TC05 (offline, flag AILAB_ENABLE_AUDIO): GENERATE player mới dùng model âm thanh ABCD —
+        mapping a→A..d→D, manifest kinds=['audio'], không gửi hands-on, gameplay qua Runtime Wrapper."""
+        from chatbot import catalog as chatbot_catalog
+        import composer as composer_mod
+
+        st_m, cm, _ = _req("POST", "/api/models", {
+            "name": "Âm thanh ABCD",
+            "kind": "audio",
+            "url": "https://teachablemachine.withgoogle.com/models/audiofixture1/",
+            "outputs": [
+                {"key": "A", "role": "action"}, {"key": "B", "role": "action"},
+                {"key": "C", "role": "action"}, {"key": "D", "role": "action"},
+                {"key": "Background Noise", "role": "empty"},
+            ],
+            "visibility": "private",
+        }, self.cookie_a)
+        self.assertEqual(st_m, 201, cm)
+        mid = cm["id"]
+
+        three_qs = (
+            "Thủ đô của Việt Nam là gì? | Hà Nội | Huế | Đà Nẵng | =A\n"
+            "Sông nào dài nhất Việt Nam? | Sông Hồng | Sông Mekong | Sông Đà | =B\n"
+            "Núi cao nhất Việt Nam? | Fansipan | Bà Đen | Bạch Mã | =A"
+        )
+        # Gameplay AI KHÔNG có manifest — lắp tất định qua Runtime Wrapper (đúng kiến trúc P0)
+        gameplay_snippet = """<h2 id="q"></h2><div id="opts"></div><button id="reset">Chơi lại</button>
+<script>
+var qs=[], idx=0, score=0, locked=false;
+function show(){ var q=qs[idx]; document.getElementById('q').textContent=q? q.text : ''; }
+window.addEventListener('message',function(e){ var d=e.data; if(!d||e.source!==parent)return;
+  if(d.type==='camera.init'){ qs=d.questions||[]; idx=0; score=0; show(); }
+  if(d.type==='camera.result'&&!locked&&qs[idx]){ locked=true; if(d.input===qs[idx].answer)score++; setTimeout(function(){ locked=false; },900); }
+});
+parent.postMessage({type:'ready'},'*');
+</script>"""
+        calls = {"n": 0}
+
+        def _mock_llm(system, user):
+            if "ĐỊNH DẠNG ĐẦU RA" in system:
+                return {"text": "```json\n%s\n```" % json.dumps({
+                    "decision": "GENERATE",
+                    "message": "Tạo game trắc nghiệm nghe âm thanh A/B/C/D.",
+                    "app_name": "Trắc nghiệm Âm thanh ABCD",
+                    "model_id": mid,
+                    "exam_mode": "generate_new",
+                    "exam_content": three_qs,
+                    "expected_question_count": 3,
+                    "game_idea": "Học sinh phát âm A/B/C/D vào micro để chọn đáp án",
+                }, ensure_ascii=False), "model": "gpt-4o-mini", "tokens_in": 130, "tokens_out": 90}
+            calls["n"] += 1
+            return {"text": "Game âm thanh.\n```html\n%s\n```" % gameplay_snippet,
+                    "model": "gpt-4o-mini", "tokens_in": 220, "tokens_out": 260}
+
+        orig_kinds = chatbot_catalog.RUNTIME_KINDS
+        orig_unsup = composer_mod.UNSUPPORTED_RUNTIME_KINDS
+        try:
+            chatbot_catalog.RUNTIME_KINDS = tuple(orig_kinds) + ("audio",)
+            chatbot_catalog.AUDIO_SUPPORTED = True
+            composer_mod.UNSUPPORTED_RUNTIME_KINDS = ()
+            with mock.patch.object(agent, "call_model", side_effect=_mock_llm):
+                st, res, _ = _req("POST", "/api/agent", {
+                    "text": "Tạo trò chơi mới trắc nghiệm dùng Âm thanh ABCD, học sinh phát âm để chọn đáp án, có chuột dự phòng."
+                }, self.cookie_a)
+        finally:
+            chatbot_catalog.RUNTIME_KINDS = orig_kinds
+            chatbot_catalog.AUDIO_SUPPORTED = "audio" in orig_kinds
+            composer_mod.UNSUPPORTED_RUNTIME_KINDS = orig_unsup
+
+        self.assertEqual(st, 200)
+        self.assertEqual(calls["n"], 1)
+        self.assertEqual(res["decision"], "GENERATE")
+        plan = res["application_plan"]
+        self.assertEqual(plan["model"]["kind"], "audio")
+        self.assertEqual(plan["model"]["mapping"], {"a": "A", "b": "B", "c": "C", "d": "D"})
+        self.assertEqual(plan["interaction"]["primary"], "audio")
+        self.assertTrue(plan["interaction"]["mouse_always_enabled"])
+        # Xem HTML thật qua preview sandbox
+        st_prev, prev, _ = _req("GET", res["preview_url"], cookie=self.cookie_a)
+        self.assertEqual(st_prev, 200)
+        html = prev["srcdoc"]
+        self.assertIn("window.JLRuntime", html)
+        self.assertIn('"kinds": ["audio"]', html)
+        self.assertIn("var USES_HANDS = false;", html)  # audio không gửi handshake hands
+        self.assertIn("data-jl-camera", html)  # ô hiển thị phổ tần số từ micro
+        self.assertIn("micro", html.lower())
+
 
 if __name__ == "__main__":
     unittest.main()

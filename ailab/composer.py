@@ -11,12 +11,15 @@ import json
 import sqlite3
 
 import contract
+import os
 import store
 
 SCHEMA_VERSION = "1.0"
 MOUSE_KIND = "mouse"
 SUPPORTED_MODEL_KINDS = ("hands", "image", "pose")
-UNSUPPORTED_RUNTIME_KINDS = ("audio",)
+# Audio (phân lớp âm thanh) có runtime host đầy đủ nhưng TẮT MẶC ĐỊNH để bảo toàn Frozen Evaluation
+# Registry (B24/B30). Bật đồng bộ với chatbot.catalog bằng AILAB_ENABLE_AUDIO=1.
+UNSUPPORTED_RUNTIME_KINDS = ("audio",) if os.environ.get("AILAB_ENABLE_AUDIO", "") != "1" else ()
 FALLBACK_CASES = (
     "no_model", "model_loading", "model_failed", "no_camera", "camera_denied", "camera_off",
 )
