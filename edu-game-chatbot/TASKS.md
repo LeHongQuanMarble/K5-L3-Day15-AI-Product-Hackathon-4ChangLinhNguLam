@@ -27,7 +27,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Kiểm tra:** `python -c "import app.main, app.chatbot.engine, app.chatbot.pipeline, app.api.sessions"` · `ruff check .` · `pytest -q` (mọi test ở trạng thái skipped)
 - **Bẫy:** không thêm thư viện ngoài danh sách stack. Muốn thêm thì ghi vào `PROGRESS.md` mục "Đề xuất" và dừng lại hỏi.
 
-### [ ] T02. Config
+### [x] T02. Config
 - **Đọc:** `.env.example`
 - **File:** `app/config.py`, `tests/unit/test_config.py`
 - **Làm:** `Settings(BaseSettings)` với mọi biến trong `.env.example` và đúng giá trị mặc định. Hàm `get_settings()` có `lru_cache`. Các path dùng kiểu `Path`, khởi tạo thì `mkdir(parents=True, exist_ok=True)`.
