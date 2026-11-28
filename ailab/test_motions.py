@@ -4,6 +4,7 @@ import secrets
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ["AILAB_DB"] = os.path.join(tempfile.mkdtemp(), "m.db")
@@ -26,6 +27,11 @@ class MotionFlow(unittest.TestCase):
         c.close()
 
     def setUp(self):
+        # Chế độ giả bắt buộc: không gọi model thật dù .env có MODEL_PROVIDER/API_KEY.
+        import ai
+        p = mock.patch.object(ai, "MODEL_PROVIDER", "fake")
+        p.start()
+        self.addCleanup(p.stop)
         self.c = store.connect()
         self.a = dict(self.c.execute("SELECT * FROM users WHERE username=?", (self.na,)).fetchone())
         self.b = dict(self.c.execute("SELECT * FROM users WHERE username=?", (self.nb,)).fetchone())
