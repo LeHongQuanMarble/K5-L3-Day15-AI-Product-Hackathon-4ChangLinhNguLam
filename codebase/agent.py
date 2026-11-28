@@ -61,12 +61,12 @@ QUY TẮC CỨNG (BẮT BUỘC TUÂN THỦ):
    - Khi trả đề xuất/hướng dẫn/kiểm tra tương thích (`INFO`, chưa tạo ứng dụng): nêu rõ đây là đề xuất/hướng dẫn (chưa tạo hay lưu), mọi bản lắp ghép sau đó chỉ ở dạng `BẢN NHÁP (DRAFT)` chờ giáo viên duyệt và **AI từ chối tự duyệt / không tự đặt APPROVED**.
 3. Mọi kế hoạch trò chơi BẮT BUỘC bật Mouse Fallback (chuột/chạm/bàn phím luôn hoạt động ngay cả khi không có camera hoặc lỗi Model). Khi lớp học không có camera hoặc máy lỗi camera và giáo viên muốn dùng chuột/bàn phím/cảm ứng, đề xuất dùng `Quiz ABCD bằng cử chỉ` ở chế độ chuột/chạm/bàn phím (`không cần camera`, `mouse_always_enabled=true`, `model_id=null`).
 4. Kiểm tra tương thích & giới hạn năng lực (KHÔNG coi giới hạn tính năng là tấn công bảo mật → chọn `INFO`, KHÔNG chọn `REFUSE`):
-   - Model `audio` / giọng nói CHƯA được Runtime hỗ trợ → báo rõ chưa hỗ trợ audio/giọng nói, KHÔNG bịa model giọng nói, đề xuất phương án thay thế là chuột (Mouse Fallback) hoặc cử chỉ tay với `"Bàn tay (MediaPipe)"` (kèm lưu ý kiểm tra tương thích `kinds` của Player).
+   - {audio_rule}
    - Player `"Quiz ABCD bằng cử chỉ"` (id=1) hiện chỉ khai `kinds=["image","pose"]` (CHƯA khai `"hands"`) → khi giáo viên muốn ghép `"Bàn tay (MediaPipe)"` (kind=`hands`) vào đích danh `"Quiz ABCD bằng cử chỉ"`, phải trích đúng tên `"Bàn tay (MediaPipe)"`, báo rõ chưa tương thích `kinds` (cần player có `kinds` chứa `hands` hoặc chơi bằng chuột); nếu trong Catalog hiện hành có Player khác thực sự tương thích `kinds` và `inputs` với Model giáo viên yêu cầu (không bị chỉ định đích danh Player không tương thích), ưu tiên chọn Player tương thích đó để `REUSE` kèm `mapping` đúng ý nghĩa hành động; nếu có mapping trùng lớp hoặc gán lớp vai trò `empty` (`none`) vào ô đáp án thì chỉ rõ lỗi vai trò/trùng lớp. Không tự ý bỏ Model người dùng yêu cầu sang mouse-only mà không thông báo rõ.
    - Player `"Vòng quay chọn tên"` (id=2) chỉ nhận danh sách chữ (`texts`), KHÔNG nhận bộ đề câu hỏi (`questions`/`exam`) và KHÔNG có `inputs` để gắn model camera → báo rõ lý do, đề xuất dùng `"Quiz ABCD bằng cử chỉ"` hoặc chơi bằng chuột, kèm nhắc giáo viên kiểm và duyệt.
 5. Ranh giới hỏi làm rõ (`ASK_CLARIFY` — đúng 1 câu hỏi có 1 dấu `?`, KHÔNG nêu tên Player/Model cụ thể, KHÔNG kèm HTML):
    - **CHỈ** chọn `ASK_CLARIFY` khi thiếu thông tin thiết yếu khiến không thể đưa ra đề xuất an toàn: (a) yêu cầu quá chung chung, không có môn học/chủ đề, không có nguồn bộ đề và không có hình thức tương tác; HOẶC (b) giáo viên yêu cầu game có camera / chưa nêu thiết bị lớp học **và** cũng không nêu phương án dự phòng bằng chuột/bàn phím/cảm ứng.
-   - **KHÔNG** chọn `ASK_CLARIFY` khi đã đủ thông tin để phản hồi/đề xuất an toàn: giáo viên đã nêu tính năng chưa hỗ trợ (giọng nói/audio), đã nêu chế độ dự phòng chuột/bàn phím/cảm ứng (`không cần camera`), đã nói rõ dùng lại bộ đề có sẵn (`bộ đề có sẵn`), hoặc yêu cầu soạn câu hỏi ôn tập.
+   - **KHÔNG** chọn `ASK_CLARIFY` khi đã đủ thông tin để phản hồi/đề xuất an toàn: giáo viên đã nêu rõ phương án tương tác{audio_clarify_note}, đã nêu chế độ dự phòng chuột/bàn phím/cảm ứng (`không cần camera`), đã nói rõ dùng lại bộ đề có sẵn (`bộ đề có sẵn`), hoặc yêu cầu soạn câu hỏi ôn tập.
 6. Nhánh `INFO` (tra cứu Catalog & soạn bộ câu hỏi độc lập):
    - Nếu giáo viên chỉ hỏi thông tin thuần túy (vd số câu của bộ đề, không tạo game): trả lời chính xác từ Catalog, không tạo ứng dụng.
    - Nếu giáo viên yêu cầu soạn bộ câu hỏi trắc nghiệm (không tạo game): BẮT BUỘC đặt các dòng câu hỏi vào trường `exam_content` theo đúng định dạng `Câu hỏi | Đáp án A | Đáp án B | Đáp án C | Đáp án D | =A` (mỗi câu 1 dòng, KHÔNG đánh số `1.` ở đầu dòng, 2–6 đáp án, `=A`..`=F` hoặc `=T`/`=F`). Nếu giáo viên chưa nêu môn học/chủ đề cụ thể, soạn 3–5 câu hỏi **mẫu minh họa** đúng định dạng và nêu rõ giả định (giáo viên cần thay bằng kiến thức bài học và kiểm duyệt đáp án trước khi dùng).
@@ -258,23 +258,45 @@ def _validate_and_repair_exam(content: str, player_id=None, expected_count=None,
     return cur, res
 
 
-def _call_generator(system, prompt):
-    """Gọi model sinh game — dùng GAME_GENERATOR_MODEL khi có cấu hình (multi-model routing),
-    không thì dùng MODEL_NAME mặc định. Không truyền kwarg khi không cần (tương thích mock/tests)."""
-    if GAME_GENERATOR_MODEL:
-        return call_model(system, prompt, model=GAME_GENERATOR_MODEL)
+def _call_generator(system, prompt, model=None):
+    """Gọi model sinh game — dùng model chỉ định (bước repair) hoặc GAME_GENERATOR_MODEL,
+    không thì MODEL_NAME mặc định. Không truyền kwarg khi không cần (tương thích mock/tests)."""
+    use = model or GAME_GENERATOR_MODEL
+    if use:
+        return call_model(system, prompt, model=use)
     return call_model(system, prompt)
 
 
+_CAM_ATTR_RE = re.compile(r"(?<=\s)data-jl-camera(?=[\s=><])")
+
+
 def _ensure_single_camera(html: str) -> str:
-    """Đảm bảo đúng MỘT ô [data-jl-camera] trong file: LLM tự vẽ nhiều ô camera (mỗi ô một canvas
-    HELPER vẽ vào — trông như hai camera song song) → giữ ô ĐẦU, bỏ attribute ở các ô sau."""
-    if html.count("data-jl-camera") <= 1:
+    """Đảm bảo đúng MỘT ô [data-jl-camera] dạng ATTRIBUTE trong markup: LLM tự vẽ nhiều ô camera
+    (mỗi ô một canvas HELPER vẽ vào — trông như hai camera song song) → giữ ô ĐẦU, bỏ attribute ở các ô sau.
+    Chỉ đếm attribute (đứng sau khoảng trắng trong tag), KHÔNG đụng chuỗi selector trong JS
+    (vd querySelector('[data-jl-camera]') phải giữ nguyên)."""
+    matches = list(_CAM_ATTR_RE.finditer(html))
+    if len(matches) <= 1:
         return html
-    first = html.find("data-jl-camera")
-    cut = first + len("data-jl-camera")
-    head, tail = html[:cut], html[cut:]
-    return head + re.sub(r"[\s]*data-jl-camera(?:\s*=\s*(\"[^\"]*\"|'[^']*'|[^\s>]+))?", "", tail)
+    first = matches[0]
+    head, tail = html[:first.end()], html[first.end():]
+    return head + re.sub(r"\s+data-jl-camera(?=[\s=><])", "", tail)
+
+
+def _audio_rule_text():
+    """Định tuyến audio theo trạng thái Runtime thật (flag AILAB_ENABLE_AUDIO) — hết thời kỳ hardcode 'chưa hỗ trợ'."""
+    if chatbot_catalog.AUDIO_SUPPORTED:
+        return (
+            'Model kind=`audio` (ví dụ "Âm thanh A B C D": lớp A/B/C/D vai trò action, "Background Noise" vai trò '
+            'empty/rest) ĐÃ được Runtime hỗ trợ qua MICRO. Giáo viên yêu cầu game âm thanh → chọn đúng model audio '
+            'đó và GENERATE/REUSE bình thường như model image/pose, giữ Mouse Fallback; lớp vai trò empty/rest '
+            'KHÔNG ghép vào ô đáp án.'
+        )
+    return (
+        'Model `audio` / giọng nói CHƯA được Runtime hỗ trợ → báo rõ chưa hỗ trợ audio/giọng nói, '
+        'KHÔNG bịa model giọng nói, đề xuất phương án thay thế là chuột (Mouse Fallback) hoặc cử chỉ tay với '
+        '"Bàn tay (MediaPipe)" (kèm lưu ý kiểm tra tương thích `kinds` của Player).'
+    )
 
 
 def _run_generate_html(user_message: str, game_idea: str, need_exam: bool, spec: dict = None):
@@ -304,7 +326,8 @@ def _run_generate_html(user_message: str, game_idea: str, need_exam: bool, spec:
             "%s\n\n[Hệ thống] Bản nháp trước bị từ chối: %s. Hãy sửa triệt để và trả lại đầy đủ file HTML."
             % (base_prompt, last_err)
         )
-        reply = _call_generator(GENERATE_HTML_SYSTEM, prompt)
+        # Lượt 1 dùng Generator; lượt sửa (repair) dùng GAME_REPAIR_MODEL nếu cấu hình riêng
+        reply = _call_generator(GENERATE_HTML_SYSTEM, prompt) if step == 1 else _call_generator(GENERATE_HTML_SYSTEM, prompt, model=GAME_REPAIR_MODEL)
         text = (reply.get("text") or "").strip()
         if not text:
             note("dừng GENERATE: model không trả nội dung ở lượt %d" % step)
@@ -542,8 +565,9 @@ def _handle_reuse(parsed: dict, req: dict, registry: dict, use_live_tools: bool)
         avail_m = ", ".join('"%s" (id=%s, kind=%s)' % (m["name"], m["id"], m["kind"]) for m in models)
         msg = (
             llm_msg
-            or "Model yêu cầu không tồn tại trong Catalog. Các model hiện có: %s (Runtime chưa hỗ trợ audio). "
-               "Bạn có thể chơi bằng chuột (Mouse Fallback) chờ giáo viên duyệt." % avail_m
+            or "Model yêu cầu không tồn tại trong Catalog. Các model hiện có: %s%s "
+               "Bạn có thể chơi bằng chuột (Mouse Fallback) chờ giáo viên duyệt."
+            % (avail_m, "" if chatbot_catalog.AUDIO_SUPPORTED else " (Runtime chưa hỗ trợ audio)")
         )
         return _make_envelope(
             "ERROR",
@@ -1080,7 +1104,7 @@ def _ensure_catalog_grounding(msg: str, registry: dict, user_msg: str = "") -> s
 
     additions = []
     voice_asked = bool(_VOICE_RE.search(guardrails.fold_text(user_msg or "")))
-    if voice_asked and not re.search(r"chua (duoc )?ho tro|khong ho tro", folded):
+    if voice_asked and not chatbot_catalog.AUDIO_SUPPORTED and not re.search(r"chua (duoc )?ho tro|khong ho tro", folded):
         additions.append(
             "Lưu ý: giọng nói (audio) chưa được Runtime hỗ trợ; có thể thay thế bằng chuột/chạm/bàn phím (Mouse Fallback) hoặc cử chỉ tay nếu tương thích."
         )
@@ -1189,7 +1213,12 @@ def _run_agent_core(request, registry=None):
         db_ready = False
 
     catalog_ctx = guardrails.format_catalog_context(active_registry)
-    system_prompt = ROUTING_SYSTEM_TEMPLATE.format(catalog_context=catalog_ctx)
+    audio_clarify_note = (
+        " (kể cả model âm thanh)" if chatbot_catalog.AUDIO_SUPPORTED else " hoặc đã nêu rõ giới hạn audio/giọng nói"
+    )
+    system_prompt = ROUTING_SYSTEM_TEMPLATE.format(
+        catalog_context=catalog_ctx, audio_rule=_audio_rule_text(), audio_clarify_note=audio_clarify_note
+    )
 
     user_prompt = req["message"]
     if req.get("selected_player_id") or req.get("selected_model_id") or req.get("selected_exam_id") or req.get("generation_mode"):

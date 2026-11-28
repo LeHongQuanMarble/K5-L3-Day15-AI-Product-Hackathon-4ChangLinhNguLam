@@ -356,8 +356,13 @@ def format_catalog_context(registry: dict) -> str:
                 cnt = 0
         lines.append("   - id=%s | name=\"%s\" | so_cau=%d" % (e["id"], e["name"], cnt))
     lines.append("4. GIỚI HẠN RUNTIME BẮT BUỘC:")
-    lines.append("   - Runtime hỗ trợ kinds: hands, image, pose (và chuột mouse).")
-    lines.append("   - Runtime CHƯA hỗ trợ audio / giọng nói (không được ghép hay bịa model giọng nói).")
+    from chatbot import catalog as _chatbot_catalog  # noqa: PLC0415  (nhập muộn tránh vòng)
+    _runtime_kinds = ", ".join(_chatbot_catalog.RUNTIME_KINDS)
+    lines.append("   - Runtime hỗ trợ kinds: %s (và chuột mouse)." % _runtime_kinds)
+    if "audio" in _chatbot_catalog.RUNTIME_KINDS:
+        lines.append("   - Model kind=`audio` (micro, phân lớp âm thanh) ĐÃ được Runtime hỗ trợ: ghép/GENERATE như image/pose; lớp vai trò empty/rest không ghép vào ô đáp án.")
+    else:
+        lines.append("   - Runtime CHƯA hỗ trợ audio / giọng nói (không được ghép hay bịa model giọng nói).")
     lines.append("   - Mọi trò chơi BẮT BUỘC bật Mouse Fallback (fallback='mouse', mouse_always_enabled=true).")
     lines.append("   - Chỉ ghép model với player khi player có `inputs` và `kinds` của player chứa `kind` của model; nếu thiếu `kinds` hoặc trùng lớp/sai vai trò `empty` thì báo rõ lý do và đề xuất dùng chuột hoặc chờ TV3 xác minh.")
     lines.append("   - Player có `content/questions = texts` chỉ nhận danh sách chữ (KHÔNG nhận bộ đề câu hỏi `exam` và KHÔNG gắn camera model nếu `inputs=[]`).")

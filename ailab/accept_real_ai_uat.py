@@ -15,6 +15,7 @@ import http.cookiejar
 import json
 import sys
 import time
+import urllib.error
 import urllib.request
 
 BASE = "http://127.0.0.1:8800"
@@ -43,6 +44,13 @@ CASES = {
         ),
         "kind": "hands", "questions": 5, "model_name": "Bàn tay (MediaPipe)",
     },
+    "mouse": {
+        "prompt": (
+            "Tạo một trò chơi mới kéo thả phân loại động vật có xương sống và không xương sống gồm 4 câu hỏi mới, "
+            "chơi bằng chuột. Game cần có sinh động: ổ động vật, hiệu ứng kéo thả, phản hồi đúng sai vui mắt."
+        ),
+        "kind": None, "questions": 4, "model_name": None,  # mouse-only: không gắn model
+    },
 }
 
 
@@ -57,8 +65,15 @@ class Client:
         if data:
             req.add_header("Content-Type", "application/json")
         t0 = time.time()
-        with self.opener.open(req, timeout=timeout) as r:
-            payload = json.loads(r.read().decode("utf-8"))
+        try:
+            with self.opener.open(req, timeout=timeout) as r:
+                raw = r.read().decode("utf-8")
+        except urllib.error.HTTPError as e:
+            return {"_http_error": e.code, "_ms": 0, "message": "HTTP %s" % e.code}
+        try:
+            payload = json.loads(raw)
+        except ValueError:
+            return {"_http_error": 200, "_non_json": True, "_ms": 0, "message": "phản hồi không phải JSON (%d bytes)" % len(raw)}
         payload["_ms"] = int((time.time() - t0) * 1000)
         return payload
 
@@ -90,22 +105,33 @@ def run_case(cl, key, cfg, results):
         if not cond:
             out["ok"] = False
 
-    kind = cfg["kind"]
     res = cl.call("POST", "/api/agent", {"text": cfg["prompt"]})
     check("decision == GENERATE", res.get("decision") == "GENERATE", res.get("decision"))
     check("draft_id được cấp", isinstance(res.get("draft_id"), int) and res["draft_id"] > 0, res.get("draft_id"))
+    if not res.get("draft_id"):
+        # Không có nháp: dừng case, in lý do thật từ envelope để phân tích nguyên nhân
+        out["reason"] = res.get("message") or res.get("error") or json.dumps({k: res.get(k) for k in ("decision", "errors")}, ensure_ascii=False)
+        out["usage"] = collect_tokens(res.get("trace"))
+        results.append(out)
+        return False
     check("plan_hash được cấp", bool(res.get("plan_hash")))
 
     plan = res.get("application_plan") or {}
     player = plan.get("player") or {}
     model = plan.get("model") or {}
     exam = plan.get("exam") or {}
+    kind = cfg.get("kind")
     check("player.mode == generate_new (không REUSE)", player.get("mode") == "generate_new", player.get("mode"))
     check("player.player_id is None (player MỚI)", player.get("player_id") is None, player.get("player_id"))
-    check('model.kind == "%s"' % kind, model.get("kind") == kind, model.get("kind"))
-    check("model gắn model_id thật", isinstance(model.get("model_id"), int), model.get("model_id"))
-    check("mapping không rỗng", isinstance(model.get("mapping"), dict) and len(model.get("mapping") or {}) > 0, model.get("mapping"))
-    check('interaction.primary == "%s"' % kind, (plan.get("interaction") or {}).get("primary") == kind, (plan.get("interaction") or {}).get("primary"))
+    if kind:
+        check('model.kind == "%s"' % kind, model.get("kind") == kind, model.get("kind"))
+        check("model gắn model_id thật", isinstance(model.get("model_id"), int), model.get("model_id"))
+        check("mapping không rỗng", isinstance(model.get("mapping"), dict) and len(model.get("mapping") or {}) > 0, model.get("mapping"))
+        check('interaction.primary == "%s"' % kind, (plan.get("interaction") or {}).get("primary") == kind, (plan.get("interaction") or {}).get("primary"))
+    else:
+        # mouse-only: KHÔNG gắn model, KHÔNG bị ép vào template cố định
+        check("mouse-only: model là None", model in (None, {}) or model.get("kind") in (None, "mouse"), model)
+        check("mouse-only: interaction.primary == mouse", (plan.get("interaction") or {}).get("primary") == "mouse", (plan.get("interaction") or {}).get("primary"))
     check("mouse_always_enabled", (plan.get("interaction") or {}).get("mouse_always_enabled") is True)
     check("exam mode generate_new", exam.get("mode") == "generate_new", exam.get("mode"))
     check("safety_flags == []", res.get("safety_flags") == [], res.get("safety_flags"))
@@ -115,13 +141,16 @@ def run_case(cl, key, cfg, results):
     check("preview 200 có srcdoc", len(src) > 200, len(src))
     check("srcdoc có CSP", "Content-Security-Policy" in src)
     check("srcdoc có manifest jl-camera", 'id="jl-camera"' in src)
-    check("srcdoc có Runtime Wrapper", "window.JLRuntime" in src)
-    check("srcdoc có ô camera duy nhất", src.count("data-jl-camera") == 1, src.count("data-jl-camera"))
+    if kind:
+        check("srcdoc có Runtime Wrapper", "window.JLRuntime" in src)
+    cam_attr = len(__import__("re").findall(r"(?<=\s)data-jl-camera(?=[\s=><])", src))
+    check("srcdoc có đúng 1 ô camera (attribute)", cam_attr == (1 if kind else 0), cam_attr)
     man_prev = prev.get("manifest") if isinstance(prev.get("manifest"), dict) else {}
-    check("manifest kinds chứa %s" % kind, kind in (man_prev.get("kinds") or []), man_prev.get("kinds"))
+    if kind:
+        check("manifest kinds chứa %s" % kind, kind in (man_prev.get("kinds") or []), man_prev.get("kinds"))
     if kind == "hands":
         check("srcdoc gửi hands-on handshake", "type: 'hands', on: true" in src and "var USES_HANDS = true;" in src)
-    else:
+    elif kind and "window.JLRuntime" in src:
         check("không gửi hands-on cho kind %s" % kind, "var USES_HANDS = false;" in src)
     sample = prev.get("sampleQuestions") or []
     check("preview đúng số câu mẫu (%d)" % cfg["questions"], len(sample) == cfg["questions"], len(sample))
@@ -178,6 +207,8 @@ def main():
         print("== %s: %s (%.1fs) ==" % (key.upper(), "PASS" if ok else "FAIL", time.time() - t0))
         for c in results[-1]["checks"]:
             print("  [%s] %s%s" % ("OK " if c["ok"] else "SAI", c["check"], (" — " + c["detail"]) if (not c["ok"] and c["detail"]) else ""))
+        if not ok and results[-1].get("reason"):
+            print("  LÝ DO ENVELOPE: %s" % results[-1]["reason"][:500])
 
     tot_in = sum(r["usage"]["tokens_in"] for r in results)
     tot_out = sum(r["usage"]["tokens_out"] for r in results)
