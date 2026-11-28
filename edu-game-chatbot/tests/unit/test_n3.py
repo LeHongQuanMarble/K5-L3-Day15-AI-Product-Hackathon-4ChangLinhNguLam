@@ -1,5 +1,6 @@
 import json
 import re
+from pathlib import Path
 
 import pytest
 
@@ -27,7 +28,7 @@ async def test_generate_injects_bank_and_increments(settings, store, fake_llm, r
     v2 = await generate(fake_llm, settings, store, s)
     assert (v1.number, v2.number) == (1, 2)
     assert len(s.versions) == 2
-    text = open(v1.html_path, encoding="utf-8").read()
+    text = Path(v1.html_path).read_text(encoding="utf-8")
     assert "q1" in text and "q2" in text
     assert v1.html_path.replace("\\", "/").endswith(f"{s.id}/v1/index.html")
     user = fake_llm.calls_for("codegen")[0]["user"]
