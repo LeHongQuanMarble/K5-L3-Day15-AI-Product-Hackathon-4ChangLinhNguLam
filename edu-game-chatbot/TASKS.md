@@ -197,7 +197,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Kiểm tra:** `pytest tests/integration/test_engine.py -q`
 - **Bẫy:** `asyncio.create_task` phải giữ reference (lưu vào set) để task không bị GC. Mọi thay đổi session phải nằm trong `store.lock(id)`.
 
-### [ ] T19. API FastAPI + SSE + preview + upload
+### [x] T19. API FastAPI + SSE + preview + upload
 - **Đọc:** ARCHITECTURE §4
 - **File:** `app/main.py`, `app/api/{sessions,events,preview}.py`, `tests/integration/test_api.py`
 - **Làm:** đủ endpoint §4. Upload: kiểm đuôi và kích thước, lưu qua `store.safe_path`, gọi `engine.handle(..., action="file_uploaded")`. Preview trả HTML với header `Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:`. Export zip chỉ khi `DONE`, nếu không thì 409.
