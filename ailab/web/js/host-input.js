@@ -112,15 +112,45 @@ export function createHostInput(o) {
   var sure = o.sure == null ? 0.8 : o.sure, holdMs = o.holdMs == null ? 800 : o.holdMs;
   var say = o.onSay || function () {}, onRunning = o.onRunning || function () {};
   var rev = {}; Object.keys(o.mapping || {}).forEach(function (k) { rev[o.mapping[k]] = k; });
-  var running = false, want = false, handsAsked = false, landmarker = null, handNow = { present: false, fist: false };
+  var running = false, want = false, handsAsked = false, landmarker = null, handNow = { present: false, fist: false }, handFrameAt = 0;
   var video = null, stream = null, tm = null, rec = null, loopId = 0, lastFrame = 0, lastHand = 0, lastPredict = 0, busy = false;
-  var actx = null, analyser = null, vizStream = null, vizId = 0, lastViz = 0, vizData = null, vizCanvas = null;
   var cand = null, since = 0, emitted = false, canvas = document.createElement('canvas');
+  var modelStatus = 'not-loaded', inferenceRunning = false, lastPrediction = null, lastMappedAction = null;
+  var lastEvent = null, lastError = '', inferenceCount = 0, fps = 0, fpsAt = 0, consecutiveErrors = 0;
   var thing = isAudio ? 'micro' : 'camera';
   var hint = o.fallbackHint || '';
 
-  function toFrame(m, transfer) { if (o.frame && o.frame.contentWindow) o.frame.contentWindow.postMessage(m, '*', transfer || []); }
+  function diagnostics() {
+    var track = stream && stream.getVideoTracks && stream.getVideoTracks()[0];
+    var micActive = isAudio ? !!(running && rec) : !!(track && track.readyState === 'live' && track.enabled);
+    try { if (o.onDiagnostics) o.onDiagnostics({
+      media: isAudio ? 'microphone' : 'camera', mediaActive: micActive,
+      modelStatus: modelStatus, inferenceRunning: inferenceRunning, prediction: lastPrediction,
+      mappedAction: lastMappedAction, lastEvent: lastEvent, inferenceFps: fps, error: lastError
+    }); } catch (e) { /* diagnostics must not affect gameplay */ }
+  }
+  function toFrame(m, transfer) {
+    if (m && typeof m.type === 'string' && m.type.indexOf('camera.') === 0 && m.type !== 'camera.image') {
+      lastEvent = { type: m.type, input: m.input || null, label: m.label || null, state: m.state || null };
+      diagnostics();
+    }
+    if (o.frame && o.frame.contentWindow) o.frame.contentWindow.postMessage(m, '*', transfer || []);
+  }
   function st(state) { toFrame({ type: 'camera.status', state: state, source: 'camera' }); }
+  function markInference(preds) {
+    var best = preds.reduce(function (a, b) { return b.probability > a.probability ? b : a; });
+    lastPrediction = { label: best.className, confidence: best.probability };
+    inferenceCount++;
+    var now = performance.now();
+    if (!fpsAt) fpsAt = now;
+    if (now - fpsAt >= 1000) { fps = Math.round(inferenceCount * 1000 / (now - fpsAt)); inferenceCount = 0; fpsAt = now; }
+    consecutiveErrors = 0;
+    if (!inferenceRunning) {
+      inferenceRunning = true; modelStatus = 'inference-running';
+      say('Đang nhận diện — ' + thing + ' và mô hình hoạt động.'); st('ready'); onRunning(true);
+    }
+    diagnostics();
+  }
   function handsFail() { toFrame({ type: 'camera.hand', hands: [], available: false }); }
   function loadHands() {
     if (landmarker) return Promise.resolve();
@@ -132,16 +162,21 @@ export function createHostInput(o) {
   }
   function readHands(now) {
     var r;
-    try { r = landmarker.detectForVideo(video, now); } catch (e) { return; }
+    try { r = landmarker.detectForVideo(video, now); } catch (e) { inferenceFailure(e); return false; }
+    handFrameAt = now;
     var hands = (r && r.landmarks || []).map(function (lm) { return lm.map(function (p) { return { x: 1 - p.x, y: p.y, z: p.z || 0 }; }); });
     if (handsAsked) toFrame({ type: 'camera.hand', hands: hands, available: true });
-    if (!hands.length) { handNow = { present: false, fist: false }; return; }
+    if (!hands.length) { handNow = { present: false, fist: false }; return true; }
     var curl = curlOf(hands[0], video.videoWidth / video.videoHeight);
     handNow = { present: true, fist: handNow.present ? (handNow.fist ? curl > 0.4 : curl > 0.6) : curl > 0.6 };
+    return true;
   }
   /* mọi loại mô hình đều ra cùng dạng [{className, probability}] rồi qua đây */
   function decide(preds) {
+    if (!Array.isArray(preds) || !preds.length) throw new Error('Mô hình không trả về nhãn dự đoán.');
     var top = preds.reduce(function (a, b) { return b.probability > a.probability ? b : a; });
+    lastMappedAction = rev[top.className] || null;
+    markInference(preds);
     var scores = {}; preds.forEach(function (x) { if (rev[x.className]) scores[rev[x.className]] = x.probability; });
     toFrame({ type: 'camera.frame', scores: scores });
     var input = rev[top.className];
@@ -154,7 +189,9 @@ export function createHostInput(o) {
   }
   function predictCamera() {
     var p;
-    if (kind === 'hands') p = Promise.resolve([{ className: 'fist', probability: handNow.present && handNow.fist ? 1 : 0 }, { className: 'open', probability: handNow.present && !handNow.fist ? 1 : 0 }, { className: 'none', probability: handNow.present ? 0 : 1 }]);
+    if (kind === 'hands') p = handFrameAt && performance.now() - handFrameAt < 500
+      ? Promise.resolve([{ className: 'fist', probability: handNow.present && handNow.fist ? 1 : 0 }, { className: 'open', probability: handNow.present && !handNow.fist ? 1 : 0 }, { className: 'none', probability: handNow.present ? 0 : 1 }])
+      : Promise.reject(new Error('Chưa có kết quả MediaPipe hợp lệ từ khung hình camera.'));
     else if (kind === 'pose') p = tm.estimatePose(video).then(function (r) { return tm.predict(r.posenetOutput); });
     else p = tm.predict(video);
     return p.then(decide);
@@ -170,96 +207,77 @@ export function createHostInput(o) {
       createImageBitmap(canvas, { resizeWidth: Math.min(640, canvas.width) }).then(function (b) { toFrame({ type: 'camera.image', image: b }, [b]); }).catch(function () {});
     }
     if (landmarker && video.videoWidth && now - lastHand > 66) { lastHand = now; readHands(now); }
-    if (!busy && now - lastPredict > 120) { lastPredict = now; busy = true; predictCamera().then(function () { busy = false; }, function () { busy = false; }); }
+    if (!busy && now - lastPredict > 120) { lastPredict = now; busy = true; predictCamera().then(function () { busy = false; }, function (err) { busy = false; inferenceFailure(err); }); }
   }
-  /* Micro: vẽ phổ tần số (analyser) thành ảnh gửi vào ô [data-jl-camera] của trình chơi, như khung camera. */
-  function startViz() {
-    return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
-      if (!running) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
-      vizStream = s;
-      var AC = window.AudioContext || window.webkitAudioContext; actx = new AC(); if (actx.resume) actx.resume();
-      var src = actx.createMediaStreamSource(s); analyser = actx.createAnalyser();
-      analyser.fftSize = 1024; analyser.smoothingTimeConstant = 0.6; src.connect(analyser); // không nối ra loa
-      vizData = new Uint8Array(analyser.frequencyBinCount);
-      vizCanvas = document.createElement('canvas'); vizCanvas.width = 480; vizCanvas.height = 300;
-      vizLoop();
-    }).catch(function () { /* không có phổ thì vẫn nhận diện được */ });
-  }
-  function vizLoop() {
-    if (!running || !analyser) return;
-    vizId = requestAnimationFrame(vizLoop);
-    var now = performance.now();
-    if (!want || now - lastViz < 66) return;
-    lastViz = now;
-    analyser.getByteFrequencyData(vizData);
-    var W = vizCanvas.width, H = vizCanvas.height, g = vizCanvas.getContext('2d'), hz = actx.sampleRate / analyser.fftSize;
-    var maxHz = 8000, n = Math.min(vizData.length, Math.floor(maxHz / hz)), bw = W / n, padB = 24;
-    g.fillStyle = '#0b1020'; g.fillRect(0, 0, W, H);
-    for (var i = 0; i < n; i++) {
-      var v = vizData[i] / 255, bh = v * (H - padB - 8);
-      g.fillStyle = 'hsl(' + Math.round(200 - v * 170) + ',90%,' + Math.round(45 + v * 20) + '%)';
-      g.fillRect(i * bw, H - padB - bh, Math.max(1, bw - 1), bh);
+  function inferenceFailure(err) {
+    lastError = (err && err.message) || String(err || 'Inference failed'); consecutiveErrors++;
+    diagnostics();
+    if (consecutiveErrors >= 3 && running) {
+      running = false; st('model-failed'); say('Inference bị lỗi liên tiếp: ' + lastError + hint);
+      stop(true); modelStatus = 'error'; lastError = (err && err.message) || lastError; diagnostics();
     }
-    g.fillStyle = '#9aa4c7'; g.font = '14px sans-serif'; g.textBaseline = 'bottom';
-    [0, 2000, 4000, 6000, 8000].forEach(function (f, k) {
-      var x = Math.min(W - 40, (f / hz) * bw); g.fillText(f === 0 ? '0 Hz' : (f / 1000) + ' kHz', k === 0 ? 4 : x - (k === 4 ? 36 : 14), H - 4);
-    });
-    createImageBitmap(vizCanvas).then(function (b) { toFrame({ type: 'camera.image', image: b }, [b]); }).catch(function () {});
-  }
-  function stopViz() {
-    cancelAnimationFrame(vizId); analyser = null;
-    if (vizStream) vizStream.getTracks().forEach(function (t) { t.stop(); }); vizStream = null;
-    if (actx) { try { actx.close(); } catch (e) { /* đã đóng */ } actx = null; }
   }
   function fail(err) {
     var name = err && err.name;
     var denied = name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError';
     var none = name === 'NotFoundError' || name === 'DevicesNotFoundError';
     var used = name === 'NotReadableError' || name === 'TrackStartError';
+    lastError = (err && err.message) || String(err || 'Unknown error'); modelStatus = 'error';
     st(denied ? 'denied' : none ? 'no-camera' : used ? 'busy' : 'model-failed');
     say((denied ? 'Bạn chưa cho phép trang này dùng ' + thing + ' — hãy chọn “Cho phép” khi trình duyệt hỏi (biểu tượng ổ khoá trên thanh địa chỉ).'
       : none ? 'Không tìm thấy ' + thing + ' trên máy này.'
       : used ? thing + ' đang được ứng dụng khác sử dụng — đóng ứng dụng đó rồi thử lại.'
       : 'Không bật được ' + thing + ' hoặc nạp mô hình: ' + (err && err.message || err)) + hint);
-    stop(true);
+    stop(true); modelStatus = 'error'; diagnostics();
   }
   function start() {
     if (running) return Promise.resolve();
+    modelStatus = 'loading'; inferenceRunning = false; lastPrediction = null; lastMappedAction = null; lastError = ''; fps = 0; fpsAt = 0; inferenceCount = 0; consecutiveErrors = 0; diagnostics();
     onRunning(null); say('Đang bật ' + thing + ' và nạp mô hình…'); st('loading');
-    if (kind !== 'hands' && !LIBS[kind]) { st('model-failed'); say('Mô hình ' + kind + ' chưa chạy được ở bản này.' + hint); onRunning(false); return Promise.resolve(); }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { st('no-camera'); say('Trình duyệt chỉ cho dùng ' + thing + ' khi mở bằng https hoặc localhost.' + hint); onRunning(false); return Promise.resolve(); }
+    if (kind !== 'hands' && !LIBS[kind]) { modelStatus = 'error'; lastError = 'Unsupported model kind: ' + kind; st('model-failed'); say('Mô hình ' + kind + ' chưa chạy được ở bản này.' + hint); onRunning(false); diagnostics(); return Promise.resolve(); }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { modelStatus = 'error'; lastError = 'getUserMedia is unavailable; use HTTPS or localhost.'; st('no-camera'); say('Trình duyệt chỉ cho dùng ' + thing + ' khi mở bằng https hoặc localhost.' + hint); onRunning(false); diagnostics(); return Promise.resolve(); }
     cand = null; emitted = false;
     var libs = LIBS[kind] || [];
     var loaded = libs.reduce(function (p, src) { return p.then(function () { return loadScript(src); }); }, Promise.resolve());
     if (isAudio) {
       return loaded.then(function () {
         rec = window.speechCommands.create('BROWSER_FFT', undefined, o.model.url + 'model.json', o.model.url + 'metadata.json');
-        return rec.ensureModelLoaded();
+        return rec.ensureModelLoaded().then(function () { modelStatus = 'loaded'; diagnostics(); });
       }).then(function () {
         var labels = rec.wordLabels();
         return rec.listen(function (res) {
-          decide(labels.map(function (l, i) { return { className: l, probability: res.scores[i] }; }));
+          try { decide(labels.map(function (l, i) { return { className: l, probability: res.scores[i] }; })); }
+          catch (err) { inferenceFailure(err); }
         }, { includeSpectrogram: false, probabilityThreshold: 0, invokeCallbackOnNoiseAndUnknown: true, overlapFactor: 0.75 });
-      }).then(function () { running = true; say('Đang nghe — hãy tạo âm thanh để chọn đáp án.'); st('ready'); onRunning(true); startViz(); }).catch(fail);
+      }).then(function () { running = true; modelStatus = 'loaded'; say('Micro đã mở, đang chờ dự đoán đầu tiên…'); diagnostics(); }).catch(fail);
     }
     return navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false }).then(function (s) {
       stream = s;
+      diagnostics();
       video = document.createElement('video'); video.playsInline = true; video.muted = true; video.srcObject = s;
-      return video.play();
+      return video.play().then(function () {
+        return new Promise(function (resolve, reject) {
+          var timeout = setTimeout(function () { reject(new Error('Camera chưa cung cấp khung hình trong 5 giây.')); }, 5000);
+          function ready() {
+            if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) { clearTimeout(timeout); video.removeEventListener('loadeddata', ready); resolve(); }
+          }
+          video.addEventListener('loadeddata', ready); ready();
+        });
+      });
     }).then(function () { return loaded; }).then(function () {
       if (kind === 'hands') return loadHands().then(function () { return null; });
       return kind === 'image' ? window.tmImage.load(o.model.url + 'model.json', o.model.url + 'metadata.json') : window.tmPose.load(o.model.url + 'model.json', o.model.url + 'metadata.json');
     }).then(function (m) {
-      tm = m; running = true;
+      tm = m; modelStatus = 'loaded'; running = true;
       if (handsAsked && kind !== 'hands') loadHands().catch(handsFail);
-      say('Đang chạy'); st('ready'); onRunning(true); loop();
+      say('Mô hình đã nạp, đang chờ dự đoán đầu tiên…'); diagnostics(); loop();
     }).catch(fail);
   }
   function stop(keepStatus) {
-    running = false; cancelAnimationFrame(loopId); stopViz();
+    running = false; inferenceRunning = false; modelStatus = 'not-loaded'; cancelAnimationFrame(loopId);
     if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); stream = null;
     if (rec) { try { rec.stopListening(); } catch (e) { /* đã dừng */ } rec = null; }
-    onRunning(false);
+    onRunning(false); diagnostics();
     if (!keepStatus) { st('off'); say(thing[0].toUpperCase() + thing.slice(1) + ' đã tắt — đang chơi bằng chuột.'); }
   }
   /* tin nhắn từ trình chơi: camera.want / hands */
@@ -273,5 +291,5 @@ export function createHostInput(o) {
     }
   }
   return { start: start, stop: stop, message: message, isRunning: function () { return running; },
-    status: function () { st(running ? 'ready' : 'off'); }, thing: thing };
+    status: function () { st(inferenceRunning ? 'ready' : running ? 'loading' : 'off'); }, thing: thing };
 }

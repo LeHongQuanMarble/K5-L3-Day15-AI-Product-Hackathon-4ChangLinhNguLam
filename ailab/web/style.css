@@ -220,11 +220,25 @@ code,kbd{font-family:var(--jl-font-mono);font-size:var(--jl-font-size-sm)}
 .ail-step b{font-weight:500}
 .ail-step p,.ail-step span{font-size:var(--jl-font-size-sm);color:var(--jl-text-muted)}
 
-/* ---------- 5 · Trợ lý Game & Thẻ ApplicationPlan (full-bleed LLM workspace) ---------- */
+/* ---------- 5 · Single Chat Workspace (AI Game Composer) ---------- */
 .ail-main.is-chat{overflow:hidden;display:flex;flex-direction:column;padding:0;background:var(--jl-surface-default)}
-.ail-chat-wrap{flex:1;min-height:0;display:flex;width:100%}
+.ail-chat-wrap{flex:1;min-height:0;display:flex;width:100%;overflow:hidden}
+.ail-chat-main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--jl-surface-default);overflow:hidden}
+
+/* Header tối giản */
+.ail-chat-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;height:56px;min-height:56px;padding:0 20px;border-bottom:1px solid var(--jl-border-divider);background:var(--jl-surface-default);z-index:20}
+.ail-chat-head-l,.ail-chat-head-r{display:flex;align-items:center;gap:8px;min-width:0}
+.ail-chat-title{font-size:15px;font-weight:500;color:var(--jl-text-default);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ail-mode-pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid var(--jl-border-default);border-radius:var(--jl-radius-pill);background:var(--jl-au-soft)}
+.ail-mode-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--jl-text-muted)}
+.ail-mode-dot.is-ok{background:var(--jl-status-success)}
+.ail-mode-dot.is-mock{background:var(--jl-status-warning-strong)}
+.ail-mode-select{border:0;background:transparent;color:var(--jl-text-secondary);font-size:var(--jl-font-size-sm);font-weight:500;cursor:pointer;padding:0 2px 0 0;outline:none}
+.ail-mode-select:focus-visible{outline:2px solid var(--jl-au-p1);outline-offset:2px;border-radius:4px}
+
+/* Lịch sử dropdown */
 .ail-hist-anchor{position:relative;display:inline-flex;align-items:center}
-.ail-chat-history{position:absolute;top:calc(100% + 6px);left:0;z-index:80;width:280px;max-width:calc(100vw - 32px);max-height:min(420px,62vh);display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--jl-surface-default);border:1px solid var(--jl-border-default);border-radius:var(--jl-radius-xl);box-shadow:var(--jl-shadow-dropdown);overflow-y:auto}
+.ail-chat-history{position:absolute;top:calc(100% + 6px);right:0;z-index:80;width:280px;max-width:calc(100vw - 32px);max-height:min(420px,62vh);display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--jl-surface-default);border:1px solid var(--jl-border-default);border-radius:var(--jl-radius-xl);box-shadow:var(--jl-shadow-dropdown);overflow-y:auto}
 .ail-chat-history.is-hidden{display:none}
 .ail-chat-hist-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 6px 6px;border-bottom:1px solid var(--jl-border-divider);margin-bottom:4px}
 .ail-chat-hist-head b{font-size:var(--jl-font-size-sm);font-weight:500;color:var(--jl-text-secondary)}
@@ -232,69 +246,130 @@ code,kbd{font-family:var(--jl-font-mono);font-size:var(--jl-font-size-sm)}
 .ail-chat-hist-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ail-chat-hist-item:hover{background:var(--jl-au-soft);color:var(--jl-text-default)}
 .ail-chat-hist-item.on{background:var(--jl-au-lav);color:var(--jl-brand-600);font-weight:500}
-.ail-chat-main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--jl-surface-default)}
-.ail-chat-main.is-empty .ail-chat-log{flex:0 0 auto;margin-top:auto;padding-bottom:14px;overflow:visible}
-.ail-chat-main.is-empty .ail-chat-compose-wrap{margin-bottom:auto;padding-top:0}
-.ail-chat-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;height:56px;min-height:56px;padding:0 20px;border-bottom:1px solid var(--jl-border-default);background:var(--jl-surface-default)}
-.ail-chat-head b{font-weight:500}
-.ail-thinking{display:inline-flex;align-items:center;gap:10px;font-size:var(--jl-font-size-sm);color:var(--jl-text-secondary)}
-.ail-q-details summary{cursor:pointer;font-size:var(--jl-font-size-sm);font-weight:500;color:var(--jl-brand-600);padding:4px 0}
-.ail-q-details summary:hover{text-decoration:underline}
-.ail-mode-switch{display:inline-flex;gap:2px;padding:3px;border-radius:var(--jl-radius-pill);background:var(--jl-au-track)}
-.ail-mode-switch button{height:28px;padding:0 12px;border:0;border-radius:var(--jl-radius-pill);background:none;color:var(--jl-text-secondary);font-size:var(--jl-font-size-sm);font-weight:500;cursor:pointer;white-space:nowrap}
-.ail-mode-switch button:hover{color:var(--jl-text-default)}
-.ail-mode-switch button.on{background:var(--jl-surface-default);color:var(--jl-text-default);box-shadow:var(--jl-shadow-s1)}
-.ail-chat-log{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:24px 20px}
-.ail-chat-log>*{width:100%;max-width:780px;margin-inline:auto}
-.ail-chat-compose-wrap{flex:none;padding:12px 20px 18px;background:var(--jl-surface-default)}
-.ail-chat-compose{max-width:780px;margin:0 auto;display:flex;align-items:flex-end;gap:10px;padding:8px 8px 8px 16px;background:var(--jl-surface-default);border:1px solid var(--jl-border-strong);border-radius:24px;box-shadow:var(--jl-shadow-s1);transition:border-color var(--jl-motion-dur-fast) var(--jl-motion-ease-standard),box-shadow var(--jl-motion-dur-fast) var(--jl-motion-ease-standard)}
-.ail-chat-compose:focus-within{border-color:var(--jl-brand-600);box-shadow:0 0 0 3px color-mix(in srgb,var(--jl-brand-600) 14%,transparent)}
-.ail-chat-compose textarea{flex:1;min-width:0;min-height:24px;max-height:140px;padding:6px 0;border:0 !important;outline:0 !important;box-shadow:none !important;background:transparent;resize:none;line-height:1.5;color:var(--jl-text-default)}
-.ail-chat-compose textarea:focus,.ail-chat-compose textarea:focus-visible{border:0 !important;outline:0 !important;box-shadow:none !important}
-.ail-send-btn{width:36px;height:36px;flex:none;display:inline-grid;place-items:center;padding:0;border:0;border-radius:50%;background:var(--jl-brand-600);color:var(--jl-brand-on);cursor:pointer;transition:background-color var(--jl-motion-dur-fast) var(--jl-motion-ease-standard)}
-.ail-send-btn:hover:not(:disabled){background:var(--jl-brand-700)}
-.ail-send-btn:disabled{opacity:.45;cursor:not-allowed}
-.ail-starters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;max-width:680px;margin-top:12px}
-@media (max-width:640px){.ail-starters{grid-template-columns:minmax(0,1fr)}}
-.ail-starter-chip{display:flex;align-items:flex-start;gap:10px;width:100%;padding:12px 14px;background:var(--jl-surface-default);border:1px solid var(--jl-border-default);border-radius:var(--jl-radius-xl);color:var(--jl-text-default);font-size:var(--jl-font-size-sm);text-align:left;cursor:pointer;transition:border-color var(--jl-motion-dur-fast) var(--jl-motion-ease-standard),background-color var(--jl-motion-dur-fast) var(--jl-motion-ease-standard)}
-.ail-starter-chip:hover{border-color:var(--jl-brand-600);background:var(--jl-au-soft)}
-.ail-starter-chip .mk{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:var(--jl-radius-md);background:var(--jl-au-lav);color:var(--jl-brand-600)}
-.ail-starter-chip .mk svg.i{width:15px;height:15px}
-.ail-starter-chip b{display:block;font-weight:500;color:var(--jl-text-default);margin-bottom:2px}
-.ail-starter-chip span{display:block;color:var(--jl-text-muted);line-height:1.4}
+
+/* Mock banner gọn gàng */
+.ail-chat-banner-slot{flex:none}
+.ail-chat-mock-bar{max-width:840px;margin:10px auto 0;border-radius:var(--jl-radius-lg)}
+@media (max-width:880px){.ail-chat-mock-bar{margin:10px 16px 0}}
+
+/* Empty State: căn giữa dọc & ngang */
+.ail-chat-main.is-empty .ail-chat-log{flex:0 0 auto;margin-top:auto;padding:24px 20px 18px;overflow:visible}
+.ail-chat-main.is-empty .ail-chat-compose-wrap{margin-bottom:auto;padding-top:0;border-top:0}
+.ail-chat-welcome{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;max-width:720px;margin:0 auto}
 .ail-welcome-mark{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:var(--jl-au-lav);color:var(--jl-brand-600)}
 .ail-welcome-mark svg.i{width:24px;height:24px}
-.ail-welcome-title{font-size:clamp(22px,3vw,30px);font-weight:500;letter-spacing:-.02em;color:var(--jl-text-default);line-height:1.25}
-.m{max-width:780px;padding:12px 16px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere}
-.m.user{width:auto;max-width:min(620px,82%);margin-inline:auto 0;background:var(--jl-brand-600);color:var(--jl-brand-on);border-bottom-right-radius:4px}
-.m.bot{background:var(--jl-au-soft);border:1px solid var(--jl-border-default);color:var(--jl-text-default);border-bottom-left-radius:4px}
-.m .cardin{margin-top:10px;padding:12px;background:var(--jl-au-soft);border:1px solid var(--jl-border-default);border-radius:var(--jl-radius-md);color:var(--jl-text-default);white-space:normal}
-.cardin .ail-row strong{font-weight:500}
+.ail-welcome-title{font-size:clamp(22px,2.8vw,28px);font-weight:500;letter-spacing:-.02em;color:var(--jl-text-default);line-height:1.25}
+.ail-empty-prompts-slot{max-width:840px;margin:0 auto;width:100%}
+.ail-suggest-row{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px}
+.ail-suggest-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;background:var(--jl-surface-default);border:1px solid var(--jl-border-default);border-radius:var(--jl-radius-pill);color:var(--jl-text-secondary);font-size:var(--jl-font-size-sm);font-weight:400;cursor:pointer;transition:border-color var(--jl-motion-dur-fast) var(--jl-motion-ease-standard),background-color var(--jl-motion-dur-fast) var(--jl-motion-ease-standard),color var(--jl-motion-dur-fast) var(--jl-motion-ease-standard)}
+.ail-suggest-pill svg.i{width:15px;height:15px;color:var(--jl-brand-600)}
+.ail-suggest-pill:hover:not(:disabled){border-color:var(--jl-brand-600);background:var(--jl-au-soft);color:var(--jl-text-default)}
+.ail-suggest-pill:disabled{opacity:.5;cursor:not-allowed}
+
+/* Luồng hội thoại căn giữa (840px) */
+.ail-chat-log{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:24px 20px 32px}
+.ail-chat-stream{width:100%;max-width:840px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+
+/* Tin nhắn User (bubble nhẹ căn phải) & Assistant (căn trái, thoáng, không bubble lớn) */
+.ail-msg{display:flex;width:100%;min-width:0}
+.ail-msg-user{justify-content:flex-end}
+.ail-user-bubble{max-width:min(600px,82%);padding:11px 16px;border-radius:18px 18px 4px 18px;background:var(--jl-au-lav);color:var(--jl-text-default);white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}
+.ail-msg-bot{align-items:flex-start;gap:12px}
+.ail-bot-avatar{display:grid;place-items:center;width:30px;height:30px;flex:none;margin-top:2px;border-radius:10px;background:var(--jl-au-lav);color:var(--jl-brand-600)}
+.ail-bot-avatar svg.i{width:16px;height:16px}
+.ail-msg-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}
+.ail-bot-text{color:var(--jl-text-default);line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;padding-top:3px}
+.ail-quick-replies{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+
+/* Loading state đơn giản */
+.ail-thinking{display:inline-flex;align-items:center;gap:10px;padding:6px 0;font-size:var(--jl-font-size-sm);color:var(--jl-text-muted)}
 .dots span{display:inline-block;width:6px;height:6px;margin-right:3px;border-radius:50%;background:var(--jl-brand-600);animation:ail-dot 1s infinite}
 .dots span:nth-child(2){animation-delay:.15s}
 .dots span:nth-child(3){animation-delay:.3s}
 @keyframes ail-dot{50%{opacity:.2}}
 @media (prefers-reduced-motion:reduce){.dots span{animation:none}}
-/* thẻ kế hoạch: đầu quyết định + 4 khối + cảnh báo + thanh HITL */
-.ail-plan-card{display:flex;flex-direction:column;background:var(--jl-surface-default);border:1px solid var(--jl-border-default);border-radius:var(--jl-radius-xl);overflow:hidden}
-.ail-plan-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;background:var(--jl-au-lav);border-bottom:1px solid var(--jl-border-divider)}
-.ail-plan-head b{font-weight:500}
-.ail-plan-badge{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 12px;border-radius:var(--jl-radius-pill);background:var(--jl-au-track);color:var(--jl-text-secondary);font-size:var(--jl-font-size-sm);font-weight:500;letter-spacing:.02em;white-space:nowrap}
-.ail-plan-badge.is-reuse{background:var(--jl-status-success-bg);color:var(--jl-status-success)}
-.ail-plan-badge.is-generate{background:var(--jl-brand-600);color:var(--jl-brand-on)}
-.ail-plan-badge.is-ask{background:var(--jl-status-warning-bg);color:var(--jl-status-warning-strong)}
-.ail-plan-badge.is-refuse{background:var(--jl-status-danger-bg);color:var(--jl-status-danger)}
-.ail-plan-sim{display:inline-flex;align-items:center;height:22px;padding:0 9px;border:1px dashed var(--jl-border-strong);border-radius:var(--jl-radius-pill);color:var(--jl-text-muted);font-size:var(--jl-font-size-sm);white-space:nowrap}
-.ail-plan-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--jl-border-default)}
-@media (max-width:720px){.ail-plan-grid{grid-template-columns:minmax(0,1fr)}}
-.ail-plan-cell{display:flex;flex-direction:column;gap:8px;min-width:0;padding:14px 18px;background:var(--jl-surface-default)}
-.ail-plan-cell h4{font-size:var(--jl-font-size-xs);font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--jl-text-muted)}
-.ail-knowledge-warn{display:flex;align-items:flex-start;gap:10px;margin:12px 18px;padding:12px 14px;background:var(--jl-status-warning-bg);border:1px solid color-mix(in srgb,var(--jl-status-warning-strong) 35%,transparent);border-radius:var(--jl-radius-md);color:var(--jl-status-warning-strong);font-size:var(--jl-font-size-sm)}
-.ail-knowledge-warn b{font-weight:500}
-.ail-fallback-pill{display:inline-flex;align-items:center;gap:6px;width:max-content;height:24px;padding:0 10px;background:var(--jl-au-tint-mint);border-radius:var(--jl-radius-pill);color:var(--jl-au-mint-ink);font-size:var(--jl-font-size-sm);font-weight:500}
-.ail-fallback-pill svg.i{color:inherit}
-.ail-flag-item{display:flex;align-items:flex-start;gap:8px;padding:6px 10px;background:var(--jl-status-warning-bg);border-radius:var(--jl-radius-sm);color:var(--jl-status-warning-strong);font-size:var(--jl-font-size-sm)}
-.ail-hitl-bar{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:12px 18px;background:var(--jl-au-soft);border-top:1px solid var(--jl-border-divider)}
+
+/* Composer neo đáy */
+.ail-chat-compose-wrap{flex:none;padding:12px 20px 20px;background:var(--jl-surface-default);border-top:1px solid var(--jl-border-divider)}
+.ail-chat-compose{max-width:840px;margin:0 auto;display:flex;align-items:flex-end;gap:10px;padding:10px 10px 10px 18px;background:var(--jl-surface-default);border:1px solid var(--jl-border-strong);border-radius:24px;box-shadow:var(--jl-shadow-s1);transition:border-color var(--jl-motion-dur-fast) var(--jl-motion-ease-standard),box-shadow var(--jl-motion-dur-fast) var(--jl-motion-ease-standard)}
+.ail-chat-compose:focus-within{border-color:var(--jl-brand-600);box-shadow:0 0 0 3px color-mix(in srgb,var(--jl-brand-600) 14%,transparent)}
+.ail-chat-compose textarea{flex:1;min-width:0;min-height:24px;max-height:160px;padding:6px 0;border:0 !important;outline:0 !important;box-shadow:none !important;background:transparent;resize:none;line-height:1.5;color:var(--jl-text-default)}
+.ail-chat-compose textarea:focus,.ail-chat-compose textarea:focus-visible{border:0 !important;outline:0 !important;box-shadow:none !important}
+.ail-send-btn{width:36px;height:36px;flex:none;display:inline-grid;place-items:center;padding:0;border:0;border-radius:50%;background:var(--jl-brand-600);color:var(--jl-brand-on);cursor:pointer;transition:background-color var(--jl-motion-dur-fast) var(--jl-motion-ease-standard)}
+.ail-send-btn:hover:not(:disabled){background:var(--jl-brand-700)}
+.ail-send-btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* Inline Game Card */
+.ail-game-card{background:var(--jl-surface-default);border:1px solid var(--jl-border-default);border-radius:var(--jl-radius-card);box-shadow:var(--jl-shadow-s1);overflow:hidden}
+.ail-gc-top{display:flex;align-items:flex-start;gap:14px;padding:16px}
+.ail-gc-thumb{width:84px;height:64px;flex:none;display:grid;place-items:center;border-radius:var(--jl-radius-lg);background:var(--jl-au-lav);color:var(--jl-brand-600);overflow:hidden;position:relative}
+.ail-gc-thumb svg.i{width:26px;height:26px;stroke-width:1.6}
+.ail-gc-thumb.has-img{background:#0f172a}
+.ail-gc-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.ail-gc-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.ail-gc-title{font-size:15px;font-weight:500;color:var(--jl-text-default);line-height:1.35;overflow-wrap:anywhere}
+.ail-gc-desc{font-size:var(--jl-font-size-sm);color:var(--jl-text-secondary);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ail-gc-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:3px}
+.ail-gc-pill{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:var(--jl-radius-pill);background:var(--jl-au-soft);color:var(--jl-text-secondary);font-size:var(--jl-font-size-xs);font-weight:500}
+.ail-gc-pill.is-warn{background:var(--jl-status-warning-bg);color:var(--jl-status-warning-strong)}
+.ail-gc-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--jl-border-divider);background:var(--jl-au-soft)}
+
+/* Inline Expandable Plan (bên trong Game Card) */
+.ail-inline-plan{border-top:1px solid var(--jl-border-default);background:var(--jl-surface-default);display:flex;flex-direction:column}
+.ail-plan-fold{border-bottom:1px solid var(--jl-border-divider)}
+.ail-plan-fold:last-child{border-bottom:0}
+.ail-plan-fold>summary{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;font-size:var(--jl-font-size-sm);font-weight:500;color:var(--jl-text-default);cursor:pointer;list-style:none;user-select:none}
+.ail-plan-fold>summary::-webkit-details-marker{display:none}
+.ail-plan-fold>summary:hover{background:var(--jl-au-soft)}
+.ail-plan-fold>summary::after{content:"";width:7px;height:7px;border-right:1.5px solid var(--jl-text-muted);border-bottom:1.5px solid var(--jl-text-muted);transform:rotate(45deg);transition:transform var(--jl-motion-dur-fast) var(--jl-motion-ease-standard)}
+.ail-plan-fold[open]>summary::after{transform:rotate(-135deg)}
+.ail-plan-fold-b{padding:2px 16px 14px;font-size:var(--jl-font-size-sm);color:var(--jl-text-secondary)}
+.ail-kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:6px 12px;align-items:baseline}
+.ail-kv .k{color:var(--jl-text-muted);font-weight:400}
+.ail-kv .v{color:var(--jl-text-default);overflow-wrap:anywhere}
+@media (max-width:560px){.ail-kv{grid-template-columns:minmax(0,1fr);gap:2px}}
+.ail-q-clean-list{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px}
+.ail-q-clean-list li{padding:8px 10px;border-radius:var(--jl-radius-md);background:var(--jl-au-soft);color:var(--jl-text-default)}
+.ail-q-clean-list li.is-placeholder{background:var(--jl-status-warning-bg);border:1px solid color-mix(in srgb,var(--jl-status-warning-strong) 30%,transparent)}
+.ail-q-stem{font-weight:500;line-height:1.4;margin-bottom:3px}
+.ail-q-choices{font-size:var(--jl-font-size-xs);color:var(--jl-text-secondary);margin-bottom:2px}
+.ail-q-ans{font-size:var(--jl-font-size-xs);color:var(--jl-status-success)}
+.ail-q-ans b{font-weight:500}
+.ail-inline-warn{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border-radius:var(--jl-radius-md);background:var(--jl-status-warning-bg);border:1px solid color-mix(in srgb,var(--jl-status-warning-strong) 30%,transparent);color:var(--jl-status-warning-strong);font-size:var(--jl-font-size-sm);margin-bottom:8px}
+.ail-inline-warn svg.i{margin-top:2px}
+
+/* Contextual HITL — Inline Approval Card */
+.ail-approval-card{display:flex;flex-direction:column;gap:10px;padding:14px 16px;background:var(--jl-surface-default);border:1px solid var(--jl-au-lav-3);border-left:3px solid var(--jl-brand-600);border-radius:var(--jl-radius-xl)}
+.ail-approval-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ail-approval-head svg.i{color:var(--jl-brand-600)}
+.ail-approval-head b{font-weight:500;color:var(--jl-text-default)}
+.ail-link-inline{margin-left:auto;border:0;background:none;padding:2px 4px;color:var(--jl-brand-600);font-size:var(--jl-font-size-sm);font-weight:500;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.ail-link-inline:hover{color:var(--jl-brand-700)}
+.ail-approval-check{display:inline-flex;align-items:center;gap:8px;font-size:var(--jl-font-size-sm);color:var(--jl-text-default);cursor:pointer;user-select:none}
+.ail-approval-check input[type=checkbox]{width:16px;height:16px;accent-color:var(--jl-brand-600);cursor:pointer}
+.ail-approval-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ail-approval-err:empty{display:none}
+
+/* Published & Rejected Status Cards */
+.ail-status-card{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 16px;border-radius:var(--jl-radius-xl);border:1px solid var(--jl-border-default);background:var(--jl-surface-default)}
+.ail-status-card.is-published{background:var(--jl-status-success-bg);border-color:color-mix(in srgb,var(--jl-status-success) 30%,transparent)}
+.ail-status-card.is-rejected{background:var(--jl-au-soft);border-color:var(--jl-border-default)}
+.ail-status-head{display:flex;align-items:center;gap:10px;min-width:0}
+.ail-status-ico{display:inline-grid;place-items:center;flex:none}
+.ail-status-card.is-published .ail-status-ico{color:var(--jl-status-success)}
+.ail-status-card.is-rejected .ail-status-ico{color:var(--jl-text-muted)}
+.ail-status-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ail-status-txt b{font-weight:500;color:var(--jl-text-default)}
+.ail-status-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ail-flow-edit-box{padding:12px 16px;border-top:1px solid var(--jl-border-divider);display:flex;flex-direction:column;gap:8px}
+
+@media (max-width:640px){
+  .ail-chat-head{padding:0 12px}
+  .ail-chat-log{padding:16px 12px 24px}
+  .ail-chat-compose-wrap{padding:10px 12px 14px}
+  .ail-gc-top{flex-direction:column}
+  .ail-gc-thumb{width:100%;height:120px}
+}
 
 /* ---------- 6 · Trang danh sách · Chi tiết · Quản trị · Đăng nhập · Trang chơi ---------- */
 .ail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
@@ -580,26 +655,7 @@ code,kbd{font-family:var(--jl-font-mono);font-size:var(--jl-font-size-sm)}
 .ail-kind-foot{border-top:1px solid var(--jl-border-default);padding-top:10px;margin-top:2px}
 .ail-page:has(.ail-create){max-width:1100px}
 
-/* ---------- Chat 2 cột: trái = trò chuyện, phải = khung Kế hoạch ---------- */
-.ail-chat-wrap>.ail-chat-main{flex:0 0 42%;min-width:340px;border-right:1px solid var(--jl-border-default)}
-.ail-chat-wrap .ail-chat-log>*{max-width:none}
-.ail-plan-pane{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--jl-au-soft)}
-.ail-plan-pane-h{flex:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;height:56px;min-height:56px;padding:0 20px;border-bottom:1px solid var(--jl-border-default);background:var(--jl-surface-default)}
-.ail-plan-pane-h b{font-weight:500;margin-right:auto}
-.ail-plan-pane-b{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:16px 20px}
-.ail-plan-pane-f{flex:none;padding:12px 20px;border-top:1px solid var(--jl-border-default);background:var(--jl-surface-default)}
-.ail-plan-sec{background:var(--jl-surface-default);border:1px solid var(--jl-border-default);border-radius:var(--jl-radius-lg);overflow:hidden}
-.ail-plan-sec.is-todo{border-style:dashed;background:transparent}
-.ail-plan-sec-h{display:flex;align-items:center;gap:10px;padding:10px 14px}
-.ail-plan-sec-h b{font-weight:500}
-.ail-plan-sec-n{display:grid;place-items:center;width:22px;height:22px;flex:none;border-radius:50%;background:var(--jl-au-lav);color:var(--jl-brand-600);font-size:var(--jl-font-size-sm);font-weight:500}
-.ail-plan-sec.is-filled .ail-plan-sec-n{background:var(--jl-status-success-bg);color:var(--jl-status-success)}
-.ail-plan-sec-b{padding:0 14px 14px}
-.ail-plan-ph{padding:0 14px 12px 46px;color:var(--jl-text-muted);font-size:var(--jl-font-size-sm)}
-.ail-plan-sec.is-busy .ail-plan-ph{animation:ail-pulse 1.2s ease-in-out infinite}
-@keyframes ail-pulse{50%{opacity:.35}}
-.ail-plan-ref{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:2px 10px;border-radius:var(--jl-radius-pill);background:var(--jl-au-lav);color:var(--jl-brand-600);font-size:var(--jl-font-size-sm)}
-@media (max-width:900px){.ail-chat-wrap{flex-direction:column}.ail-chat-wrap>.ail-chat-main{flex:1 1 55%;min-width:0;border-right:0}.ail-plan-pane{flex:0 0 45%;border-top:1px solid var(--jl-border-default)}}
+/* (Đã chuyển hoàn toàn sang Single Chat Workspace ở mục 5 — không còn khung Kế hoạch bên phải) */
 
 .ail-foot-r{display:flex;align-items:center;gap:6px;margin-left:auto}
 
