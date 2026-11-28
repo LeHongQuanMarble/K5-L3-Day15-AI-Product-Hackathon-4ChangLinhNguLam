@@ -1002,3 +1002,11 @@ flowchart LR
 5. **REUSE rescue xếp hạng theo độ phủ mapping** (Tết 2027 2/2 thắng Penalty 3D 2/6).
 6. **Codex Independent Review:** vòng 1 **NO-SHIP** (1 HIGH SSRF qua redirect + 2 MEDIUM) → đã vá SSRF allow-list per-hop + escape `</style`; vòng sau sẽ review lại. Điểm còn mở: POST /api/models chờ check 2.5s (chấp nhận có ghi nhận — cần đăng nhập, cap 100 model/TK).
 7. **Kiểm chứng:** 353/353 offline tests PASS · L5 headless smoke PASS · screenshot `evidence/screenshots/shot-fixture.png` (HUD đồng bộ, 1 camera, design system) · server `http://127.0.0.1:8800` chạy bản mới nhất.
+
+### Cập nhật 28/11 (12:15) — Premium Generation + Audit restore + chốt RC
+
+1. **Audit restore (lệnh PM "dừng xoá")**: đối chiếu 3 backup — **0 game của team bị mất**; 7/7 showcase/sample nguyên vẹn + playable (API verify 11:58); mọi row bị xoá đều là test fixture do script UAT tạo trong ca này (bằng chứng: `evidence/audit-games-restore-20261128.md`). Chính sách cleanup mới: chỉ xoá nháp GENERATE thất bại/test fixture đã xác minh.
+2. **Multi-model routing**: `GAME_GENERATOR_MODEL`/`GAME_REPAIR_MODEL` qua env (gpt-4.1 sinh game, gpt-4o-mini routing/exam) — không hardcode.
+3. **Diệt nốt root cause audio GENERATE trên Real AI**: 3 chỗ hardcode "audio chưa hỗ trợ" trong routing prompt/catalog context/voice-note → dynamic theo `AUDIO_SUPPORTED`.
+4. **Premium Smoke Test (gpt-4.1, $0.24/$0.40)**: 4 Player mới — Lái Xe (/play/13), Âm thanh ABCD (/play/14), Hands (/play/15), mouse-only (/play/16) — publish + play + reload PASS; share=1 cho PM demo; PM đăng nhập demo admin để mở (server đang chạy AILAB_DEMO=1).
+5. **Chốt RC**: dừng mở rộng tính năng; việc còn lại là Human UAT của PM (inference camera/mic thật) + merge sau nghiệm thu.
