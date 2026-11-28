@@ -51,4 +51,4 @@ Chi phí / task thành công = chi phí trung bình mỗi phiên ÷ tỉ lệ đ
 
 > Các file `*-try.*` nằm trong `.gitignore` (bị ghi đè mỗi lần chạy lại). Nếu chạy lại, cập nhật Run ID và sha256 ở bảng trên trước khi ký.
 
-**TV1 xác nhận đã chạy:** __ *(tên / ngày __ / ý kiến: __)*
+**TV1 xác nhận đã chạy:** Nguyễn Hoàng Việt *(ngày 28/11/2026 02:48 · Xác nhận Smoke Test CP3 `simulate-try@20261128-004848` hợp lệ: 10 phiên, seed 42, `gpt-4o-mini`, 0/10 lỗi, token > 0, không lộ API key; chỉ xác nhận lượt thử CP3, không đánh đồng với Cost Simulation chính thức ≥50 phiên CP4.)*

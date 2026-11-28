@@ -58,14 +58,14 @@ Cấu hình Run 1: `gpt-4o-mini` · AI Core T08/T09 + PR #13 (`2a7c024`, `474a5a
 - Lỗi chưa sửa + nguy hiểm thế nào: sau T10 vẫn có thể sót grounding tên Catalog (giáo viên có thể tưởng model giọng nói tồn tại) và cụm duyệt bị rụng ở câu hỏi thuần thông tin — không gây tự xuất bản (Backend đã chặn ở T14) nhưng làm giảm độ tin cậy của câu trả lời.
 - Nếu có thêm 1 tuần: đưa Catalog snapshot vào retrieval bắt buộc trước khi sinh câu trả lời, và thêm validator đảm bảo mọi envelope không-REFUSE đều có `status=pending_approval` + cảnh báo kiến thức khi có bộ đề mới.
 
-## 5. Biên bản chấm chéo *(chờ TV1 ký)*
+## 5. Biên bản chấm chéo *(TV1 đã chấm độc lập & ký xác nhận)*
 
 | Mục | Giá trị |
 |---|---|
-| Người chấm thứ hai | TV1 *(đề xuất; không phải người viết spec)* — chờ xác nhận |
-| Nguồn output | 5 output lấy từ `eval/run-1.csv`: **B01, B10, B13, B24, B30** (đã chọn, chưa có người chấm) |
-| Độ khớp | __/5 *(cần ≥4/5; lệch thì viết lại định nghĩa metric)* |
-| Lệch ở câu nào / cách xử lý | __ |
-| TV1 ký | __ *(ngày __)* |
+| Người chấm thứ hai | TV1 — Nguyễn Hoàng Việt (PM & Product Lead, không phải người viết `eval/metric_spec.yaml`) |
+| Nguồn output | 5 output lấy từ `eval/run-1.csv`: **B01, B10, B13, B24, B30** (chấm độc lập mù trước khi xem điểm TV4) |
+| Độ khớp | **5/5 (100%)** *(đạt ngưỡng ≥4/5)* — `B01=1/1`, `B10=1/1`, `B13=1/1`, `B24=0/0`, `B30=0/0` |
+| Lệch ở câu nào / cách xử lý | Không có lệch (0/5 bất đồng); giữ nguyên định nghĩa metric đã freeze |
+| TV1 ký | Nguyễn Hoàng Việt *(ngày 28/11/2026 02:48)* |
 
 > Lượt `python run.py eval --try 3` (B01–B03, `gpt-4o-mini`) chỉ để kiểm nối model — **không tính lượt eval và không dùng làm mẫu chấm chéo chính thức**.
