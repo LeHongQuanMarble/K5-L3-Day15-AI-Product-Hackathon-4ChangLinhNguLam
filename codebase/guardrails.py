@@ -11,6 +11,7 @@ Nhiệm vụ:
 Không có bất kỳ công cụ nào cấp APPROVED hoặc ghi vào Catalog chính thức.
 """
 import copy
+import json
 import os
 import re
 import sys
@@ -363,8 +364,14 @@ def format_catalog_context(registry: dict) -> str:
     return "\n".join(lines)
 
 
+_SCRIPT_BLOCK_RE = re.compile(r"<script(?P<attrs>[^>]*)>(?P<body>.*?)</script>", re.S | re.I)
+_MANIFEST_JSON_RE = re.compile(
+    r'<script[^>]*\bid\s*=\s*["\']jl-camera["\'][^>]*>(?P<json>.*?)</script>', re.S | re.I
+)
+
+
 def validate_html_draft(html: str, check_fn=None) -> dict:
-    """Kiểm tra HTML nháp (nhánh GENERATE) bằng check_game + 0 cờ an toàn + chống cắt cụt."""
+    """Kiểm tra HTML nháp (nhánh GENERATE) theo 4 tầng: L1 Contract + L3 Security (0 cờ) + L4 Protocol/Functional cơ bản."""
     if not isinstance(html, str) or not html.strip():
         return {"ok": False, "error": "HTML nháp rỗng.", "flags": [], "name": ""}
     stripped = html.strip()
@@ -381,6 +388,47 @@ def validate_html_draft(html: str, check_fn=None) -> dict:
             "ok": False,
             "error": "HTML nháp chứa %d cờ an toàn bị chặn: %s" % (len(flags), flag_desc),
             "flags": flags,
+            "name": res.get("name", ""),
+        }
+    # L1 Contract: kiểm tra JSON manifest thô (trước khi contract.parse lược bỏ) để chặn xung đột questions="exam" + content.kind="texts"
+    m_raw = _MANIFEST_JSON_RE.search(stripped)
+    if m_raw:
+        try:
+            raw_man = json.loads(m_raw.group("json"))
+        except ValueError:
+            raw_man = None
+        if isinstance(raw_man, dict):
+            raw_content = raw_man.get("content")
+            content_kind = raw_content.get("kind") if isinstance(raw_content, dict) else None
+            if raw_man.get("questions") == "exam" and content_kind == "texts":
+                return {
+                    "ok": False,
+                    "error": "Manifest xung đột: không được khai đồng thời questions='exam' và content.kind='texts'.",
+                    "flags": [],
+                    "name": res.get("name", ""),
+                }
+    # L4 Protocol/Functional: bắt buộc có script thực thi gửi parent.postMessage ready
+    exec_scripts = []
+    for m in _SCRIPT_BLOCK_RE.finditer(stripped):
+        attrs = (m.group("attrs") or "").lower()
+        if "application/json" in attrs:
+            continue
+        body = (m.group("body") or "").strip()
+        if body:
+            exec_scripts.append(body)
+    joined_js = "\n".join(exec_scripts)
+    if not joined_js:
+        return {
+            "ok": False,
+            "error": "HTML nháp thiếu mã JavaScript thực thi gameplay.",
+            "flags": [],
+            "name": res.get("name", ""),
+        }
+    if "ready" not in joined_js or "postmessage" not in joined_js.lower():
+        return {
+            "ok": False,
+            "error": "HTML nháp chưa cài đặt đúng giao thức runtime (thiếu parent.postMessage ready).",
+            "flags": [],
             "name": res.get("name", ""),
         }
     return {"ok": True, "error": None, "flags": [], "name": res.get("name", "")}

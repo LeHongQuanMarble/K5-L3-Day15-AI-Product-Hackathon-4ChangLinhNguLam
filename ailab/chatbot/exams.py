@@ -117,10 +117,11 @@ def validate_exam_questions(draft, *, manifest=None, question_count=None):
                 issues.append(_issue("incompatible_exam", "Các khóa Player không hợp lệ.", field="manifest"))
             elif inputs:
                 available = {x["key"] for x in inputs}
-                for index, q in enumerate(questions):
-                    if isinstance(q, dict) and isinstance(q.get("choices"), list):
-                        if any(not isinstance(x, dict) or not isinstance(x.get("key"), str) or x["key"] not in available for x in q["choices"]):
-                            issues.append(_issue("incompatible_exam", "Player không nhận đủ khóa lựa chọn; cần giáo viên chọn cách xử lý.", index, "choices"))
+                if available & set("ABCDEFT"):
+                    for index, q in enumerate(questions):
+                        if isinstance(q, dict) and isinstance(q.get("choices"), list):
+                            if any(not isinstance(x, dict) or not isinstance(x.get("key"), str) or x["key"] not in available for x in q["choices"]):
+                                issues.append(_issue("incompatible_exam", "Player không nhận đủ khóa lựa chọn; cần giáo viên chọn cách xử lý.", index, "choices"))
             content = manifest.get("content", {})
             if isinstance(content, dict) and content.get("kind") == "questions":
                 lo, hi = content.get("min", 1), content.get("max", 200)

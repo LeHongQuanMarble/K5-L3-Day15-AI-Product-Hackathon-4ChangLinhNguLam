@@ -185,7 +185,9 @@ def validate_compatibility(player, model=None, exam=None, mapping=None, plan=Non
                                % (p["name"], e["name"]))
             else:
                 input_keys = {i.get("key") for i in man.get("inputs", [])}
-                if input_keys:
+                # Chỉ đối chiếu đáp án với input_keys khi player dùng input làm khóa đáp án (A..F / T / F);
+                # game hành động như grab/release (Tết 2027) nhận bộ đề câu hỏi độc lập với khóa cử chỉ.
+                if input_keys and (input_keys & set("ABCDEFT")):
                     unknown = sorted({q["answer"] for q in e["questions"]} - input_keys)
                     if unknown:
                         reasons.append("Bộ đề '%s' có đáp án %s nhưng player '%s' chỉ nhận %s."

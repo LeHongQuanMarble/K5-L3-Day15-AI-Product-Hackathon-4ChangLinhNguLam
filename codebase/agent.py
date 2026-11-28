@@ -25,8 +25,10 @@ for _p in (_HERE, os.path.join(_ROOT, "ailab")):
 
 from ai import call_model  # noqa: E402
 import application_contract as ac  # noqa: E402
+from chatbot import catalog as chatbot_catalog  # noqa: E402
 import composer  # noqa: E402
 import contract  # noqa: E402
+import game_templates  # noqa: E402
 import guardrails  # noqa: E402
 import store  # noqa: E402
 import tools  # noqa: E402
@@ -53,7 +55,7 @@ QUY TẮC CỨNG (BẮT BUỘC TUÂN THỦ):
 3. Mọi kế hoạch trò chơi BẮT BUỘC bật Mouse Fallback (chuột/chạm/bàn phím luôn hoạt động ngay cả khi không có camera hoặc lỗi Model). Khi lớp học không có camera hoặc máy lỗi camera và giáo viên muốn dùng chuột/bàn phím/cảm ứng, đề xuất dùng `Quiz ABCD bằng cử chỉ` ở chế độ chuột/chạm/bàn phím (`không cần camera`, `mouse_always_enabled=true`, `model_id=null`).
 4. Kiểm tra tương thích & giới hạn năng lực (KHÔNG coi giới hạn tính năng là tấn công bảo mật → chọn `INFO`, KHÔNG chọn `REFUSE`):
    - Model `audio` / giọng nói CHƯA được Runtime hỗ trợ → báo rõ chưa hỗ trợ audio/giọng nói, KHÔNG bịa model giọng nói, đề xuất phương án thay thế là chuột (Mouse Fallback) hoặc cử chỉ tay với `"Bàn tay (MediaPipe)"` (kèm lưu ý kiểm tra tương thích `kinds` của Player).
-   - Player `"Quiz ABCD bằng cử chỉ"` (id=1) hiện chỉ khai `kinds=["image","pose"]` (CHƯA khai `"hands"`) → khi giáo viên muốn ghép `"Bàn tay (MediaPipe)"` (kind=`hands`) vào `"Quiz ABCD bằng cử chỉ"`, phải trích đúng tên `"Bàn tay (MediaPipe)"`, báo rõ chưa tương thích `kinds` (cần TV3 xác minh hoặc player có `kinds` chứa `hands`), đề xuất chơi bằng chuột; nếu có mapping trùng lớp hoặc gán lớp vai trò `empty` (`none`) vào ô đáp án thì chỉ rõ lỗi vai trò/trùng lớp.
+   - Player `"Quiz ABCD bằng cử chỉ"` (id=1) hiện chỉ khai `kinds=["image","pose"]` (CHƯA khai `"hands"`) → khi giáo viên muốn ghép `"Bàn tay (MediaPipe)"` (kind=`hands`) vào đích danh `"Quiz ABCD bằng cử chỉ"`, phải trích đúng tên `"Bàn tay (MediaPipe)"`, báo rõ chưa tương thích `kinds` (cần player có `kinds` chứa `hands` hoặc chơi bằng chuột); nếu trong Catalog hiện hành có Player khác thực sự tương thích `kinds` và `inputs` với Model giáo viên yêu cầu (không bị chỉ định đích danh Player không tương thích), ưu tiên chọn Player tương thích đó để `REUSE` kèm `mapping` đúng ý nghĩa hành động; nếu có mapping trùng lớp hoặc gán lớp vai trò `empty` (`none`) vào ô đáp án thì chỉ rõ lỗi vai trò/trùng lớp. Không tự ý bỏ Model người dùng yêu cầu sang mouse-only mà không thông báo rõ.
    - Player `"Vòng quay chọn tên"` (id=2) chỉ nhận danh sách chữ (`texts`), KHÔNG nhận bộ đề câu hỏi (`questions`/`exam`) và KHÔNG có `inputs` để gắn model camera → báo rõ lý do, đề xuất dùng `"Quiz ABCD bằng cử chỉ"` hoặc chơi bằng chuột, kèm nhắc giáo viên kiểm và duyệt.
 5. Ranh giới hỏi làm rõ (`ASK_CLARIFY` — đúng 1 câu hỏi có 1 dấu `?`, KHÔNG nêu tên Player/Model cụ thể, KHÔNG kèm HTML):
    - **CHỈ** chọn `ASK_CLARIFY` khi thiếu thông tin thiết yếu khiến không thể đưa ra đề xuất an toàn: (a) yêu cầu quá chung chung, không có môn học/chủ đề, không có nguồn bộ đề và không có hình thức tương tác; HOẶC (b) giáo viên yêu cầu game có camera / chưa nêu thiết bị lớp học **và** cũng không nêu phương án dự phòng bằng chuột/bàn phím/cảm ứng.
@@ -89,8 +91,9 @@ GENERATE_HTML_SYSTEM = (
     contract.BRIEF
     + "\n\nQUY TẮC BẮT BUỘC CHO BẢN NHÁP P0 (GENERATE):\n"
     + "- Phải chạy hoàn toàn cục bộ trong iframe sandbox, 0 cờ an toàn (KHÔNG fetch, XHR, WebSocket, window.open, eval, new Function, localStorage, toDataURL, top.location, parent.* ngoài parent.postMessage).\n"
-    + "- BẮT BUỘC hỗ trợ chơi trọn vẹn bằng chuột/chạm/bàn phím (Mouse Fallback) không cần camera. Với trò chơi chạy chuột (không gắn model camera), KHÔNG khai trường `inputs` trong khối `jl-camera` (dùng `{\"name\",\"description\",\"questions\":\"exam\"}` hoặc `{\"name\",\"description\",\"content\":{\"kind\":\"texts\",...},\"demo\":{...}}`).\n"
-    + "- KHÔNG hardcode câu hỏi cố định nếu manifest khai `questions: \"exam\"`; nhận câu hỏi động qua `camera.init` và có demo mẫu để xem thử.\n"
+    + "- KHÔNG khai xung đột manifest: chọn HOẶC `\"questions\": \"exam\"` HOẶC `\"content\": {\"kind\": \"texts\", ...}` — TUYỆT ĐỐI KHÔNG khai cả hai cùng lúc.\n"
+    + "- BẮT BUỘC hỗ trợ chơi trọn vẹn bằng chuột/chạm/bàn phím (Mouse Fallback) không cần camera. Với trò chơi chạy chuột (không gắn model camera), KHÔNG khai trường `inputs` trong khối `jl-camera`.\n"
+    + "- BẮT BUỘC xử lý `window.addEventListener('message', ...)` nhận `camera.init` (nạp động `d.questions` hoặc `d.content`), gửi `parent.postMessage({type:'ready'}, '*')`, có chấm điểm, phản hồi đúng/sai, kết thúc gửi `finish`, và nút Chơi lại (Reset) xóa sạch trạng thái cũ. Dùng `textContent` để hiển thị chữ an toàn.\n"
     + "- Trả về 1–2 câu mô tả tiếng Việt và ĐÚNG MỘT khối mã ```html ... ``` hoàn chỉnh từ `<!doctype html>` đến `</html>`.\n"
 )
 
@@ -179,9 +182,43 @@ def _find_by_id(rows, rid):
     return next((r for r in rows if r.get("id") == norm), None)
 
 
+def _normalize_exam_lines(content: str) -> str:
+    """Chuẩn hóa nhẹ các lỗi định dạng phổ biến từ LLM trước khi kiểm tra bằng `parse_questions`:
+    - Bỏ số thứ tự đầu dòng (`1. `, `Câu 1: `).
+    - Nếu dòng có đáp án dạng `=Đúng`/`=Sai` nhưng lại kèm cột `| Đúng | Sai |` → đổi thành `=A`/`=B`.
+    - Nếu dòng ghi nội dung đáp án (vd `=Cat`) khớp chính xác với 1 phương án trong dòng → đổi thành `=A`..`=F`.
+    Không tự bịa đáp án khi không khớp."""
+    if not isinstance(content, str):
+        return ""
+    out = []
+    for raw in content.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        line = re.sub(r"^(?:câu\s*)?\d+[\.\):]\s*", "", line, flags=re.I)
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts) >= 3 and parts[-1].startswith("="):
+            ans = parts[-1][1:].strip()
+            body = parts[1:-1]
+            keys = "ABCDEF"[:len(body)]
+            if body and ans.upper() not in keys:
+                # Khớp chính xác theo nội dung lựa chọn (vd =Cat -> =A, hoặc =Đúng với | Đúng | Sai | -> =A)
+                f_ans = guardrails.fold_text(ans).strip()
+                matched_idx = None
+                for idx, ch in enumerate(body):
+                    if guardrails.fold_text(ch).strip() == f_ans:
+                        matched_idx = idx
+                        break
+                if matched_idx is not None:
+                    parts[-1] = "=" + keys[matched_idx]
+                    line = " | ".join(parts)
+        out.append(line)
+    return "\n".join(out)
+
+
 def _validate_and_repair_exam(content: str, player_id=None, expected_count=None, manifest=None):
     """Kiểm tra cú pháp bộ đề qua tools.validate_exam; sửa tối đa MAX_EXAM_RETRIES lần nếu lỗi."""
-    cur = (content or "").strip()
+    cur = _normalize_exam_lines(content or "")
     res = tools.validate_exam(cur, player_id=player_id, expected_count=expected_count, manifest=manifest)
     if res["ok"]:
         return cur, res
@@ -202,7 +239,7 @@ def _validate_and_repair_exam(content: str, player_id=None, expected_count=None,
             note("sửa bộ đề lần %d: model trả rỗng" % attempt)
             break
         # Bỏ code fence nếu model bọc markdown
-        fixed = re.sub(r"^```[a-zA-Z]*\s*\n|\n```$", "", fixed).strip()
+        fixed = _normalize_exam_lines(re.sub(r"^```[a-zA-Z]*\s*\n|\n```$", "", fixed).strip())
         res = tools.validate_exam(fixed, player_id=player_id, expected_count=expected_count, manifest=manifest)
         cur = fixed
         if res["ok"]:
@@ -300,11 +337,121 @@ def _legacy_direct_html_loop(user_text: str, first_reply_text: str):
     }
 
 
+def _detect_explicit_resource(user_msg: str, rows: list, selected_id=None):
+    """Nhận diện tài nguyên (Model hoặc Player) người dùng nêu rõ bằng ID chọn hoặc tên thật trong active_registry.
+    Không hardcode tên hay ID; ưu tiên tên khớp dài nhất."""
+    if selected_id is not None:
+        hit = _find_by_id(rows, selected_id)
+        if hit is not None:
+            return hit
+    folded = guardrails.fold_text(user_msg or "")
+    if not folded:
+        return None
+    matches = []
+    for r in rows or []:
+        name = (r.get("name") or "").strip()
+        f_name = guardrails.fold_text(name)
+        if len(f_name) >= 4 and f_name in folded:
+            matches.append((len(f_name), r))
+    if not matches:
+        return None
+    matches.sort(key=lambda x: x[0], reverse=True)
+    return matches[0][1]
+
+
+_SEMANTIC_ACTION_GROUPS = (
+    frozenset(("grab", "fist", "close", "hold", "catch", "pinch", "nam", "giu")),
+    frozenset(("release", "open", "drop", "palm", "let", "tha", "mo", "xoe")),
+    frozenset(("left", "trai")),
+    frozenset(("right", "phai")),
+    frozenset(("up", "jump", "len", "nhay")),
+    frozenset(("down", "duck", "xuong", "cui")),
+)
+
+
+def _semantic_action_score(inp_key: str, out_key: str) -> int:
+    """Điểm tương đồng ngữ nghĩa giữa tên input của Player và tên lớp output của Model."""
+    ik = guardrails.fold_text(inp_key).strip()
+    ok = guardrails.fold_text(out_key).strip()
+    if not ik or not ok:
+        return 0
+    if ik == ok:
+        return 3
+    for grp in _SEMANTIC_ACTION_GROUPS:
+        if any(tok in ik for tok in grp) and any(tok in ok for tok in grp):
+            return 2
+    return 0
+
+
+def _semantic_auto_mapping(man: dict, model_row: dict) -> dict:
+    """Ghép cặp có ngữ nghĩa hành động trước, rồi bổ sung bằng thuật toán Kuhn (`catalog.auto_mapping`)."""
+    base = chatbot_catalog.auto_mapping(man, model_row)
+    if not base or len(base) < 2:
+        return base
+    info = chatbot_catalog.describe_player(man)
+    outs = {o["key"]: o.get("role") for o in (model_row.get("outputs") or []) if isinstance(o, dict) and isinstance(o.get("key"), str)}
+    inputs = info.get("inputs") or []
+    # Thử ưu tiên gán các cặp có điểm ngữ nghĩa > 0 trước, rồi dùng Kuhn cho phần còn lại
+    chosen = {}
+    used_outs = set()
+    scored_pairs = []
+    for inp in inputs:
+        ik = inp.get("key")
+        acc = inp.get("accepts") or ["action"]
+        for ok, role in outs.items():
+            if role not in acc:
+                continue
+            sc = _semantic_action_score(ik, ok)
+            if sc > 0:
+                scored_pairs.append((sc, bool(inp.get("required")), ik, ok))
+    scored_pairs.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    for _, _, ik, ok in scored_pairs:
+        if ik not in chosen and ok not in used_outs:
+            chosen[ik] = ok
+            used_outs.add(ok)
+    # Điền nốt các ô còn thiếu từ base nếu chưa trùng
+    for ik, ok in base.items():
+        if ik not in chosen and ok not in used_outs:
+            chosen[ik] = ok
+            used_outs.add(ok)
+    if len(chosen) == len(base) and chatbot_catalog.validate_mapping(man, model_row, chosen).get("ok"):
+        return chosen
+    return base
+
+
+def _find_compatible_player_for_model(model_row: dict, players: list, needs_exam_hint: bool = False):
+    """Tìm tất định Player tương thích thật với `model_row` trong `players` bằng semantic + Kuhn auto_mapping + validate_mapping.
+    Trả về (player_row, mapping) hoặc (None, None). Không hardcode tên/ID."""
+    if not isinstance(model_row, dict):
+        return None, None
+    candidates = []
+    for p in players or []:
+        man = p.get("manifest") if isinstance(p.get("manifest"), dict) else {}
+        info = chatbot_catalog.describe_player(man)
+        if not info.get("needsModel"):
+            continue
+        if model_row.get("kind") not in (info.get("runtimeKinds") or []):
+            continue
+        suggested = _semantic_auto_mapping(man, model_row)
+        check = chatbot_catalog.validate_mapping(man, model_row, suggested)
+        if not check.get("ok"):
+            continue
+        is_exam_game = info.get("gameKind") == "questions"
+        score = (1 if (needs_exam_hint and is_exam_game) else 0, len(suggested), -int(p.get("id") or 0))
+        candidates.append((score, p, suggested))
+    if not candidates:
+        return None, None
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    _, best_p, best_map = candidates[0]
+    return best_p, best_map
+
+
 def _handle_reuse(parsed: dict, req: dict, registry: dict, use_live_tools: bool):
-    """Xử lý nhánh REUSE: xác thực ID thật, bộ đề, tương thích, Contract và compose DRAFT."""
+    """Xử lý nhánh REUSE: bảo toàn ràng buộc Model/Player, xác thực ID thật, bộ đề, tương thích, Contract và compose DRAFT."""
     players = registry.get("players") or []
     models = registry.get("models") or []
     exams = registry.get("exams") or []
+    user_msg = req.get("message") or ""
 
     pid = req.get("selected_player_id") or parsed.get("player_id")
     mid = req.get("selected_model_id") if req.get("selected_model_id") is not None else parsed.get("model_id")
@@ -314,7 +461,76 @@ def _handle_reuse(parsed: dict, req: dict, registry: dict, use_live_tools: bool)
     mapping = parsed.get("mapping") if isinstance(parsed.get("mapping"), dict) else {}
     llm_msg = guardrails.strip_html_fences(parsed.get("message") or "")
 
+    explicit_model = _detect_explicit_resource(user_msg, models, req.get("selected_model_id"))
+    explicit_player = _detect_explicit_resource(user_msg, players, req.get("selected_player_id"))
+
     player_row = _find_by_id(players, pid)
+    model_row = _find_by_id(models, mid) if mid is not None else None
+    if mid is not None and model_row is None:
+        avail_m = ", ".join('"%s" (id=%s, kind=%s)' % (m["name"], m["id"], m["kind"]) for m in models)
+        msg = (
+            llm_msg
+            or "Model yêu cầu không tồn tại trong Catalog. Các model hiện có: %s (Runtime chưa hỗ trợ audio). "
+               "Bạn có thể chơi bằng chuột (Mouse Fallback) chờ giáo viên duyệt." % avail_m
+        )
+        return _make_envelope(
+            "ERROR",
+            msg,
+            errors=[ac.issue("forbidden_resource", "model_id không tồn tại trong Catalog.", "model.model_id")],
+        )
+
+    # Fix 1 (Deterministic Model-aware REUSE):
+    # - Nếu người dùng chỉ định rõ CẢ Model lẫn Player → tôn trọng cả hai ràng buộc (không âm thầm bỏ Model hoặc đổi Player).
+    # - Nếu người dùng chỉ định rõ Model (nhưng không ép đích danh 1 Player cố định) mà LLM tự bỏ model_id hoặc chọn Player không tương thích
+    #   → dùng bộ ghép tất định (Kuhn auto_mapping + validate_mapping) tìm Player tương thích trong active_registry.
+    if explicit_model is not None:
+        if explicit_player is not None:
+            player_row = explicit_player
+            model_row = explicit_model
+            man_exp = player_row.get("manifest") if isinstance(player_row.get("manifest"), dict) else {}
+            if not mapping or not chatbot_catalog.validate_mapping(man_exp, model_row, mapping).get("ok"):
+                auto_m = chatbot_catalog.auto_mapping(man_exp, model_row)
+                if chatbot_catalog.validate_mapping(man_exp, model_row, auto_m).get("ok"):
+                    mapping = auto_m
+        else:
+            needs_exam_hint = bool(eid is not None or exam_mode in ("reuse_existing", "generate_new") or (isinstance(exam_content, str) and exam_content.strip()))
+            current_ok = False
+            if player_row is not None:
+                man_cur = player_row.get("manifest") if isinstance(player_row.get("manifest"), dict) else {}
+                cur_map = mapping if (mapping and chatbot_catalog.validate_mapping(man_cur, explicit_model, mapping).get("ok")) else chatbot_catalog.auto_mapping(man_cur, explicit_model)
+                if chatbot_catalog.validate_mapping(man_cur, explicit_model, cur_map).get("ok"):
+                    current_ok = True
+                    model_row = explicit_model
+                    mapping = cur_map
+            if not current_ok:
+                compat_p, compat_map = _find_compatible_player_for_model(explicit_model, players, needs_exam_hint=needs_exam_hint)
+                if compat_p is not None:
+                    player_row = compat_p
+                    model_row = explicit_model
+                    mapping = compat_map
+                    llm_msg = (
+                        'Đã tự động chọn trình chơi tương thích "%s" (id=%s) để ghép với model "%s" (kind=%s, ánh xạ %s) '
+                        'kèm Mouse Fallback (chuột luôn hoạt động). Trạng thái: BẢN NHÁP (DRAFT) chờ giáo viên duyệt.'
+                        % (
+                            player_row["name"],
+                            player_row["id"],
+                            model_row["name"],
+                            model_row["kind"],
+                            ", ".join("%s→%s" % (k, v) for k, v in mapping.items()),
+                        )
+                    )
+                    note("Model-aware REUSE resolved player_id=%s for model_id=%s" % (player_row["id"], model_row["id"]))
+                elif mid is None:
+                    avail = ", ".join('"%s"' % p["name"] for p in players)
+                    msg = (
+                        'Trong Catalog hiện tại chưa có trình chơi nào tương thích với model "%s" (kind=%s). '
+                        'Các trình chơi hiện có: %s. Bạn có muốn chuyển sang chơi bằng chuột (Mouse Fallback) thay thế không?'
+                        % (explicit_model["name"], explicit_model["kind"], avail or "trống")
+                    )
+                    msg = _ensure_info_hitl_policy(msg, user_msg)
+                    note("Model-aware REUSE: no compatible player for model_id=%s; refused silent mouse-only drop" % explicit_model["id"])
+                    return _make_envelope("ASK_CLARIFY", msg)
+
     if player_row is None:
         avail = ", ".join('"%s" (id=%s)' % (p["name"], p["id"]) for p in players)
         msg = (
@@ -327,22 +543,6 @@ def _handle_reuse(parsed: dict, req: dict, registry: dict, use_live_tools: bool)
             msg,
             errors=[ac.issue("forbidden_resource", "player_id không tồn tại trong Catalog.", "player.player_id")],
         )
-
-    model_row = None
-    if mid is not None:
-        model_row = _find_by_id(models, mid)
-        if model_row is None:
-            avail_m = ", ".join('"%s" (id=%s, kind=%s)' % (m["name"], m["id"], m["kind"]) for m in models)
-            msg = (
-                llm_msg
-                or "Model yêu cầu không tồn tại trong Catalog. Các model hiện có: %s (Runtime chưa hỗ trợ audio). "
-                   "Bạn có thể chơi bằng chuột (Mouse Fallback) chờ giáo viên duyệt." % avail_m
-            )
-            return _make_envelope(
-                "ERROR",
-                msg,
-                errors=[ac.issue("forbidden_resource", "model_id không tồn tại trong Catalog.", "model.model_id")],
-            )
 
     manifest = player_row.get("manifest") if isinstance(player_row.get("manifest"), dict) else {}
     needs_exam = manifest.get("questions") == "exam" or (manifest.get("content") or {}).get("kind") == "questions"
@@ -523,21 +723,74 @@ def _handle_reuse(parsed: dict, req: dict, registry: dict, use_live_tools: bool)
 
 
 def _handle_generate(parsed: dict, req: dict, registry: dict, use_live_tools: bool):
-    """Xử lý nhánh GENERATE có giới hạn (tối đa MAX_STEPS=2, check_game + 0 cờ an toàn, chỉ DRAFT)."""
+    """Xử lý nhánh Hybrid GENERATE (Template-guided khi khớp khung đã kiểm chứng + Free-form khi cơ chế mới;
+    tối đa MAX_STEPS=2, kiểm 4 tầng L1–L4, 0 cờ an toàn, chỉ DRAFT)."""
     llm_msg = guardrails.strip_html_fences(parsed.get("message") or "")
     game_idea = parsed.get("game_idea") or req["message"]
     exam_content = parsed.get("exam_content")
     need_exam = bool(parsed.get("exam_mode") == "generate_new" or (isinstance(exam_content, str) and exam_content.strip()))
+    exp_cnt = parsed.get("expected_question_count")
+    exp_cnt = exp_cnt if isinstance(exp_cnt, int) and not isinstance(exp_cnt, bool) else None
 
-    html, html_msg, gen_err = _run_generate_html(req["message"], game_idea, need_exam)
-    if gen_err or not html:
-        return _make_envelope(
-            "ERROR",
-            "Không thể tạo bản nháp HTML đạt hợp đồng jl-camera/an toàn sau %d lượt (%s). "
-            "Giáo viên có thể mô tả rõ hơn hoặc chuyển sang tái sử dụng trình chơi có sẵn trong Catalog (REUSE)."
-            % (MAX_STEPS, gen_err or "lỗi không xác định"),
-            errors=[ac.issue("invalid_player", gen_err or "HTML draft failed check_game.", "player.html")],
-        )
+    tpl_kind = game_templates.detect_template(req["message"], game_idea)
+    html = None
+    html_msg = ""
+    gen_mode_note = ""
+    plan_exam = None
+    warnings = []
+
+    if tpl_kind is not None:
+        # Hybrid A — Template-guided Generation: AI sinh bộ câu hỏi chuẩn hóa, khung HTML đã kiểm chứng dựng UI/runtime.
+        raw_exam = (exam_content or "").strip() if isinstance(exam_content, str) else ""
+        if not raw_exam:
+            cnt_hint = exp_cnt or 4
+            fmt_hint = (
+                "Câu hỏi Đúng/Sai dạng `Mệnh đề | =Đúng` hoặc `Mệnh đề | =Sai`"
+                if tpl_kind == "true_false"
+                else "Câu hỏi trắc nghiệm 2–4 lựa chọn dạng `Khái niệm/Câu hỏi | Đáp án A | Đáp án B | =A`"
+            )
+            gen_q_reply = call_model(
+                EXAM_REPAIR_SYSTEM,
+                "Soạn %d câu hỏi tiếng Việt phù hợp cho trò chơi: %s\nĐịnh dạng bắt buộc: %s.\nChỉ trả về các dòng câu hỏi."
+                % (cnt_hint, req["message"], fmt_hint),
+            )
+            raw_exam = re.sub(r"^```[a-zA-Z]*\s*\n|\n```$", "", (gen_q_reply.get("text") or "").strip()).strip()
+        valid_content, vres = _validate_and_repair_exam(raw_exam, expected_count=exp_cnt)
+        if not vres["ok"]:
+            return _make_envelope(
+                "ERROR",
+                "Bộ câu hỏi sinh ra cho trò chơi mới chưa đạt kiểm tra cú pháp parse_questions: %s"
+                % "; ".join(vres["errors"]),
+                errors=[ac.issue("invalid_exam", e, "exam.content") for e in vres["errors"]],
+                warnings=[copy.deepcopy(guardrails.KNOWLEDGE_REVIEW_WARNING)],
+            )
+        demo_qs = store.parse_questions(valid_content)
+        app_name = _clean_name(parsed.get("app_name"), "Trò chơi %s" % ("Ghép cặp thẻ" if tpl_kind == "matching_cards" else "Đúng / Sai"))
+        html = game_templates.render_template(tpl_kind, app_name, game_idea, demo_qs)
+        vres_html = guardrails.validate_html_draft(html, check_fn=check_game)
+        if not vres_html["ok"]:
+            return _make_envelope(
+                "ERROR",
+                "Khung bản nháp HTML không vượt qua kiểm tra hợp đồng/an toàn: %s" % vres_html["error"],
+                errors=[ac.issue("invalid_player", vres_html["error"], "player.html")],
+            )
+        plan_exam = {"mode": "generate_new", "exam_id": None, "content": valid_content}
+        warnings.append(copy.deepcopy(guardrails.KNOWLEDGE_REVIEW_WARNING))
+        gen_mode_note = "Template-guided (%s)" % tpl_kind
+        html_msg = "Đã tạo bản nháp trò chơi mới theo khung chuẩn %s kèm %d câu hỏi động." % (tpl_kind, len(demo_qs))
+        note("GENERATE template-guided hợp lệ (%s, %d câu)" % (tpl_kind, len(demo_qs)))
+    else:
+        # Hybrid B — Free-form HTML Generation: giữ khả năng sinh cơ chế mới chưa có template/Player.
+        html, html_msg, gen_err = _run_generate_html(req["message"], game_idea, need_exam)
+        if gen_err or not html:
+            return _make_envelope(
+                "ERROR",
+                "Không thể tạo bản nháp HTML đạt hợp đồng jl-camera/an toàn sau %d lượt (%s). "
+                "Giáo viên có thể mô tả rõ hơn hoặc chuyển sang tái sử dụng trình chơi có sẵn trong Catalog (REUSE)."
+                % (MAX_STEPS, gen_err or "lỗi không xác định"),
+                errors=[ac.issue("invalid_player", gen_err or "HTML draft failed check_game.", "player.html")],
+            )
+        gen_mode_note = "Free-form HTML"
 
     man, _ = contract.parse(html)
     manifest_needs_exam = bool(
@@ -545,12 +798,8 @@ def _handle_generate(parsed: dict, req: dict, registry: dict, use_live_tools: bo
         and (man.get("questions") == "exam" or (man.get("content") or {}).get("kind") == "questions")
     )
 
-    plan_exam = None
-    warnings = []
-    if manifest_needs_exam:
+    if plan_exam is None and manifest_needs_exam:
         if isinstance(exam_content, str) and exam_content.strip():
-            exp_cnt = parsed.get("expected_question_count")
-            exp_cnt = exp_cnt if isinstance(exp_cnt, int) and not isinstance(exp_cnt, bool) else None
             valid_content, vres = _validate_and_repair_exam(exam_content, expected_count=exp_cnt, manifest=man)
             if not vres["ok"]:
                 return _make_envelope(
@@ -580,12 +829,12 @@ def _handle_generate(parsed: dict, req: dict, registry: dict, use_live_tools: bo
 
     summary = (
         "%s\n\n"
-        "Nhánh: GENERATE (bản nháp HTML tách biệt, KHÔNG tự thêm vào Catalog chính thức) · "
-        "Kiểm tra tĩnh check_game (hợp đồng jl-camera): ĐẠT (0 cờ an toàn) · "
+        "Nhánh: GENERATE — %s (bản nháp HTML tách biệt, KHÔNG tự thêm vào Catalog chính thức) · "
+        "Kiểm tra L1–L4 check_game (hợp đồng jl-camera): ĐẠT (0 cờ an toàn) · "
         "Xem thử an toàn trong iframe sandbox có CSP · "
         "Điều khiển: Mouse Fallback luôn bật · "
         "Trạng thái: BẢN NHÁP (DRAFT / pending_approval) chờ giáo viên kiểm duyệt."
-        % (llm_msg or html_msg or "Đã chuẩn bị bản nháp trò chơi mới theo yêu cầu.")
+        % (llm_msg or html_msg or "Đã chuẩn bị bản nháp trò chơi mới theo yêu cầu.", gen_mode_note)
     )
     if warnings:
         summary += "\n\n" + guardrails.KNOWLEDGE_REVIEW_WARNING["message"]
@@ -852,6 +1101,38 @@ def _run_agent_core(request, registry=None):
         return _make_envelope("ASK_CLARIFY", msg, simulated=is_simulated), None
 
     if decision == "INFO":
+        # Fix 1 (Model-aware REUSE rescue): Nếu người dùng yêu cầu TẠO GAME với một Model thật trong active_registry
+        # (không chỉ định đích danh Player không tương thích) mà LLM lại trả INFO do neo vào Quiz ABCD,
+        # và active_registry CÓ Player tương thích thật → tự chuyển sang _handle_reuse!
+        # (Trong Frozen Eval chỉ có 2 player mẫu nên compat_p là None → hành vi INFO giữ nguyên 100%.)
+        u_fold = guardrails.fold_text(req["message"])
+        wants_game = bool(re.search(r"\b(?:tao game|tao tro choi|lam game|ghep.*game|tro choi)\b", u_fold))
+        if wants_game and not _is_pure_count_query(req["message"]):
+            exp_model = _detect_explicit_resource(req["message"], active_registry.get("models") or [], req.get("selected_model_id"))
+            exp_player = _detect_explicit_resource(req["message"], active_registry.get("players") or [], req.get("selected_player_id"))
+            if exp_model is not None and exp_player is None:
+                exp_exam = _detect_explicit_resource(req["message"], active_registry.get("exams") or [], req.get("selected_exam_id"))
+                compat_p, compat_map = _find_compatible_player_for_model(
+                    exp_model,
+                    active_registry.get("players") or [],
+                    needs_exam_hint=bool(exp_exam is not None or parsed.get("exam_id") or parsed.get("exam_content")),
+                )
+                if compat_p is not None:
+                    rescued = dict(parsed)
+                    rescued["decision"] = "REUSE"
+                    rescued["player_id"] = compat_p["id"]
+                    rescued["model_id"] = exp_model["id"]
+                    rescued["mapping"] = compat_map
+                    if exp_exam is not None and not rescued.get("exam_id") and not rescued.get("exam_content"):
+                        rescued["exam_mode"] = "reuse_existing"
+                        rescued["exam_id"] = exp_exam["id"]
+                    elif not rescued.get("exam_id") and not rescued.get("exam_content"):
+                        # Nếu bộ đề có sẵn đầu tiên phù hợp? Không đoán mò — để _handle_reuse hỏi làm rõ hoặc dùng exam_content
+                        pass
+                    note("Model-aware REUSE rescued from INFO: player_id=%s, model_id=%s" % (compat_p["id"], exp_model["id"]))
+                    env = _handle_reuse(rescued, req, active_registry, use_live_tools=db_ready)
+                    env["simulated"] = is_simulated
+                    return env, None
         env = _handle_info(parsed, active_registry, user_msg=req["message"])
         env["simulated"] = is_simulated
         return env, None

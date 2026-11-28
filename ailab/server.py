@@ -502,8 +502,10 @@ class H(BaseHTTPRequestHandler):
                 payload = {"message": payload, "session_id": "web-%d" % user["id"]}
             if not isinstance(payload, dict):
                 raise Err(400, "bad_request", "Gửi {'text': '...'} hoặc Spec request dict.")
-            # registry=None → agent dùng cùng @tool Catalog như `python run.py` (hành vi đồng nhất).
-            out = agent_bridge.call(payload, case_id="web-%d" % user["id"])
+            # Web runtime: truyền registry có kiểm soát quyền của user + game mẫu showcase đã duyệt (vd Tết 2027 hỗ trợ Bàn tay),
+            # giữ nguyên composer.catalog_snapshot() (CLI/Eval) không thay đổi.
+            web_reg = agent_bridge.trusted_registry(c, user=user, include_showcase=True)
+            out = agent_bridge.call(payload, case_id="web-%d" % user["id"], registry=web_reg)
             resp = dict(out["ui"])
             resp["trace"] = out["trace"]
             env = out["envelope"]
@@ -535,7 +537,9 @@ class H(BaseHTTPRequestHandler):
                             e_cfg["exam_name"] = erow["name"]
             return self._json(200, resp)
         if parts == ["agent", "publish"]:
-            result = agent_bridge.publish_and_persist(c, body, user, registry=agent_bridge.trusted_registry(c, user=user))
+            result = agent_bridge.publish_and_persist(
+                c, body, user, registry=agent_bridge.trusted_registry(c, user=user, include_showcase=True)
+            )
             return self._json(200, result)
         if parts == ["agent", "review"]:
             if body.get("action") == "reject" and "draft_id" in body:

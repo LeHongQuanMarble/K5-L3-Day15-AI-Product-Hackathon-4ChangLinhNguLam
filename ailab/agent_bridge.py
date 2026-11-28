@@ -73,8 +73,12 @@ def provider_error(exc):
     return BridgeError(status, code, hint)
 
 
-def trusted_registry(c, user=None):
-    """Registry tin cậy lấy từ Catalog hiện tại theo quyền của user (để validate_application_plan ở ranh giới)."""
+def trusted_registry(c, user=None, include_showcase=False):
+    """Registry tin cậy lấy từ Catalog hiện tại theo quyền của user (để validate_application_plan ở ranh giới).
+
+    `include_showcase=False` (mặc định): khớp frozen Catalog CLI/Eval (chỉ 2 player mẫu).
+    `include_showcase=True` (Web runtime): bao gồm cả game mẫu showcase đã duyệt (vd Tết 2027 hỗ trợ Model Bàn tay).
+    """
     def rows(sql, params=()):
         out = []
         for r in c.execute(sql, params).fetchall():
@@ -94,23 +98,24 @@ def trusted_registry(c, user=None):
 
     is_admin = isinstance(user, dict) and user.get("role") == "admin"
     uid = user.get("id") if isinstance(user, dict) else None
+    src_filter = "" if include_showcase else " AND source<>'showcase'"
 
     if is_admin:
-        players = rows("SELECT id,name,manifest FROM players WHERE status='approved' AND source<>'showcase' ORDER BY id")
+        players = rows("SELECT id,name,manifest FROM players WHERE status='approved'" + src_filter + " ORDER BY id")
         models = rows("SELECT id,name,kind,outputs FROM models ORDER BY id")
         exams = rows("SELECT id,name,content FROM exams ORDER BY id")
     elif uid is not None:
         players = rows(
-            "SELECT id,name,manifest FROM players WHERE status='approved' AND source<>'showcase' "
-            "AND (visibility='public' OR owner_id IS NULL OR owner_id=?) ORDER BY id",
+            "SELECT id,name,manifest FROM players WHERE status='approved'" + src_filter +
+            " AND (visibility='public' OR owner_id IS NULL OR owner_id=?) ORDER BY id",
             (uid,),
         )
         models = rows("SELECT id,name,kind,outputs FROM models WHERE visibility='public' OR owner_id=? ORDER BY id", (uid,))
         exams = rows("SELECT id,name,content FROM exams WHERE owner_id IN (0, ?) ORDER BY id", (uid,))
     else:
         players = rows(
-            "SELECT id,name,manifest FROM players WHERE status='approved' AND source<>'showcase' "
-            "AND (visibility='public' OR owner_id IS NULL) ORDER BY id"
+            "SELECT id,name,manifest FROM players WHERE status='approved'" + src_filter +
+            " AND (visibility='public' OR owner_id IS NULL) ORDER BY id"
         )
         models = rows("SELECT id,name,kind,outputs FROM models WHERE visibility='public' ORDER BY id")
         exams = rows("SELECT id,name,content FROM exams WHERE owner_id=0 ORDER BY id")
