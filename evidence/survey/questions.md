@@ -4,7 +4,7 @@
 
 - **Hình thức:** Google Form (ẩn danh, không thu họ tên / email / mã học viên).
 - **Thời gian mở form:** 27/11/2026 (phản hồi đầu tiên ghi nhận lúc `18:12:53`).
-- **Trạng thái chốt:** Đã chốt mẫu CP3 lúc `28/11/2026 08:25` với **`n = 20` phản hồi ẩn danh** (`P01`–`P20`, lưu tại `evidence/survey/results.csv`).
+- **Trạng thái chốt:** Đã chốt mẫu CP3 lúc `28/11/2026 08:55` với **`n = 21` phản hồi ẩn danh** (`P01`–`P21`, lưu tại `evidence/survey/results.csv`; loại `P13` mâu thuẫn vẫn còn **`n = 20` phiếu hợp lệ** đạt ngưỡng R1).
 - **Kênh đã gửi:** Cộng đồng "Gia Sư" trên Threads (và gửi trực tiếp tới giáo viên / Lab Coach ngoài nhóm, không ghi tên tài khoản cá nhân).
 
 ## Nguyên văn 10 câu hỏi trong form
@@ -20,5 +20,5 @@
 | `cau_6_van_de_30_ngay` | 6 | Trong 30 ngày gần đây, Thầy/Cô đã gặp những vấn đề nào khi chuẩn bị hoặc tổ chức trò chơi tương tác? | Chọn nhiều |
 | `cau_7_trai_nghiem_thuc_te` | 7 | Thầy/Cô có thể chia sẻ ngắn gọn một trải nghiệm thực tế khi chuẩn bị hoặc tổ chức trò chơi ôn tập, bao gồm khó khăn nếu có và cách Thầy/Cô xử lý? | Trả lời mở (không bắt buộc) |
 | `cau_8_hinh_thuc_tuong_tac` | 8 | Khi sử dụng trò chơi ôn tập, Thầy/Cô thường cho người học tương tác bằng hình thức nào? | Chọn nhiều |
-| `cau_9_ly_do_chua_to_chuc` | 9 | Lý do chính khiến Thầy/Cô chưa tổ chức hoạt động ôn tập dưới dạng trò chơi hoặc tương tác là gì? | Dành cho người chưa tổ chức (trống ở 20/20 phiếu vì 100% người tham gia đều đã tổ chức trong 30 ngày qua) |
+| `cau_9_ly_do_chua_to_chuc` | 9 | Lý do chính khiến Thầy/Cô chưa tổ chức hoạt động ôn tập dưới dạng trò chơi hoặc tương tác là gì? | Dành cho người chưa tổ chức (trống ở 21/21 phiếu vì 100% người tham gia đều đã tổ chức trong 30 ngày qua) |
 | `cau_10_buoc_muon_cai_thien` | 10 | Nếu có thể cải thiện một bước trong quá trình chuẩn bị hoạt động ôn tập tương tác, Thầy/Cô muốn cải thiện điều gì nhất? Vì sao? | Trả lời mở (không bắt buộc) |

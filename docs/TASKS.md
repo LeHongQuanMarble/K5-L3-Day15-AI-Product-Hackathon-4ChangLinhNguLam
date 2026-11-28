@@ -57,7 +57,7 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 |---|---|---|---|---|---|---|---|
 | T01 | Team Registration & Product Definition | TV1 | P0 | CP1 | — | 27/11 16:45 | DONE *(đã kiểm `run.py check` & merge `main`)* |
 | T02 | Product Specification & Architecture Alignment | TV1 | P0 | CP2 | T01 | 27/11 19:00 | REVIEW *(PR #5 đã merge `main`; TV1 đã ký freeze §7 + Data Card + `personas.yaml` với TV4 lúc 28/11 00:50; chờ TV2+TV3 chốt xác nhận Contract T06)* |
-| T03 | User Research & Evidence | TV1 | P0 | CP2–CP3 | — *(song song từ đầu)* | 28/11 08:30 | REVIEW *(đủ 3/3 AC: `n = 20` phiếu khảo sát ẩn danh `P01`–`P20`, 6 trích dẫn nguyên văn, Baseline tần suất & thời gian cho `spec.md` §1–§2 & TV4; chờ TV1 duyệt commit/merge trước CP3 10:00)* |
+| T03 | User Research & Evidence | TV1 | P0 | CP2–CP3 | — *(song song từ đầu)* | 28/11 08:30 | DONE *(đủ 3/3 AC: `n = 21` phiếu khảo sát ẩn danh `P01`–`P21`, loại `P13` vẫn còn `20/20` hợp lệ, 7 trích dẫn nguyên văn, 0 PII, Baseline cho `spec.md` §1–§2 & TV4)* |
 | T04 | Product Acceptance Testing | TV1 | P0 | CP3–CP4 | T14 *(nghiệm thu tăng dần)*, T15 | 28/11 12:30 | TODO |
 | T05 | Demo, Pitch & Checkpoint Submission | TV1 | P0 | CP1–CP4 | — *(outline song song; chốt số sau T04, T19, T20)* | 28/11 14:00 | IN_PROGRESS |
 | T21 | Final Submission & Project Closure | TV1 | P0 | Final | T05 | 28/11 23:00 | TODO |
@@ -184,7 +184,7 @@ REVIEW (PR #5 đã merge `main`; `spec.md` §5 đã khớp `B01–B12`; còn ch�
 
 **Acceptance Criteria:**
 
-- [x] Tối thiểu 1 nguồn đạt ngưỡng rubric (`20/20` phiếu khảo sát thật, đạt ngưỡng `≥20` của R1).
+- [x] Tối thiểu 1 nguồn đạt ngưỡng rubric (`21/20` phiếu khảo sát thật `P01`–`P21`; kể cả khi loại `P13` mâu thuẫn vẫn đạt **`20/20`** phiếu hợp lệ theo R1).
 - [x] Có `≥5` trích dẫn nguyên văn ẩn danh (`6` trích dẫn nguyên văn từ `P02, P04, P05, P07`, 0 PII, không bịa số liệu).
 - [x] Cung cấp được số Baseline (thời gian chuẩn bị trung vị khoảng `20–<30 phút/trò chơi`, tần suất `35%` 1–2 lần / `25%` 3–5 lần / `40%` ≥6 lần/tháng) cho TV4 cập nhật `cost/personas.yaml` & `data/DATA_CARD.md`.
 
@@ -194,7 +194,7 @@ Bàn giao số liệu tần suất & thời gian Baseline từ `evidence/summary
 
 **Status:**
 
-REVIEW *(đạt 3/3 AC trên `n = 20` phiếu khảo sát; chờ TV1 duyệt commit/merge trước CP3 10:00)*.
+DONE *(đạt vững 3/3 AC trên `n = 21` phiếu khảo sát `P01`–`P21`, kể cả độ nhạy `n = 20` khi loại `P13`, 7 trích dẫn ẩn danh, 0 PII)*.
 
 ---
 

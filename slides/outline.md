@@ -2,7 +2,7 @@
 
 > Làm ở guide bước 5.1. Luật: **không có bằng chứng thì không có slide** — mỗi trang ≥1 con số / trích dẫn có nguồn / kết quả đo.  
 > Xuất PDF thành `demo-slides.pdf` ở thư mục gốc repo, nộp tại **CP4 14:30 Thứ Bảy 28/11**. Nộp PDF, không nộp link.  
-> **Cập nhật 28/11/2026 02:30 (UTC+7):** Đã đồng bộ số liệu thật từ `origin/main @ 3227932` (Evaluation Run 1 = `19/30`, Refusal `4/4`, HITL bypass `0`; Survey `n = 6` chưa đạt ngưỡng R1; giữ placeholder cho Run 2 & Cost ≥50 phiên — không bịa số).
+> **Cập nhật 28/11/2026 08:55 (UTC+7):** Đã đồng bộ số liệu thật từ `main @ 133cc21` + `P21` (`n = 21` khảo sát ẩn danh, loại `P13` vẫn đạt **`n = 20` hợp lệ** theo R1; Evaluation Run 1 `19/30` → Run 3 chính thức **`25/30 = 83%`**, Refusal `4/4`, HITL `0`; Cost 50 phiên `$0.0010/task thành công`; giữ placeholder cho UAT T04 & Demo E2E Web sau T14).
 
 ---
 
@@ -10,8 +10,8 @@
 
 | # | Trang (BTC) | Mạch Product-first & Nội dung chính | Số liệu / Nguồn thật (`file`) | Trạng thái số liệu |
 |---|---|---|---|---|
-| 1 | **Người dùng, Pain & Bằng chứng** | *(1) Problem + (2) User Evidence:* Giáo viên tốn công soạn câu hỏi (`6/6`), hạn chế thời gian (`6/6`), mất thời gian cấu hình (`5/6`), cần chạy bằng chuột (`4/6`) + trích dẫn ẩn danh `S2/S4/S5` + số liệu bổ sung sau khi đạt ngưỡng R1 | `evidence/summary.md`, `evidence/survey/results.csv` (`n=6`), `evidence/interviews/P1–P3.md` *(chờ T03)* | ⏳ Chờ đạt ngưỡng R1 (`≥3` PV hoặc `≥20` KS) |
-| 2 | **Vì sao chọn bài này (Impact)** | Bảng so sánh 3 hướng (chọn H1 AI Game Composer; loại H2 video bài giảng, H3 chấm tự luận) + công thức Impact (phút/trò chơi) | `spec.md` §2, `evidence/summary.md` | ⏳ Chờ Baseline chốt từ T03 |
+| 1 | **Người dùng, Pain & Bằng chứng** | *(1) Problem + (2) User Evidence:* Khảo sát `n = 21` (`n = 20` khi loại `P13`): soạn câu hỏi (`61.9%`), mất công cấu hình (`61.9%`), hạn chế thời gian (`52.4%`), khó nạp bộ đề (`38.1%`), sai sót đáp án (`33.3%`), sự cố kỹ thuật/tương thích (`33.3%`), cần chuột/phím (`66.7%`) + trích dẫn ẩn danh `P04/P05/P07` | `evidence/summary.md`, `evidence/survey/results.csv` (`n=21`, nhạy `n=20`) | ✅ Đạt vững ngưỡng R1 |
+| 2 | **Vì sao chọn bài này (Impact)** | Bảng so sánh 3 hướng (chọn H1 AI Game Composer; loại H2 video bài giảng, H3 chấm tự luận) + Baseline `20–<30 phút/trò chơi` (`61.9%` tốn `≥20 phút`, `66.7%` làm `≥3 lần/tháng`) | `spec.md` §2, `evidence/summary.md` | ✅ Đã có Baseline `n=21` *(chưa có With Agent)* |
 | 3 | **Giải pháp, USP & Kiến trúc AI** | *(3) Solution + (4) USP Reuse-first, Generate-if-needed + (6) AI Architecture:* Lát cắt 1 câu; Conditional Workflow `Agent → 9 @tool → Composer → Guardrails → HITL 2 lớp`; vì sao `REUSE` tiết kiệm mạnh chi phí & độ trễ so với luôn `GENERATE` | `spec.md` §4, `codebase/agent.py`, `codebase/guardrails.py`, `ailab/composer.py`, `eval/run-1.csv` | ✅ Có số thật (`gpt-4o-mini` Run 1: REUSE ~165 out tok vs GENERATE `B13`/`B25` 1,090–1,276 out tok) |
 | 4 | **Demo Live & Responsible AI** | *(5) Product Demo + (9) Responsible AI:* Demo live 1 ca `REUSE` + `Mouse Fallback` + HITL (`B01`/`B16`) + 1 ca an toàn `REFUSE` chống bypass (`B17`) hoặc `GENERATE` nháp sandbox (`B13`); minh bạch 4 lớp kiểm soát (AI · Rules · Backend · Giáo viên) | `eval/benchmark.csv`, `evidence/runtime-smoke.md` (6/6 fallback, 4/4 CSP), `docs/T14-integration.md` (`bypass=0`) | ⏳ Chờ T14 UI nối `/api/agent` + Video dự phòng T15 |
 | 5 | **Đánh giá thế nào (Evaluation)** | *(7) Evaluation:* Catalog snapshot `79822a4`, 30 câu (`10/30` nguồn thật), 6 metric freeze (`≥24/30`, Refusal `4/4`, HITL `0`). **Run 1 (`run-1@20261128-021031`):** `19/30 (63%)`, Refusal `4/4`, HITL `0` → phân tích 4 nhóm lỗi → cải tiến T10 → **Run 2:** `__ / 30 (__%)` *(placeholder chờ T19)* | `eval/README.md`, `eval/report.md`, `eval/run-1.csv`, `eval/run-2.csv` *(chờ T19)* | ⏳ Đã có Run 1; chờ chấm chéo + T10 + Run 2 |
@@ -65,11 +65,11 @@
 
 ## 3. Checklist Nộp Checkpoint (T05) & Final Submission (T21)
 
-### CP3 — Hạn `10:00 ngày 28/11/2026` *(Nộp bằng mã Đội trưởng `2A202603487` · cập nhật 08:35)*
-- [x] `spec.md` §0–§7 (đã freeze §7 `≥24/30`, cập nhật §1–§2 theo khảo sát `n = 20`) · `data/DATA_CARD.md` (snapshot `79822a4`; chờ TV4 cập nhật thêm cỡ mẫu khảo sát `n = 20`) · `eval/benchmark.csv` (30 câu, 10/30 nguồn thật, `run.py check` 0 warning) · `eval/metric_spec.yaml` (6 metric)
+### CP3 — Hạn `10:00 ngày 28/11/2026` *(Nộp bằng mã Đội trưởng `2A202603487` · cập nhật 08:55)*
+- [x] `spec.md` §0–§7 (đã freeze §7 `≥24/30`, cập nhật §1–§2 theo khảo sát `n = 21` / nhạy `n = 20`) · `data/DATA_CARD.md` (snapshot `79822a4`; chờ TV4 cập nhật thêm cỡ mẫu khảo sát `n = 21`) · `eval/benchmark.csv` (30 câu, 10/30 nguồn thật, `run.py check` 0 warning) · `eval/metric_spec.yaml` (6 metric)
 - [x] `eval/run-1.csv` & `traces/run-1.jsonl` (`run-1@20261128-021031`, `19/30`, Refusal `4/4`, HITL `0`) *(ghi chú: TV4 đã hoàn tất sớm cả Run 3 `25/30 = 83%` & Cost 50 phiên ở `359a485` cho CP4)*
 - [x] `cost/simulate --try` 10 phiên Real AI (`simulate-try@20261128-004848`, 0 lỗi; TV1 đã ký xác nhận tại `cost/cost-estimate.md`)
-- [x] **T03 Evidence đạt ngưỡng R1:** `20/20` phiếu khảo sát ẩn danh (`evidence/survey/results.csv`, `evidence/summary.md`, 7 trích dẫn nguyên văn, 0 PII) *(khuyến nghị thu thêm 1–2 phiếu sạch phòng trường hợp giám khảo loại phiếu mâu thuẫn `P13`)* — *Owner: TV1*
+- [x] **T03 Evidence đạt vững ngưỡng R1:** `21/20` phiếu khảo sát ẩn danh (`P01`–`P21`, `evidence/survey/results.csv`, `evidence/summary.md`, 7 trích dẫn nguyên văn, 0 PII; kể cả khi loại phiếu mâu thuẫn `P13` vẫn đạt **`20/20` phiếu hợp lệ**) — *Owner: TV1*
 - [x] **Chấm chéo 5 câu Run 1** (`B01, B10, B13, B24, B30`, đồng thuận `5/5`) đã ghi vào `eval/README.md` mục 3 & `eval/report.md` mục 5 (đã merge `main` @ `2f521c9` / `6eadb40`) — *Owner: TV1 + TV4*
 - [ ] **Video 30 giây chạy Real AI** (mở được cửa sổ ẩn danh, không dùng Mock) — **BLOCKER CP3** — *Owner: TV3 (hạn 09:30, xem `docs/T15-e2e.md` mục 4)*
 - [ ] **Xác nhận đã nộp CP3** *(trạng thái hiện tại: `NOT_SUBMITTED`)*
