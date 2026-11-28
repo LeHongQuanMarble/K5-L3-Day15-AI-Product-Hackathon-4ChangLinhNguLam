@@ -34,9 +34,9 @@
 
 ---
 
-## Đối chiếu sau khảo sát (`n = 20` · cập nhật 28/11/2026 08:25, không sửa giả thuyết gốc ở trên)
+## Đối chiếu sau khảo sát (`n = 21` · cập nhật 28/11/2026 08:55, không sửa giả thuyết gốc ở trên)
 
-- **Nguồn đạt ngưỡng:** `[x] khảo sát ≥20` (`20/20` phản hồi ẩn danh `P01`–`P20` tại `evidence/survey/results.csv`; phỏng vấn `0/3`).
-- **Xác nhận:** Pain về **mất thời gian cấu hình (`60%`)**, **soạn câu hỏi/đáp án (`65%`)**, **khó đưa bộ đề có sẵn vào trò chơi (`40%`)**, **sai sót câu hỏi/đáp án (`30%`)**, và vai trò bắt buộc của **`Mouse Fallback` (`65%` chuột/bàn phím + `30%` cảm ứng)** so với cử chỉ (`25%`) và giọng nói (`5%`). Giả thuyết thay thế về điểm nghẽn **soạn câu hỏi (`65%`) & hạn chế thời lượng tổ chức (`55%`)** cũng được xác nhận song song.
-- **Xác nhận một phần (thấp hơn ngưỡng gốc `2/3 = 66.7%`):** Tổ hợp tốn `≥ 30 phút` (`25%`) HOẶC gặp lỗi tương thích/trên lớp (`35%`) đạt **`50.0%` (`10/20`; loại `P13` mâu thuẫn: `47.4%`)**; tuy nhiên **`60%` (`12/20`)** tốn `≥ 20 phút/trò chơi`.
+- **Nguồn đạt ngưỡng:** `[x] khảo sát ≥20` (`21/20` phản hồi ẩn danh `P01`–`P21` tại `evidence/survey/results.csv`; kể cả khi loại `P13` mâu thuẫn vẫn đạt **`20/20` phiếu hợp lệ**; phỏng vấn `0/3`).
+- **Xác nhận:** Pain về **mất thời gian cấu hình (`61.9%`; `n=20: 60.0%`)**, **soạn câu hỏi/đáp án (`61.9%`; `n=20: 60.0%`)**, **khó đưa bộ đề có sẵn vào trò chơi (`38.1%`)**, **sai sót câu hỏi/đáp án (`33.3%`)**, và vai trò bắt buộc của **`Mouse Fallback` (`66.7%` chuột/bàn phím + `28.6%` cảm ứng)** so với cử chỉ (`23.8%`) và giọng nói (`4.8%`). Giả thuyết thay thế về điểm nghẽn **soạn câu hỏi (`61.9%`) & hạn chế thời lượng tổ chức (`52.4%`)** cũng được xác nhận song song.
+- **Xác nhận một phần (thấp hơn ngưỡng gốc `2/3 = 66.7%`):** Tổ hợp tốn `≥ 30 phút` (`23.8%`) HOẶC gặp lỗi tương thích/trên lớp (`33.3%`) đạt **`47.6%` (`10/21`; loại `P13`: `45.0%`, `9/20`)**; tuy nhiên **`61.9%` (`13/21`; `n=20: 65.0%`)** tốn `≥ 20 phút/trò chơi`.
 - **Chưa xác nhận:** Giả thuyết giá trị sản phẩm (tiết kiệm thời gian *With Agent*) chưa được kiểm chứng thực nghiệm vì khảo sát chỉ đo nhu cầu & Baseline (chờ T04 UAT). Chi tiết đầy đủ xem `evidence/summary.md`.
