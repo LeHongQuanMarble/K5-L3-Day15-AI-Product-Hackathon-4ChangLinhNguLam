@@ -28,6 +28,7 @@ for _stream in (sys.stdout, sys.stderr):
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import agent_bridge  # noqa: E402  (T14: Shared Core + HITL)
+import train_jobs  # noqa: E402  (train mô hình qua Teachable Machine)
 import contract  # noqa: E402
 import llm  # noqa: E402
 import store  # noqa: E402
@@ -36,6 +37,7 @@ from store import Err  # noqa: E402
 WEB = os.path.join(store.HERE, "web")
 COOKIE = "ailab_sid"
 MAX_BODY = 3 * 1024 * 1024
+MAX_TRAIN_BODY = 80 * 1024 * 1024  # ảnh của một việc train (JPEG đã thu nhỏ, base64)
 FAILS = {}  # ip -> [thời điểm đăng nhập sai]
 
 
@@ -94,9 +96,9 @@ class H(BaseHTTPRequestHandler):
             return None
         return c[COOKIE].value if COOKIE in c else None
 
-    def _body(self):
+    def _body(self, limit=None):
         n = int(self.headers.get("Content-Length") or 0)
-        if n > MAX_BODY:
+        if n > (limit or MAX_BODY):
             raise Err(413, "too_big", "Dữ liệu gửi lên quá lớn.")
         if n == 0:
             return {}
@@ -211,6 +213,8 @@ class H(BaseHTTPRequestHandler):
             return self._json(200, {"ok": True})
         if res == "exams":
             return self._exams(c, method, parts, user)
+        if res == "train":
+            return self._train(c, method, parts, user)
         if res == "models":
             return self._models(c, method, parts, user)
         if res == "players":
@@ -268,6 +272,21 @@ class H(BaseHTTPRequestHandler):
                 c.execute("DELETE FROM exams WHERE id=?", (eid,))
                 c.commit()
                 return self._json(200, {"ok": True})
+        raise Err(404, "not_found", "Không thấy.")
+
+    def _train(self, c, method, parts, user):
+        """Train mô hình qua Teachable Machine: gửi ảnh theo lớp, xem tiến độ, huỷ. Xong thì mô hình tự được tạo cho người gửi."""
+        if len(parts) == 1:
+            if method == "POST":
+                jid = train_jobs.submit(c, user, self._body(MAX_TRAIN_BODY))
+                return self._json(201, {"job": train_jobs.get(c, user, jid)})
+            if method == "GET":
+                return self._json(200, {"jobs": train_jobs.mine(c, user)})
+        elif len(parts) == 2 and method == "GET":
+            return self._json(200, {"job": train_jobs.get(c, user, _int(parts[1]))})
+        elif len(parts) == 3 and parts[2] == "cancel" and method == "POST":
+            train_jobs.cancel(c, user, _int(parts[1]))
+            return self._json(200, {"ok": True})
         raise Err(404, "not_found", "Không thấy.")
 
     def _models(self, c, method, parts, user):
@@ -616,6 +635,7 @@ def main():
     if made:
         print("Tài khoản Admin đầu tiên: admin / %s   (hiện một lần — hãy đổi bằng set-password)" % made
               if not os.environ.get("AILAB_ADMIN_PASSWORD") else "Tài khoản Admin đầu tiên: admin (mật khẩu từ AILAB_ADMIN_PASSWORD)")
+    train_jobs.start()
     ThreadingHTTPServer((host, port), H).serve_forever()
 
 

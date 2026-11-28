@@ -11,3 +11,6 @@
 #
 # Quy ước khi thêm gói: chỉ thêm khi source có import thư viện ngoài chuẩn, kèm
 # dòng ghi rõ file import + lý do + lệnh kiểm chứng. Không để dòng "(ví dụ)".
+
+# TÙY CHỌN (không cần cho python run.py / eval / simulate): tính năng "Train mô hình qua Teachable Machine" của AI Lab dùng Playwright.
+# Cài riêng: python3 -m pip install -r ailab/train_worker/requirements.txt   (import ở ailab/train_worker/tm_page.py, tm_trainer.py)

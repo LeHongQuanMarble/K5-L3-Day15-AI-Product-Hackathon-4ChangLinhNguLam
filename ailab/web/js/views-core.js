@@ -9,6 +9,7 @@ import { h, api, ico, btn, errBox, STATUS, fmtStatus, KIND, srcOf, QHELP,
          toast, modal, confirmModal, promptModal, copyText,
          validateQuestionsClient, serializeQuestionsClient } from './dom.js';
 import { listPage, previewFrame, cameraTry, imageField, pickField } from './list-page.js';
+import { trainPage } from './train.js';
 
 var KEYS = 'ABCD';
 
@@ -205,14 +206,14 @@ function examsCfg(ctx, items, o) {
 
 /* ---------- Màn hình thư viện: danh sách + form thêm/sửa ---------- */
 export function modelsView(ctx, parts) {
+  if (parts[1] === 'train') return trainPage(ctx, parts[2]);
   if (parts[1] === 'new') return modelForm(ctx, null, parts[2] === 'create');
   if (parts[1] && /^\d+$/.test(parts[1])) return modelForm(ctx, parseInt(parts[1], 10));
   api('GET', '/api/models?scope=usable').then(function (d) {
     /* Theo spec.md §4 (Không làm: Không huấn luyện mô hình AI tương tác từ đầu):
        giáo viên chỉ xem danh mục Model Registry có sẵn; Admin mới thấy nút nạp thêm vào Catalog. */
-    var actions = ctx.me && ctx.me.role === 'admin'
-      ? [btn('Thêm mô hình vào Catalog', 'plus', { href: '#/models/new' })]
-      : [];
+    var actions = [btn('Train mô hình hình ảnh', 'wand', { cls: 'pri', href: '#/models/train/image' }), btn('Train mô hình tư thế', 'wand', { href: '#/models/train/pose' })];
+    if (ctx.me && ctx.me.role === 'admin') actions.push(btn('Thêm mô hình vào Catalog', 'plus', { href: '#/models/new' }));
     ctx.listMount('Mô hình tương tác', listPage(modelsCfg(ctx, d.models, { actions: actions })));
   }).catch(function (e) { ctx.mount(errBox(e)); });
 }
