@@ -35,6 +35,19 @@ API window.__GAME__ = { ready, start(), getState(), answer(choice), getCorrectAn
 - getResult(): {score, maxScore, correctCount, totalQuestions, wrong:[{id,question,yourAnswer,correctAnswer,explanation}]}.
 Chấm điểm: đúng được points của câu, sai được 0, maxScore = tổng points.
 fill_blank: không phân biệt hoa/thường, bỏ khoảng trắng thừa, chấp nhận cả accept[].
+ĐIỀU KHIỂN (mã mouse|keyboard|motion|voice|custom do giáo viên chọn):
+- LUÔN chơi được bằng chuột/chạm và giữ mọi data-testid ở trên (kiểm thử tự động bấm chuột).
+  Bàn phím/camera/micro là THÊM VÀO, không thay thế.
+- keyboard: phím 1-4 hoặc A-D chọn đáp án, mũi tên để di chuyển, Enter để xác nhận; hiện chú thích phím trên màn hình.
+- motion: nút "Bật camera" (KHÔNG tự xin quyền khi tải trang) -> navigator.mediaDevices.getUserMedia({video:true});
+  phát hiện chuyển động bằng so sánh khung hình (frame differencing trên canvas) theo vùng trái/phải/trên...
+  để chọn đáp án hoặc di chuyển; KHÔNG dùng thư viện/CDN; hiện ô camera nhỏ + hướng dẫn.
+- voice: nút "Bật micro" -> SpeechRecognition/webkitSpeechRecognition (lang "vi-VN") để nói đáp án
+  (A/B/C/D, "đúng"/"sai" hoặc nội dung đáp án); không có API thì đo âm lượng micro (AnalyserNode),
+  "vỗ tay để xác nhận".
+- Bị từ chối quyền / không có thiết bị / API không hỗ trợ: chỉ console.warn (TUYỆT ĐỐI không console.error,
+  không throw), hiện thông báo thân thiện trên màn hình và tiếp tục chơi bằng chuột.
+- custom: làm đúng mô tả của giáo viên theo các quy tắc trên.
 """
 
 _BANK_RE = re.compile(

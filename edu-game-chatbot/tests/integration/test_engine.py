@@ -79,7 +79,27 @@ async def topic_to_review(engine: ChatEngine, n: int):
     assert s.state == State.AWAIT_QUESTION_APPROVAL, s.error
     assert s.topic == "Phân số lớp 4" and s.num_questions == n
     s = await run(engine, s.id, action=replies.BTN_QB_APPROVE)
-    return s
+    return await answer_requirements(engine, s)
+
+
+async def answer_requirements(
+    engine: ChatEngine,
+    s,
+    gameplay: str = replies.BTN_GP_QUIZ,
+    controls: str = replies.BTN_CTL_KEYBOARD,
+    visual: str = replies.BTN_VIS_CARTOON,
+):
+    """Đi qua 3 bước yêu cầu game bằng nút; trả session sau bước cuối (đã chạy design cycle)."""
+    assert s.state == State.AWAIT_GAMEPLAY, s.error
+    assert s.messages[-1].text == replies.ASK_GAMEPLAY
+    assert [b.id for b in s.messages[-1].buttons] == [b.id for b in replies.gameplay_buttons()]
+    s = await run(engine, s.id, action=gameplay)
+    assert s.state == State.AWAIT_CONTROLS
+    assert [b.id for b in s.messages[-1].buttons] == [b.id for b in replies.controls_buttons()]
+    s = await run(engine, s.id, action=controls)
+    assert s.state == State.AWAIT_VISUAL
+    assert [b.id for b in s.messages[-1].buttons] == [b.id for b in replies.visual_buttons()]
+    return await run(engine, s.id, action=visual)
 
 
 def review_ids(s) -> list[str]:
@@ -116,6 +136,7 @@ async def test_flow_document_to_review(store, llm, bus, settings, sample_bank) -
     assert s.documents and s.documents[0].name == "bai.txt"
     assert "Phân số là" in llm.calls_for("question_gen")[0]["user"]
     s = await run(engine, s.id, action=replies.BTN_QB_APPROVE)
+    s = await answer_requirements(engine, s)
     assert s.state == State.AWAIT_REVIEW, s.error
 
 
@@ -124,9 +145,12 @@ async def test_flow_user_file_to_review(store, fake_llm, llm, bus, settings, sam
     s = await to_source(engine, replies.BTN_SOURCE_USER)
     store.safe_path(s.id, "qb.json").write_text(json.dumps(sample_bank, ensure_ascii=False), encoding="utf-8")
     s = await run(engine, s.id, action=replies.ACTION_FILE_UPLOADED)
-    # nguồn user: không bắt duyệt, chạy thẳng tới review
-    assert s.state == State.AWAIT_REVIEW, s.error
+    # nguồn user: không bắt duyệt câu hỏi nhưng vẫn phải qua 3 bước yêu cầu game
+    assert s.state == State.AWAIT_GAMEPLAY, s.error
     assert s.question_bank == sample_bank
+    assert not llm.calls_for("design")
+    s = await answer_requirements(engine, s)
+    assert s.state == State.AWAIT_REVIEW, s.error
     assert not llm.calls_for("question_gen")
     assert review_ids(s)[0] == replies.BTN_APPROVE
 
@@ -278,7 +302,10 @@ async def test_busy_message_while_running(store, llm, bus, settings, sample_bank
     engine = make_engine(store, llm, bus, settings, FakeTester([True], gate=gate))
     s = await to_source(engine, replies.BTN_SOURCE_TOPIC)
     s = await run(engine, s.id, text=f"Phân số, {len(sample_bank['questions'])} câu")
-    await engine.handle(s.id, action=replies.BTN_QB_APPROVE)
+    s = await run(engine, s.id, action=replies.BTN_QB_APPROVE)
+    await engine.handle(s.id, action=replies.BTN_GP_QUIZ)
+    await engine.handle(s.id, action=replies.BTN_CTL_MOUSE)
+    await engine.handle(s.id, action=replies.BTN_VIS_MINIMAL)
     for _ in range(200):
         if engine.tester.calls:
             break
@@ -300,13 +327,93 @@ async def test_exception_failed_then_retry(
     engine = make_engine(store, fake_llm, bus, settings)
     s = await to_source(engine, replies.BTN_SOURCE_TOPIC)
     s = await run(engine, s.id, text=f"Phân số, {len(sample_bank['questions'])} câu")
-    s = await run(engine, s.id, action=replies.BTN_QB_APPROVE)  # design chưa có kịch bản -> lỗi
+    s = await run(engine, s.id, action=replies.BTN_QB_APPROVE)
+    s = await answer_requirements(engine, s)  # design chưa có kịch bản -> lỗi
     assert s.state == State.FAILED and s.error
     assert review_ids(s) == [replies.BTN_RETRY]
     fake_llm.add("design", json.dumps(DESIGN, ensure_ascii=False))
     fake_llm.add("codegen", f"```html\n{reference_html}\n```")
     s = await run(engine, s.id, action=replies.BTN_RETRY)
     assert s.state == State.AWAIT_REVIEW, s.error
+
+
+async def to_gameplay(engine: ChatEngine, n: int):
+    s = await to_source(engine, replies.BTN_SOURCE_TOPIC)
+    s = await run(engine, s.id, text=f"Phân số, {n} câu")
+    s = await run(engine, s.id, action=replies.BTN_QB_APPROVE)
+    assert s.state == State.AWAIT_GAMEPLAY, s.error
+    return s
+
+
+async def test_requirements_buttons_saved_and_summary(store, llm, bus, settings, sample_bank) -> None:
+    engine = make_engine(store, llm, bus, settings)
+    s = await topic_to_review(engine, len(sample_bank["questions"]))
+    assert s.state == State.AWAIT_REVIEW, s.error
+    labels = {
+        b.id: b.label
+        for b in replies.gameplay_buttons() + replies.controls_buttons() + replies.visual_buttons()
+    }
+    assert s.gameplay == labels[replies.BTN_GP_QUIZ]
+    assert s.controls == labels[replies.BTN_CTL_KEYBOARD] and s.controls_code == "keyboard"
+    assert s.visual == labels[replies.BTN_VIS_CARTOON]
+    summary = replies.requirements_summary(
+        len(sample_bank["questions"]),
+        sum(q["points"] for q in sample_bank["questions"]),
+        s.gameplay,
+        s.controls,
+        s.visual,
+    )
+    assert any(m.text == summary for m in s.messages)
+    user = llm.calls_for("design")[0]["user"]
+    for value in (s.gameplay, s.controls, s.visual):
+        assert value in user
+    assert "Điều khiển" in llm.calls_for("codegen")[0]["user"]
+    assert [c["prompt"] for c in llm.calls].count("intent") == 0
+
+
+async def test_requirements_free_text_no_llm(store, llm, bus, settings, sample_bank) -> None:
+    engine = make_engine(store, llm, bus, settings)
+    s = await to_gameplay(engine, len(sample_bank["questions"]))
+    before = len(llm.calls)
+    s = await run(engine, s.id, text="Học sinh nhảy qua các ô chữ")
+    assert s.state == State.AWAIT_CONTROLS and s.gameplay == "Học sinh nhảy qua các ô chữ"
+    s = await run(engine, s.id, text="dùng phím mũi tên và chuột")
+    assert s.state == State.AWAIT_VISUAL
+    assert s.controls == "dùng phím mũi tên và chuột" and s.controls_code == "custom"
+    assert len(llm.calls) == before  # mô tả tự do không gọi LLM phân loại
+    s = await run(engine, s.id, text="nền xanh biển, nhân vật cá heo")
+    assert s.state == State.AWAIT_REVIEW, s.error
+    assert s.visual == "nền xanh biển, nhân vật cá heo"
+    assert not llm.calls_for("intent")
+    assert "nền xanh biển, nhân vật cá heo" in llm.calls_for("design")[0]["user"]
+
+
+async def test_requirements_typed_label_matches_button(store, llm, bus, settings, sample_bank) -> None:
+    engine = make_engine(store, llm, bus, settings)
+    s = await to_gameplay(engine, len(sample_bank["questions"]))
+    s = await run(engine, s.id, text="Để trợ lý gợi ý")
+    s = await run(engine, s.id, text="cử động cơ thể (camera)")
+    assert s.state == State.AWAIT_VISUAL and s.controls_code == "motion"
+    assert s.controls == "Cử động cơ thể (camera)"
+
+
+async def test_requirements_empty_reasks(store, llm, bus, settings, sample_bank) -> None:
+    engine = make_engine(store, llm, bus, settings)
+    s = await to_gameplay(engine, len(sample_bank["questions"]))
+    for state, ask, nxt in (
+        (State.AWAIT_GAMEPLAY, replies.ASK_GAMEPLAY, replies.BTN_GP_RACE),
+        (State.AWAIT_CONTROLS, replies.ASK_CONTROLS, replies.BTN_CTL_VOICE),
+        (State.AWAIT_VISUAL, replies.ASK_VISUAL, None),
+    ):
+        n = len(s.messages)
+        s = await run(engine, s.id, text="   ")
+        assert s.state == state and s.messages[-1].text == ask and len(s.messages) == n + 2  # user + bot
+        s = await run(engine, s.id, action="khong_co")  # action lạ -> hỏi lại
+        assert s.state == state and s.messages[-1].text == ask
+        if nxt:
+            s = await run(engine, s.id, action=nxt)
+    assert s.controls_code == "voice"
+    assert not llm.calls_for("design")
 
 
 async def test_event_bus_publish_subscribe(bus) -> None:

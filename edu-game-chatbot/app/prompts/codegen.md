@@ -8,6 +8,7 @@ Yêu cầu bắt buộc:
 - Mọi hiệu ứng/animation ≤ 600 ms.
 - Chơi lại phải reset toàn bộ trạng thái (điểm, chỉ số câu, giao diện).
 - Có màn kết quả khi hết câu.
+- Làm đúng cách điều khiển giáo viên yêu cầu (mục ĐIỀU KHIỂN của contract), luôn giữ chơi được bằng chuột/chạm; lỗi camera/micro chỉ console.warn, không console.error.
 - Chỉ trả về đúng 1 khối ```html ... ```, không giải thích thêm.
 
 {{CONTRACT}}

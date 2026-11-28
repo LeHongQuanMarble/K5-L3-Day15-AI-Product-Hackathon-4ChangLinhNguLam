@@ -51,3 +51,27 @@ async def test_prompt_excludes_full_bank(session, sample_bank) -> None:
     last = sample_bank["questions"][-1]["question"]
     if len(sample_bank["questions"]) > 3:
         assert last not in prompt
+
+
+async def test_teacher_requirements_in_prompt(fake_llm, settings, session) -> None:
+    session.gameplay = "Đua về đích / vượt chướng ngại"
+    session.controls, session.controls_code = "Bàn phím", "keyboard"
+    session.visual = "nền xanh biển, nhân vật cá heo"
+    fake_llm.add("design", json.dumps(GOOD | {"controls": "x"}))
+    out = await design(fake_llm, settings, session, "đổi nền màu xanh")
+    user = fake_llm.calls[0]["user"]
+    for value in (session.gameplay, "Bàn phím", "keyboard", session.visual):
+        assert value in user
+    assert user.index("YÊU CẦU BẮT BUỘC CỦA GIÁO VIÊN") < user.index("YÊU CẦU CHỈNH SỬA")
+    assert out["controls"] == "x"  # LLM đã trả controls thì giữ nguyên
+
+
+async def test_controls_filled_from_session(fake_llm, settings, session) -> None:
+    session.controls = "Âm thanh / giọng nói (micro)"
+    fake_llm.add("design", json.dumps(GOOD | {"controls": ""}))
+    out = await design(fake_llm, settings, session)
+    assert out["controls"] == session.controls
+
+
+def test_prompt_without_requirements(session) -> None:
+    assert "GIÁO VIÊN" not in build_design_prompt(session, None)

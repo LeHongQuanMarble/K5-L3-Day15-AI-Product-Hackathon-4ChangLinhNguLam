@@ -12,7 +12,7 @@ router = APIRouter(prefix="/preview", tags=["preview"])
 
 PREVIEW_CSP = (
     "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
-    "img-src data: blob:; font-src data:; media-src data: blob:"
+    "img-src data: blob:; font-src data:; media-src data: blob: mediastream:"
 )
 
 

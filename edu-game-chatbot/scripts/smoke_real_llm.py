@@ -13,7 +13,7 @@ NUM_QUESTIONS = 5
 
 
 async def run_smoke(topic: str, num_questions: int) -> dict:
-    """Chạy pipeline không giao diện: intake -> N1b(topic) -> N2 -> N3 -> N4 <-> FIX.
+    """Chạy pipeline không giao diện: intake -> N1b(topic) -> 3 bước yêu cầu game -> N2 -> N3 -> N4 <-> FIX.
     Trả {passed, fix_attempts, errors, html_path}."""
     from app.chatbot import replies
     from app.chatbot.engine import ChatEngine
@@ -40,6 +40,12 @@ async def run_smoke(topic: str, num_questions: int) -> dict:
         s = await step(s.id, text=f"{topic}, {num_questions} câu")
     if s.state == State.AWAIT_QUESTION_APPROVAL:
         s = await step(s.id, action=replies.BTN_QB_APPROVE)
+    if s.state == State.AWAIT_GAMEPLAY:
+        s = await step(s.id, action=replies.BTN_GP_QUIZ)
+    if s.state == State.AWAIT_CONTROLS:
+        s = await step(s.id, action=replies.BTN_CTL_KEYBOARD)
+    if s.state == State.AWAIT_VISUAL:
+        s = await step(s.id, action=replies.BTN_VIS_CARTOON)
     if s.state != State.AWAIT_REVIEW or not s.versions:
         return {
             "passed": False,

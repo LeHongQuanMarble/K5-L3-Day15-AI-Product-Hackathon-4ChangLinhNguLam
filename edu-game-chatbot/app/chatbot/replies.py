@@ -15,6 +15,30 @@ BTN_APPROVE = "approve"
 BTN_REVISE = "revise"
 BTN_CANCEL = "cancel"
 BTN_RETRY = "retry"
+# Yêu cầu game (F01)
+BTN_GP_QUIZ = "gp_quiz"
+BTN_GP_RACE = "gp_race"
+BTN_GP_TARGET = "gp_target"
+BTN_GP_MATCH = "gp_match"
+BTN_GP_ADVENTURE = "gp_adventure"
+BTN_GP_SUGGEST = "gp_suggest"
+BTN_CTL_MOUSE = "ctl_mouse"
+BTN_CTL_KEYBOARD = "ctl_keyboard"
+BTN_CTL_MOTION = "ctl_motion"
+BTN_CTL_VOICE = "ctl_voice"
+BTN_VIS_CARTOON = "vis_cartoon"
+BTN_VIS_SPACE = "vis_space"
+BTN_VIS_NATURE = "vis_nature"
+BTN_VIS_MINIMAL = "vis_minimal"
+BTN_VIS_RETRO = "vis_retro"
+# nút điều khiển -> mã điều khiển (mô tả tự do -> "custom")
+CONTROLS_CODES = {
+    BTN_CTL_MOUSE: "mouse",
+    BTN_CTL_KEYBOARD: "keyboard",
+    BTN_CTL_MOTION: "motion",
+    BTN_CTL_VOICE: "voice",
+}
+CONTROLS_CUSTOM = "custom"
 ACTION_FILE_UPLOADED = "file_uploaded"
 
 # ---- Câu chữ (SPEC §4) ----
@@ -31,6 +55,17 @@ BUSY = "Mình đang xử lý yêu cầu trước đó, thầy/cô vui lòng ch�
 CANCELLED = "Đã huỷ yêu cầu. Thầy/cô có thể bắt đầu game mới bất cứ lúc nào."
 NOT_UNDERSTOOD = "Mình chưa hiểu ý thầy/cô. Thầy/cô vui lòng chọn một nút bên dưới hoặc nhập lại yêu cầu."
 SESSION_ENDED = "Phiên làm việc đã kết thúc. Thầy/cô hãy bắt đầu một phiên mới nhé."
+ASK_GAMEPLAY = (
+    "Bộ câu hỏi đã sẵn sàng. Thầy/cô muốn học sinh chơi theo cách nào? "
+    "(Chọn một nút hoặc tự mô tả cách chơi.)"
+)
+ASK_CONTROLS = (
+    "Học sinh điều khiển game bằng gì? (Chọn một nút hoặc tự mô tả, ví dụ: dùng phím mũi tên và chuột.)"
+)
+ASK_VISUAL = (
+    "Thầy/cô muốn giao diện game trông thế nào? Chọn một phong cách hoặc tự mô tả "
+    "màu sắc, nhân vật, bối cảnh (ví dụ: nền xanh biển, nhân vật cá heo)."
+)
 
 
 def source_buttons() -> list[Button]:
@@ -48,6 +83,53 @@ def question_approval_buttons() -> list[Button]:
         Button(id=BTN_QB_APPROVE, label="Đồng ý"),
         Button(id=BTN_QB_REGENERATE, label="Tạo lại"),
     ]
+
+
+def gameplay_buttons() -> list[Button]:
+    """6 nút cách chơi."""
+    return [
+        Button(id=BTN_GP_QUIZ, label="Trả lời nhanh (trắc nghiệm)"),
+        Button(id=BTN_GP_RACE, label="Đua về đích / vượt chướng ngại"),
+        Button(id=BTN_GP_TARGET, label="Chọn mục tiêu / bắn bóng"),
+        Button(id=BTN_GP_MATCH, label="Ghép cặp / kéo thả"),
+        Button(id=BTN_GP_ADVENTURE, label="Phiêu lưu qua từng màn"),
+        Button(id=BTN_GP_SUGGEST, label="Để trợ lý gợi ý"),
+    ]
+
+
+def controls_buttons() -> list[Button]:
+    """4 nút cách điều khiển."""
+    return [
+        Button(id=BTN_CTL_MOUSE, label="Chuột / chạm màn hình"),
+        Button(id=BTN_CTL_KEYBOARD, label="Bàn phím"),
+        Button(id=BTN_CTL_MOTION, label="Cử động cơ thể (camera)"),
+        Button(id=BTN_CTL_VOICE, label="Âm thanh / giọng nói (micro)"),
+    ]
+
+
+def visual_buttons() -> list[Button]:
+    """5 nút phong cách giao diện."""
+    return [
+        Button(id=BTN_VIS_CARTOON, label="Hoạt hình tươi sáng"),
+        Button(id=BTN_VIS_SPACE, label="Vũ trụ / khoa học"),
+        Button(id=BTN_VIS_NATURE, label="Thiên nhiên"),
+        Button(id=BTN_VIS_MINIMAL, label="Tối giản, dễ đọc"),
+        Button(id=BTN_VIS_RETRO, label="Pixel cổ điển"),
+    ]
+
+
+def requirements_summary(
+    num_questions: int, max_score: int, gameplay: str, controls: str, visual: str
+) -> str:
+    """Tóm tắt yêu cầu game trước khi bắt đầu tạo."""
+    return (
+        "Mình đã có đủ thông tin để tạo game:\n"
+        f"- Bộ câu hỏi: {num_questions} câu, tổng {max_score} điểm\n"
+        f"- Cách chơi: {gameplay}\n"
+        f"- Điều khiển: {controls}\n"
+        f"- Giao diện: {visual}\n"
+        "Mình bắt đầu thiết kế và tạo game ngay đây."
+    )
 
 
 def review_buttons(test_passed: bool) -> list[Button]:
