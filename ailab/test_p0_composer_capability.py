@@ -98,7 +98,9 @@ class ComposerCapabilityTests(unittest.TestCase):
             self.hands_player = None
             for r in c.execute("SELECT * FROM players WHERE status='approved'").fetchall():
                 man = json.loads(r["manifest"])
-                if "hands" in (man.get("kinds") or []):
+                # Chọn player hands có input 'grab' (Tết 2027): các test này mock mapping grab/release,
+                # trong khi Penalty 3D (cập nhật 28/11) cũng khai kinds hands nhưng inputs A–F.
+                if "hands" in (man.get("kinds") or []) and any(i.get("key") == "grab" for i in (man.get("inputs") or [])):
                     self.hands_player = dict(r)
                     break
             self.quiz_player = dict(c.execute("SELECT * FROM players WHERE name='Quiz ABCD bằng cử chỉ'").fetchone())

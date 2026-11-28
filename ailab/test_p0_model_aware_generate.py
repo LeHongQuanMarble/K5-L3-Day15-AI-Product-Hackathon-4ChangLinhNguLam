@@ -290,6 +290,137 @@ class ModelAwareGenerateTests(unittest.TestCase):
         self.assertIn("dwellSince", html)
         self.assertIn("hành tinh", html.lower())
 
+    def test_assembler_single_camera_and_design_system(self):
+        """UAT fix: AI tự vẽ hộp camera riêng -> Assembler strip (chỉ CÒN 1 data-jl-camera do Wrapper sở hữu);
+        Design System CSS + auto progress khi camera.init (header không đứng ở 0/0)."""
+        import guardrails
+        import player_assembler
+        c = store.connect()
+        try:
+            hm = dict(c.execute("SELECT * FROM models WHERE kind='hands' LIMIT 1").fetchone())
+            hm["outputs"] = json.loads(hm["outputs"])
+        finally:
+            c.close()
+        spec = game_spec.build_game_spec(
+            {"app_name": "Hái táo bằng tay", "game_idea": "Di chuyển bàn tay chọn táo đáp án"},
+            {"message": "Tạo trò chơi mới hái táo bằng Bàn tay (MediaPipe)"},
+            {"models": [hm], "players": [], "exams": []},
+            explicit_model=hm,
+        )
+        # Gameplay AI có BOTH hộp camera riêng lẫn logic JLRuntime
+        snippet = """<div class="cam" data-jl-camera></div>
+<h2 id="q"></h2><div id="opts"></div>
+<script>
+JLRuntime.onInit(function(qs){ JLRuntime.setProgress(1, qs.length); });
+JLRuntime.onAction(function(a){ if(a.input==='grab'){ JLRuntime.setScore(1, 4); } });
+</script>"""
+        html = player_assembler.assemble_player(spec, snippet)
+        self.assertEqual(html.count("data-jl-camera"), 1)  # chỉ còn hộp camera của Wrapper
+        self.assertIn("--jl-brand", html)  # Design System tokens
+        self.assertIn("jl-opt", html)
+        self.assertIn("RT.setProgress(0, lastQs.length)", html)  # auto progress khi camera.init
+        self.assertTrue(guardrails.validate_html_draft(html)["ok"], "assembled html phải qua L1-L4")
+
+    def test_generate_refuses_broken_model_with_vietnamese_message(self):
+        """TC05: model URL chết (status='broken') KHÔNG được dùng cho GENERATE — báo lỗi tiếng Việt dễ hiểu."""
+        c = store.connect()
+        try:
+            c.execute(
+                "INSERT INTO models(owner_id,name,description,kind,url,outputs,visibility,created,status) VALUES(1,'Mô hình hỏng','', 'pose',"
+                " 'https://teachablemachine.withgoogle.com/models/dead404/', ?, 'public', 0, 'broken')",
+                (json.dumps([{"key": "a", "role": "action"}]),),
+            )
+            c.commit()
+            mid = c.execute("SELECT id FROM models WHERE name='Mô hình hỏng'").fetchone()[0]
+            assert mid, "không insert được model broken"
+        finally:
+            c.close()
+
+        llm_calls = {"n": 0}
+
+        def _mock_llm(system, user):
+            if "ĐỊNH DẠNG ĐẦU RA" in system:
+                return {"text": "```json\n%s\n```" % json.dumps({
+                    "decision": "GENERATE",
+                    "message": "Tạo game bằng Mô hình hỏng.",
+                    "app_name": "Game hỏng",
+                    "model_id": mid,
+                    "exam_mode": "generate_new",
+                    "exam_content": "1+1=? | 1 | 2 | =B",
+                    "game_idea": "chọn đáp án bằng tư thế",
+                }, ensure_ascii=False), "model": "gpt-4o-mini", "tokens_in": 100, "tokens_out": 60}
+            llm_calls["n"] += 1  # không được phép tới bước sinh HTML
+            return {"text": "```html\n<!doctype html><html></html>\n```", "model": "x", "tokens_in": 1, "tokens_out": 1}
+
+        with mock.patch.object(agent, "call_model", side_effect=_mock_llm):
+            st, res, _ = _req("POST", "/api/agent", {
+                "text": 'Tạo trò chơi mới dùng model "Mô hình hỏng" để chọn đáp án.'
+            }, self.cookie_a)
+        self.assertEqual(st, 200)
+        self.assertEqual(res["decision"], "ERROR")
+        self.assertEqual(llm_calls["n"], 0)  # chặn trước khi tốn lượt sinh HTML
+        self.assertIn("KHÔNG tải được", res["message"])
+        self.assertIn("Mô hình hỏng", res["message"])
+        self.assertTrue(any(e["code"] == "incompatible_model" for e in (res.get("errors") or [])))
+
+    def test_tc01_driving_model_generate_new_player(self):
+        """TC01 (offline fixture): GENERATE player mới dùng model 'Lái Xe' (pose, outputs thật của team) —
+        mapping dẫn xuất từ outputs, manifest kinds=['pose'], gameplay qua Runtime Wrapper."""
+        outputs = [
+            {"key": "TayNghiengTrai", "role": "action"}, {"key": "BinhThuong", "role": "action"},
+            {"key": "TayNghiengPhai", "role": "action"}, {"key": "NiTro", "role": "action"},
+            {"key": "empty", "role": "rest"},
+        ]
+        c = store.connect()
+        try:
+            cur = c.execute(
+                "INSERT INTO models(owner_id,name,description,kind,url,outputs,visibility,created) VALUES(1,'Lái Xe','Đua xe tư thế','pose',"
+                " 'https://teachablemachine.withgoogle.com/models/a6Z7kwzyq/', ?, 'public', 0)",
+                (json.dumps(outputs),),
+            )
+            c.commit()
+            mid = cur.lastrowid
+        finally:
+            c.close()
+        gameplay = """<h2 id="q"></h2><div id="lanes"></div>
+<script>
+JLRuntime.onInit(function(qs){ JLRuntime.setProgress(0, qs.length); });
+JLRuntime.onAction(function(a){ /* lái theo a.input */ });
+</script>"""
+
+        def _mock_llm(system, user):
+            if "ĐỊNH DẠNG ĐẦU RA" in system:
+                return {"text": "```json\n%s\n```" % json.dumps({
+                    "decision": "GENERATE",
+                    "message": "Tạo game đua xe chọn làn đáp án đúng.",
+                    "app_name": "Đua xe phép nhân",
+                    "model_id": mid,
+                    "exam_mode": "generate_new",
+                    "exam_content": "6x7=? | 40 | 42 | 44 | =B\n3x9=? | 27 | 29 | 30 | =A",
+                    "expected_question_count": 2,
+                    "game_idea": "Điều khiển xe nghiêng trái/phải chạy vào làn chứa đáp án đúng",
+                }, ensure_ascii=False), "model": "gpt-4o-mini", "tokens_in": 150, "tokens_out": 90}
+            return {"text": "Game đua xe.\n```html\n%s\n```" % gameplay,
+                    "model": "gpt-4o-mini", "tokens_in": 210, "tokens_out": 260}
+
+        with mock.patch.object(agent, "call_model", side_effect=_mock_llm):
+            st, res, _ = _req("POST", "/api/agent", {
+                "text": 'Tạo trò chơi mới dùng model "Lái Xe": xe chạy vào làn đáp án đúng của phép nhân, có chuột dự phòng.'
+            }, self.cookie_a)
+        self.assertEqual(st, 200)
+        self.assertEqual(res["decision"], "GENERATE")
+        plan = res["application_plan"]
+        self.assertEqual(plan["model"]["kind"], "pose")
+        self.assertEqual(plan["model"]["model_id"], mid)
+        mp = plan["model"]["mapping"]
+        self.assertEqual(set(mp.values()), {"TayNghiengTrai", "BinhThuong", "TayNghiengPhai", "NiTro"})
+        self.assertEqual(plan["interaction"]["primary"], "pose")
+        st_prev, prev, _ = _req("GET", res["preview_url"], cookie=self.cookie_a)
+        self.assertEqual(st_prev, 200)
+        self.assertIn("window.JLRuntime", prev["srcdoc"])
+        self.assertEqual((prev.get("manifest") or {}).get("kinds"), ["pose"])
+        self.assertTrue(prev.get("sampleQuestions"))
+
     def test_poc3_mouse_only_freeform_not_forced_into_matching_or_true_false(self):
         """PoC 3: Free-form mouse-only classification game stays Free-form (not forced into Matching/True-False)."""
         def _mock_llm(system, user):
@@ -326,6 +457,14 @@ class ModelAwareGenerateTests(unittest.TestCase):
         }, self.cookie_a)
         self.assertEqual(st_m, 201)
         mid = cm["id"]
+        # Fixture URL 404 thật -> POST đánh dấu broken (đúng luật production). Test này mô phỏng
+        # artifact ĐÃ được xác minh để kiểm happy-path GENERATE (nhánh broken có test riêng).
+        c = store.connect()
+        try:
+            c.execute("UPDATE models SET status='ready' WHERE id=?", (mid,))
+            c.commit()
+        finally:
+            c.close()
 
         def _mock_llm(system, user):
             if "ĐỊNH DẠNG ĐẦU RA" in system:
@@ -406,6 +545,13 @@ JLRuntime.onAction(function(a){ if(a.input==='grab'){ sc++; JLRuntime.setScore(s
         }, self.cookie_a)
         self.assertEqual(st_m, 201, cm)
         mid = cm["id"]
+        # Fixture URL 404 -> broken; mô phỏng artifact đã xác minh cho happy-path (broken có test riêng)
+        c = store.connect()
+        try:
+            c.execute("UPDATE models SET status='ready' WHERE id=?", (mid,))
+            c.commit()
+        finally:
+            c.close()
 
         three_qs = (
             "Thủ đô của Việt Nam là gì? | Hà Nội | Huế | Đà Nẵng | =A\n"

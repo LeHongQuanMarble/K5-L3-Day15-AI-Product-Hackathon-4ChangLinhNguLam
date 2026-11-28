@@ -472,7 +472,18 @@ def _find_compatible_player_for_model(model_row: dict, players: list, needs_exam
         if not check.get("ok"):
             continue
         is_exam_game = info.get("gameKind") == "questions"
-        score = (1 if (needs_exam_hint and is_exam_game) else 0, len(suggested), -int(p.get("id") or 0))
+        # Độ phủ mapping: tỉ lệ TOÀN BỘ input được gắn lớp hành động thật của model.
+        # Player dùng được TRỌN VẸN bằng cử chỉ (vd Tết 2027 grab/release = 2/2) phải thắng player
+        # chỉ khớp một phần (vd Penalty 3D khai hands nhưng 6 inputs chỉ map được 2 ô = 2/6).
+        all_inputs = [i for i in (man.get("inputs") or []) if isinstance(i.get("key"), str)]
+        covered = sum(
+            1 for i in all_inputs
+            if isinstance(suggested.get(i.get("key")), str) and suggested.get(i.get("key"))
+        )
+        coverage = (covered / len(all_inputs)) if all_inputs else 1.0
+        action_outputs = {o.get("key") for o in (model_row.get("outputs") or []) if isinstance(o, dict) and o.get("role") == "action"}
+        action_mapped = sum(1 for v in suggested.values() if v in action_outputs)
+        score = (coverage, 1 if (needs_exam_hint and is_exam_game) else 0, action_mapped, -int(p.get("id") or 0))
         candidates.append((score, p, suggested))
     if not candidates:
         return None, None
@@ -781,7 +792,7 @@ def _handle_generate(parsed: dict, req: dict, registry: dict, use_live_tools: bo
     if explicit_model is None and re.search(r"\b(?:mediapipe|ban tay|cu chi tay)\b", guardrails.fold_text(user_msg)):
         explicit_model = next((m for m in models if m.get("kind") == "hands"), None)
     # Model hỏng (URL chết/artifact 404, status='broken'): từ chối trung thực, không dùng cho GENERATE
-    if explicit_model is not None and explicit_model.get("ready") is False:
+    if explicit_model is not None and (explicit_model.get("ready") is False or explicit_model.get("status") == "broken"):
         return _make_envelope(
             "ERROR",
             'Model "%s" hiện KHÔNG tải được artifact (model.json trả lỗi khi kiểm tra). '

@@ -102,7 +102,7 @@ def trusted_registry(c, user=None, include_showcase=False):
 
     if is_admin:
         players = rows("SELECT id,name,manifest FROM players WHERE status='approved'" + src_filter + " ORDER BY id")
-        models = rows("SELECT id,name,kind,outputs FROM models ORDER BY id")
+        models = rows("SELECT id,name,kind,outputs,status FROM models ORDER BY id")
         exams = rows("SELECT id,name,content FROM exams ORDER BY id")
     elif uid is not None:
         players = rows(
@@ -110,14 +110,14 @@ def trusted_registry(c, user=None, include_showcase=False):
             " AND (visibility='public' OR owner_id IS NULL OR owner_id=?) ORDER BY id",
             (uid,),
         )
-        models = rows("SELECT id,name,kind,outputs FROM models WHERE visibility='public' OR owner_id=? ORDER BY id", (uid,))
+        models = rows("SELECT id,name,kind,outputs,status FROM models WHERE visibility='public' OR owner_id=? ORDER BY id", (uid,))
         exams = rows("SELECT id,name,content FROM exams WHERE owner_id IN (0, ?) ORDER BY id", (uid,))
     else:
         players = rows(
             "SELECT id,name,manifest FROM players WHERE status='approved'" + src_filter +
             " AND (visibility='public' OR owner_id IS NULL) ORDER BY id"
         )
-        models = rows("SELECT id,name,kind,outputs FROM models WHERE visibility='public' ORDER BY id")
+        models = rows("SELECT id,name,kind,outputs,status FROM models WHERE visibility='public' ORDER BY id")
         exams = rows("SELECT id,name,content FROM exams WHERE owner_id=0 ORDER BY id")
 
     return {"players": players, "models": models, "exams": exams}

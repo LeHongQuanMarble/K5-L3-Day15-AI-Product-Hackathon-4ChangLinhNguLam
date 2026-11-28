@@ -17,6 +17,11 @@ import llm  # noqa: E402
 import server  # noqa: E402
 import store  # noqa: E402
 
+# CÁCH LY BẮT BUỘC: unittest discovery import module theo thứ tự alphabetical — `store` có thể đã bị
+# module khác import TRƯỚC khi env AILAB_DB kịp đặt, khiến store.DB_PATH chốt vào DB THẬT của server.
+# Swap attribute trực tiếp (không phụ thuộc thứ tự import) để test KHÔNG BAO GIỜ ghi vào runtime DB.
+store.DB_PATH = os.environ["AILAB_DB"]
+
 
 class EditApp(unittest.TestCase):
     @classmethod
