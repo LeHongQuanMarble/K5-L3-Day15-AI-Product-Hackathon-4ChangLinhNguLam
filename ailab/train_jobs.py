@@ -5,6 +5,7 @@ giao diện điều khiển (ailab/train_worker, cần Playwright: xem ailab/tra
 việc một trong tiến trình con, rồi tạo mô hình (đường dẫn Teachable Machine + các lớp) cho người đã gửi. Ảnh bị xoá ngay khi xong.
 """
 import base64
+import io
 import json
 import os
 import re
@@ -13,11 +14,17 @@ import subprocess
 import sys
 import threading
 import time
+import wave
 
 import store
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-KINDS = ("image", "pose")
+KINDS = ("image", "pose", "audio")
+NOISE = "Background Noise"
+NOISE_MIN, SOUND_MIN, SOUND_MAX = 20, 8, 60   # mẩu 1 giây mỗi lớp (như trang Teachable Machine yêu cầu)
+MAX_SOUND_BYTES = 400 * 1024
+AUDIO_TIMEOUT_S = 1000
+DATA_WAV = re.compile(r"^data:audio/(?:wav|x-wav|wave);base64,([A-Za-z0-9+/=]+)$")
 MIN_PER_CLASS, MAX_PER_CLASS = 10, 300
 MIN_CLASSES, MAX_CLASSES = 2, 8
 MAX_IMAGE_BYTES = 400 * 1024
@@ -43,6 +50,14 @@ def _dir(jid):
     return os.path.join(os.path.dirname(store.DB_PATH), "train", str(jid))
 
 
+def _pcm16(raw):
+    try:
+        with wave.open(io.BytesIO(raw)) as w:
+            return w.getsampwidth() == 2 and w.getcomptype() == "NONE" and w.getnframes() >= 1
+    except (wave.Error, EOFError):
+        return False
+
+
 def _clean(body):
     kind = body.get("kind")
     if kind not in KINDS:
@@ -55,15 +70,27 @@ def _clean(body):
     if not isinstance(classes, list) or not (MIN_CLASSES <= len(classes) <= MAX_CLASSES):
         raise store.Err(400, "classes", "Cần %d–%d lớp." % (MIN_CLASSES, MAX_CLASSES))
     out, seen = [], set()
+    audio = kind == "audio"
     for c in classes:
         cname = (c.get("name") if isinstance(c, dict) else None)
-        imgs = (c.get("images") if isinstance(c, dict) else None)
+        imgs = (c.get("sounds" if audio else "images") if isinstance(c, dict) else None)
         if not isinstance(cname, str) or not (1 <= len(cname.strip()) <= 60) or cname.strip().lower() in seen:
             raise store.Err(400, "classes", "Mỗi lớp cần tên 1–60 ký tự, không trùng nhau.")
-        if not isinstance(imgs, list) or not (MIN_PER_CLASS <= len(imgs) <= MAX_PER_CLASS):
-            raise store.Err(400, "images", "Lớp “%s” cần %d–%d ảnh." % (cname.strip(), MIN_PER_CLASS, MAX_PER_CLASS))
-        seen.add(cname.strip().lower())
+        cname = cname.strip()
+        lo, hi = ((NOISE_MIN if cname == NOISE else SOUND_MIN), SOUND_MAX) if audio else (MIN_PER_CLASS, MAX_PER_CLASS)
+        if not isinstance(imgs, list) or not (lo <= len(imgs) <= hi):
+            raise store.Err(400, "sounds" if audio else "images", "Lớp “%s” cần %d–%d %s." % (cname, lo, hi, "mẩu âm thanh 1 giây" if audio else "ảnh"))
+        seen.add(cname.lower())
         files = []
+        if audio:
+            for u in imgs:
+                m = DATA_WAV.match(u) if isinstance(u, str) else None
+                raw = base64.b64decode(m.group(1)) if m else b""
+                if not raw or len(raw) > MAX_SOUND_BYTES or not _pcm16(raw):
+                    raise store.Err(400, "sounds", "Mỗi mẩu là WAV 16-bit, tối đa %d KB (trình duyệt tự cắt thành mẩu 1 giây)." % (MAX_SOUND_BYTES // 1024))
+                files.append((raw, ".wav"))
+            out.append((cname, files))
+            continue
         for u in imgs:
             m = DATA_URI.match(u) if isinstance(u, str) else None
             if not m:
@@ -73,9 +100,11 @@ def _clean(body):
             if not ext or len(raw) > MAX_IMAGE_BYTES:
                 raise store.Err(400, "images", "Mỗi ảnh là JPEG/PNG thật, tối đa %d KB (trình duyệt tự thu nhỏ)." % (MAX_IMAGE_BYTES // 1024))
             files.append((raw, ext))
-        out.append((cname.strip(), files))
+        out.append((cname, files))
+    if audio and not any(n == NOISE for n, _ in out):
+        raise store.Err(400, "classes", "Mô hình âm thanh cần lớp “%s” (tiếng nền lúc yên tĩnh)." % NOISE)
     settings = {}
-    s = body.get("settings") or {}
+    s = {} if audio else (body.get("settings") or {})
     if "epochs" in s and s["epochs"] is not None:
         if not isinstance(s["epochs"], int) or isinstance(s["epochs"], bool) or not 1 <= s["epochs"] <= 500:
             raise store.Err(400, "epochs", "Epochs là số nguyên 1–500.")
@@ -180,7 +209,7 @@ def _make_model(jid):
     c = store.connect()
     try:
         r = c.execute("SELECT * FROM train_jobs WHERE id=?", (jid,)).fetchone()
-        outs = [{"key": n, "role": "action"} for n in json.loads(r["classes"])]
+        outs = [{"key": n, "role": "empty" if (r["kind"] == "audio" and n == NOISE) else "action"} for n in json.loads(r["classes"])]
         cur = c.execute("INSERT INTO models(owner_id,name,description,kind,url,outputs,visibility,created) VALUES(?,?,?,?,?,?, 'private',?)",
                         (r["owner_id"], r["name"], r["description"], r["kind"], r["url"], json.dumps(outs, ensure_ascii=False), time.time()))
         c.commit()
@@ -193,6 +222,8 @@ def _run_one(jid):
     base = _dir(jid)
     if not os.path.exists(os.path.join(base, "job.json")):
         return _finish(jid, "failed", "trainer_failed")
+    with open(os.path.join(base, "job.json"), encoding="utf-8") as f:
+        kind = json.load(f)["kind"]
     cmd = [*RUNNER, base]
     try:
         proc = subprocess.Popen(cmd, cwd=HERE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -201,7 +232,7 @@ def _run_one(jid):
     with _lock:
         _running.update(id=jid, proc=proc)
     try:
-        proc.wait(timeout=JOB_TIMEOUT_S)
+        proc.wait(timeout=AUDIO_TIMEOUT_S if kind == "audio" else JOB_TIMEOUT_S)
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait()

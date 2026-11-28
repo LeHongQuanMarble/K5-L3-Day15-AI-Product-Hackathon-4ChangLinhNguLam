@@ -425,3 +425,4 @@ code,kbd{font-family:var(--jl-font-mono);font-size:var(--jl-font-size-sm)}
 .ail-tr-video{width:100%;max-height:220px;border-radius:8px;background:#0f172a;transform:scaleX(-1)}
 .ail-tr-cam{display:grid;gap:8px}
 .ail-tr-adv summary{cursor:pointer;font-weight:500}
+.ail-tr-clip{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:6px;background:var(--jl-au-soft);color:var(--jl-brand-600);font-size:14px}

@@ -46,8 +46,27 @@ class TestTrain(unittest.TestCase):
             train_jobs.submit(self.c, self.u, b)
         self.assertEqual(cm.exception.code, field)
 
+    def test_audio_validation_and_success(self):
+        import wave
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as w:
+            w.setnchannels(1); w.setsampwidth(2); w.setframerate(8000); w.writeframes(b"\x00\x01" * 8000)
+        wav = "data:audio/wav;base64," + base64.b64encode(buf.getvalue()).decode()
+        ok = {"kind": "audio", "name": "Vỗ tay", "classes": [{"name": "Background Noise", "sounds": [wav] * 20}, {"name": "Vo tay", "sounds": [wav] * 8}]}
+        self.bad({**ok, "classes": [{"name": "Tit", "sounds": [wav] * 8}, {"name": "Vo tay", "sounds": [wav] * 8}]}, "classes")  # thiếu tiếng nền
+        self.bad({**ok, "classes": [ok["classes"][0], {"name": "Vo tay", "sounds": [wav] * 3}]}, "sounds")
+        self.bad({**ok, "classes": [{"name": "Background Noise", "sounds": [wav] * 5}, ok["classes"][1]]}, "sounds")
+        self.bad({**ok, "classes": [ok["classes"][0], {"name": "Vo tay", "sounds": ["data:audio/wav;base64," + base64.b64encode(b"junk").decode()] * 8}]}, "sounds")
+        train_jobs.RUNNER = FAKE_OK
+        jid = train_jobs.submit(self.c, self.u, ok)
+        train_jobs._run_one(jid)
+        j = train_jobs.get(self.c, self.u, jid)
+        self.assertEqual(j["status"], "done")
+        outs = __import__("json").loads(self.c.execute("SELECT outputs FROM models WHERE id=?", (j["model_id"],)).fetchone()[0])
+        self.assertEqual(outs, [{"key": "Background Noise", "role": "empty"}, {"key": "Vo tay", "role": "action"}])
+
     def test_validation(self):
-        self.bad(body(kind="audio"), "kind")
+        self.bad(body(kind="video"), "kind")
         self.bad(body(classes=[{"name": "A", "images": [URI] * 10}]), "classes")
         self.bad(body(classes=[{"name": "A", "images": [URI] * 10}, {"name": "a", "images": [URI] * 10}]), "classes")
         self.bad(body(classes=[{"name": "A", "images": [URI] * 10}, {"name": "B", "images": [URI] * 3}]), "images")

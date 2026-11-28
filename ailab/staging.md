@@ -182,13 +182,13 @@ Trình duyệt chỉ cho bật camera trên **HTTPS hoặc localhost**. Với m�
 | Xoá mô hình / trình chơi báo “đang được dùng” | Xoá hoặc đổi ứng dụng đang dùng nó trước. |
 
 
-## Train mô hình qua Teachable Machine (Hình ảnh · Tư thế)
+## Train mô hình qua Teachable Machine (Hình ảnh · Tư thế · Âm thanh)
 
 Trang **Mô hình tương tác → Train mô hình hình ảnh / tư thế** (`#/models/train/image`): người dùng chia lớp và tải ảnh (hoặc chụp webcam) ngay trên AI Lab. Bấm **Train** thì máy chủ nhờ **trang train của Teachable Machine** huấn luyện giúp (Chrome không giao diện điều khiển, tái sử dụng `learning/train-worker`), xong tự tạo mô hình riêng tư cho người gửi; vào sửa để gán vai trò từng lớp.
 
 - Cần cài thêm, chỉ khi dùng tính năng này: `python3 -m pip install -r ailab/train_worker/requirements.txt` (Playwright; dùng Chrome có sẵn, đặt `AILAB_CHROME` nếu không ở đường dẫn mặc định, **không** cần `playwright install`). Phần còn lại của dự án vẫn chỉ dùng thư viện chuẩn.
 - Máy chủ cần ra được internet (tới `teachablemachine.withgoogle.com`). Mỗi lần chạy một việc; mỗi người một việc đang chờ/chạy.
-- Giới hạn: 2–8 lớp, 10–300 ảnh mỗi lớp (trình duyệt tự thu nhỏ), epochs 1–500. Ảnh chỉ lưu tạm ở `ailab/data/train/<id>/` và xoá ngay khi xong.
+- Giới hạn: 2–8 lớp, 10–300 ảnh mỗi lớp (trình duyệt tự thu nhỏ), epochs 1–500. Âm thanh: lớp **Background Noise** (≥20 mẩu) + các lớp khác (≥8 mẩu), mỗi mẩu 1 giây (tải file hoặc thu âm, trình duyệt tự cắt); Teachable Machine thu theo thời gian thực nên mất 2–5 phút, tối đa 16 phút. Mô hình âm thanh chỉ lưu, trình chơi chưa chạy được âm thanh. Ảnh chỉ lưu tạm ở `ailab/data/train/<id>/` và xoá ngay khi xong.
 - Chưa có Teachable Machine / Playwright thì việc báo lỗi rõ ràng ("chưa cài bộ train"), phần còn lại của AI Lab không ảnh hưởng.
 - API: `POST /api/train` (kind, name, classes[{name, images[dataURI]}], settings) · `GET /api/train` · `GET /api/train/<id>` · `POST /api/train/<id>/cancel`.
 - **Lưu ý spec:** `spec.md` §4 ghi "Không huấn luyện mô hình AI tương tác từ đầu" cho lát cắt AI Composer. Tính năng này là của AI Lab (không nằm trong luồng Agent/Catalog đã khoá).
