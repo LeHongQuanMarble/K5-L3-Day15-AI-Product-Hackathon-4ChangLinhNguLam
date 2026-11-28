@@ -105,7 +105,7 @@ def find_forbidden_calls(html: str) -> list[str]:
 
 def inject_bank(html: str, bank: dict) -> str:
     """Thay nội dung thẻ #question-bank bằng JSON bank (escape '</'); chưa có thẻ thì chèn đầu <head>."""
-    payload = json.dumps(bank, ensure_ascii=False).replace("</", "<\/")
+    payload = json.dumps(bank, ensure_ascii=False).replace("</", "<" + chr(92) + "/")
     tag = f'<script type="application/json" id="{QUESTION_BANK_ID}">{payload}</script>'
     if _BANK_RE.search(html):
         return _BANK_RE.sub(lambda _m: tag, html, count=1)
