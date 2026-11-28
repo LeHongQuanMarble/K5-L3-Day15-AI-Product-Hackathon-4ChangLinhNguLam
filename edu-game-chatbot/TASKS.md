@@ -18,7 +18,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 
 ## Giai đoạn 0 — Nền móng
 
-### [ ] T01. Khởi tạo dự án
+### [x] T01. Khởi tạo dự án
 - **Đọc:** ARCHITECTURE §1–2
 - **Hiện trạng:** **khung code đã có sẵn.** Mọi file, hàm, tham số, kiểu trả về và docstring đã được khai báo. Thân hàm là `raise NotImplementedError`. Các file test đã có tên test case và đang bị `skip`.
 - **Làm:**
