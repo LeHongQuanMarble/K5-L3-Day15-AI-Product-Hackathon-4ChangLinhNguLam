@@ -182,6 +182,15 @@ class H(BaseHTTPRequestHandler):
                 return self._login_reply(c, d)
             if (method, p) == ("POST", "login"):
                 return self._login_reply(c, self._body())
+            if (method, p) == ("GET", "demo"):
+                if os.environ.get("AILAB_DEMO") != "1":
+                    raise Err(404, "not_found", "Không có.")
+                return self._json(200, {"enabled": True, "accounts": store.DEMO_ACCOUNTS})
+            if (method, p) == ("POST", "demo/login"):
+                if os.environ.get("AILAB_DEMO") != "1":
+                    raise Err(404, "not_found", "Không có.")
+                token = store.demo_login(c, self._body().get("role"))
+                return self._json(200, {"user": store.user_of(c, token)}, {"Set-Cookie": self._cookie(token, 7 * 86400)})
             if (method, p) == ("POST", "logout"):
                 if self._token():
                     c.execute("DELETE FROM sessions WHERE token=?", (self._token(),))

@@ -719,6 +719,23 @@ export function loginView(ctx) {
   var appRoot = document.getElementById('app');
   appRoot.className = '';
   var card = h('div', { class: 'login' });
+  var demo = null; /* chỉ có khi server chạy với AILAB_DEMO=1 (chế độ DEMO, không phải sản phẩm) */
+  function demoBox() {
+    var msg = h('div');
+    function go(role, label) {
+      return h('button', { type: 'button', class: 'ail-btn', onclick: function (e) {
+        var b = e.currentTarget; b.disabled = true; msg.replaceChildren();
+        api('POST', '/api/demo/login', { role: role })
+          .then(function (d) { ctx.onLogin(d.user); })
+          .catch(function (x) { b.disabled = false; msg.replaceChildren(errBox(x)); });
+      } }, label);
+    }
+    return h('div', { class: 'ail-demo', style: 'margin-top:14px;padding:12px;border:1px dashed var(--jl-bd,#c9c9d6);border-radius:10px;display:grid;gap:8px' },
+      h('div', { class: 'meta', style: 'text-align:center' }, 'CHẾ ĐỘ DEMO · chỉ để trình diễn'),
+      h('div', { class: 'ail-row', style: 'justify-content:center;gap:8px;flex-wrap:wrap' },
+        go('admin', 'Admin demo'), go('user', 'User demo')),
+      msg);
+  }
   function draw() {
     var msg = h('div');
     var u = h('input', { type: 'text', autocomplete: 'username', required: true });
@@ -757,8 +774,10 @@ export function loginView(ctx) {
       h('label', { class: 'l' }, 'Mật khẩu', mode === 'register' ? h('small', null, 'Ít nhất 8 ký tự') : null, p),
       msg, submit);
     card.replaceChildren(f);
+    if (demo) card.appendChild(demoBox());
     u.focus();
   }
   draw();
+  api('GET', '/api/demo').then(function (d) { if (d && d.enabled) { demo = d; draw(); } }).catch(function () {});
   appRoot.replaceChildren(h('div', { class: 'ail-login-wrap' }, card));
 }

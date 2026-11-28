@@ -26,11 +26,39 @@ SEED_IMAGES = {
     "apps": {"Tết 2027 bằng tay": "tet.jpg"},
 }
 SEED_EXAMS_FILE = os.path.join(HERE, "seed_exams.json")
+# Bản cũ gắn ảnh chụp game vào bộ đề (không hợp): DB cũ còn đúng ảnh đó thì đổi sang bìa theo môn, người dùng đã tự đổi ảnh thì giữ.
+LEGACY_EXAM_IMAGES = {"Toán 12: Đạo hàm và khảo sát hàm số": "penalty.jpg", "Toán 12: Nguyên hàm và tích phân": "badminton.jpg",
+                      "Tiếng Anh 12: Ngữ pháp (Grammar)": "rescue.jpg", "Tiếng Anh 12: Từ vựng và giao tiếp": "voiceflap.jpg",
+                      "Tin học 12: Cơ sở dữ liệu và SQL": "tet.jpg", "Tin học 12: Mạng máy tính và Internet": "quiz.jpg"}
+SEED_PLAYERS_DIR = os.path.join(HERE, "seed_players")  # game đã build sẵn (một file HTML mỗi game)
 
 
 def _data_uri(fn):
     with open(os.path.join(SEED_DIR, fn), "rb") as f:
         return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+
+
+def seed_players(c):
+    """source='showcase': hiện trong Kho mẫu game để trình diễn, KHÔNG nằm trong Catalog của AI (composer.catalog_snapshot lọc ra),
+    vì Catalog AI đã khoá ở 2 trình chơi mẫu cho bộ câu thử.
+    Nạp các game mẫu đã build (ailab/seed_players/*.html) thành trình chơi có sẵn: chủ sở hữu trống, đã duyệt, công khai.
+    Trùng tên với trình chơi mẫu đã có thì bỏ qua, nên chạy lại không nhân đôi và không ghi đè bản Admin đã sửa."""
+    if not os.path.isdir(SEED_PLAYERS_DIR):
+        return
+    for fn in sorted(os.listdir(SEED_PLAYERS_DIR)):
+        if not fn.endswith(".html"):
+            continue
+        with open(os.path.join(SEED_PLAYERS_DIR, fn), encoding="utf-8") as f:
+            html = f.read()
+        m, err = contract.parse(html)
+        if not m:
+            continue
+        if c.execute("SELECT 1 FROM players WHERE owner_id IS NULL AND name=?", (m["name"],)).fetchone():
+            continue
+        now = time.time()
+        c.execute("INSERT INTO players(owner_id,name,description,html,manifest,status,source,visibility,created,updated) "
+                  "VALUES(NULL,?,?,?,?, 'approved','showcase','public',?,?)",
+                  (m["name"], m["description"], html, json.dumps(m), now, now))
 
 
 def seed_exams(c):
@@ -41,7 +69,12 @@ def seed_exams(c):
         items = json.load(f)
     now = time.time()
     for e in items:
-        if c.execute("SELECT 1 FROM exams WHERE owner_id=0 AND name=?", (e["name"],)).fetchone():
+        have = c.execute("SELECT id, image FROM exams WHERE owner_id=0 AND name=?", (e["name"],)).fetchone()
+        if have:
+            old = LEGACY_EXAM_IMAGES.get(e["name"])
+            new_fn = e.get("image")
+            if old and new_fn and have["image"] == _data_uri(old) and os.path.exists(os.path.join(SEED_DIR, new_fn)):
+                c.execute("UPDATE exams SET image=? WHERE id=?", (_data_uri(new_fn), have["id"]))
             continue
         parse_questions(e["content"])  # sai mẫu thì báo lỗi ngay khi khởi động, không lưu bộ đề hỏng
         img = _data_uri(e["image"]) if e.get("image") and os.path.exists(os.path.join(SEED_DIR, e["image"])) else ""
@@ -128,6 +161,7 @@ def init(admin_password=None):
         c.execute("INSERT INTO models(owner_id,name,description,kind,url,outputs,visibility,created) VALUES(0,?,?,?,?,?, 'public',?)",
                   ("Bàn tay (MediaPipe)", "Nhận diện bàn tay: nắm tay, xòe tay và vị trí tay. Không cần huấn luyện.", "hands", HANDS_URL,
                    json.dumps([{"key": "fist", "role": "action"}, {"key": "open", "role": "action"}, {"key": "none", "role": "empty"}]), time.time()))
+    seed_players(c)
     seed_exams(c)
     seed_images(c)
     c.commit()
@@ -170,6 +204,25 @@ def login(c, username, password):
     c.execute("INSERT INTO sessions VALUES(?,?,?)", (token, u["id"], time.time() + 7 * 86400))
     c.commit()
     return token, u["id"]
+
+
+DEMO_ACCOUNTS = {"admin": "demo_admin", "user": "demo_user"}
+
+
+def demo_login(c, role):
+    """CHỈ cho chế độ DEMO (server bật bằng AILAB_DEMO=1): tạo sẵn tài khoản demo nếu chưa có rồi mở phiên.
+    Mật khẩu là chuỗi ngẫu nhiên không ai biết, nên tài khoản này không đăng nhập được bằng form thường."""
+    if role not in DEMO_ACCOUNTS:
+        raise Err(400, "role", "Vai trò demo: admin hoặc user.")
+    name = DEMO_ACCOUNTS[role]
+    u = c.execute("SELECT id FROM users WHERE username=?", (name,)).fetchone()
+    if not u:
+        c.execute("INSERT INTO users(username,pw,role,created) VALUES(?,?,?,?)", (name, hash_pw(secrets.token_urlsafe(24)), role, time.time()))
+        u = c.execute("SELECT id FROM users WHERE username=?", (name,)).fetchone()
+    token = secrets.token_urlsafe(32)
+    c.execute("INSERT INTO sessions VALUES(?,?,?)", (token, u["id"], time.time() + 7 * 86400))
+    c.commit()
+    return token
 
 
 def user_of(c, token):

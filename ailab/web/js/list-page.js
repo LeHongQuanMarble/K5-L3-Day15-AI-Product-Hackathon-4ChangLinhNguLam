@@ -92,7 +92,7 @@ export function itemCard(o) {
     role: 'option', tabindex: '0', 'aria-selected': o.selected ? 'true' : 'false',
     onclick: o.onSelect, ondblclick: o.onOpen,
     onkeydown: function (e) { if (e.target === el && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); (e.key === 'Enter' && o.onOpen ? o.onOpen : o.onSelect)(); } } },
-    h('div', { class: 'ail-thumb' }, o.image ? h('img', { class: 'ail-thumb-img', src: o.image, alt: '' }) : ico(o.icon || 'image'), o.pill ? h('span', { class: 'ail-pill' }, o.pill) : null),
+    h('div', { class: 'ail-thumb' + (o.image ? ' has-img' : '') }, o.image ? h('img', { class: 'ail-thumb-img', src: o.image, alt: '' }) : ico(o.icon || 'image'), o.pill ? h('span', { class: 'ail-pill' }, o.pill) : null),
     h('div', { class: 'ail-card-in' },
       h('div', { class: 'jlps-card-title' }, o.title), o.meta ? h('div', { class: 'jlps-card-sub' }, o.meta) : null,
       h('div', { class: 'ail-tags' }, o.tags || []),

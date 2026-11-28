@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chim Bay Nói</title>
+<script type="application/json" id="jl-camera">
+{"name":"Chim Bay Nói","description":"Đọc to đáp án để chim bay qua cổng. Câu hỏi 2 đến 6 đáp án, trả lời bằng giọng nói.","inputs":[{"key":"voice","label":"Tiếng nói (không bắt buộc)","required":false}],"kinds":["audio"],"questions":"exam","questionTypes":["single","truefalse"]}
+</script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#12304f;font-family:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;user-select:none}
+#scene{position:fixed;left:50%;top:50%;width:1280px;height:720px;transform-origin:50% 50%;overflow:hidden;background:linear-gradient(#5ec3f2,#bfe9fb 70%,#e8f8ff)}
+#scene>*{position:absolute}
+.sky{inset:0;overflow:hidden}
+.cloud{position:absolute;display:block;width:180px;height:54px;border-radius:60px;background:#fff;opacity:.92;box-shadow:60px -26px 0 -6px #fff,-50px 4px 0 -12px #fff;animation:drift 38s linear infinite}
+.c1{top:170px;left:1300px}.c2{top:300px;left:1300px;animation-duration:55s;animation-delay:-20s;transform:scale(.7)}.c3{top:520px;left:1300px;animation-duration:70s;animation-delay:-45s;transform:scale(.5)}
+@keyframes drift{to{left:-300px}}
+.hills{position:absolute;left:0;right:0;bottom:60px;height:200px;background:
+ radial-gradient(ellipse 360px 160px at 180px 200px,#7ccf7a 98%,transparent),radial-gradient(ellipse 420px 190px at 640px 210px,#69c06a 98%,transparent),radial-gradient(ellipse 340px 150px at 1080px 200px,#7ccf7a 98%,transparent)}
+.ground{left:0;right:0;bottom:0;height:62px;background:linear-gradient(#8bd24a 0 14px,#d9b36a 14px);border-top:4px solid #5aa02c;z-index:1}
+.hud{left:24px;right:24px;top:10px;height:40px;display:flex;justify-content:space-between;align-items:center;z-index:5;font-weight:800;font-size:24px;color:#0d3b66}
+.hearts i{font-style:normal;color:#ef476f;font-size:34px;margin-right:4px;text-shadow:0 2px 0 #fff}.hearts i.lost{color:#b8c7d3}
+.prog{background:rgba(255,255,255,.8);padding:2px 16px;border-radius:20px}
+.qcard{left:24px;right:24px;top:54px;min-height:70px;max-height:78px;box-sizing:border-box;padding:6px 22px;background:#fff;border:4px solid #0d3b66;border-radius:20px;z-index:5;font-size:var(--qs,30px);font-weight:700;line-height:1.25;color:#0d3b66;overflow:hidden;display:flex;align-items:center;gap:14px}
+.qtag{flex:none;background:#ffd166;border-radius:12px;padding:2px 12px;font-size:18px;font-weight:800}
+.qbody{flex:1;overflow:hidden}.qbody p{margin:0}.qbody img{max-height:56px;vertical-align:middle;border-radius:6px;margin-left:10px}
+.fuse{left:24px;right:24px;top:134px;height:8px;border-radius:4px;background:rgba(13,59,102,.25);z-index:5}.fuse i{display:block;height:100%;border-radius:4px;background:#06d6a0;width:100%}.fuse i.low{background:#ef476f}
+.gate{left:0;top:0;width:430px;height:510px;z-index:3}
+.gate .cell{box-sizing:border-box;margin-bottom:8px;display:flex;align-items:center;gap:16px;padding:0 20px;background:linear-gradient(#a8643a,#8a4b27);border:5px solid #5d3317;border-radius:18px;color:#fff8e7;font-weight:800;line-height:1.2;cursor:default;overflow:hidden;box-shadow:inset 0 0 0 3px #c98a58,0 6px 0 rgba(0,0,0,.18);transition:background .15s,transform .15s}
+.gate .cell:last-child{margin-bottom:0}
+.gate .cell b{flex:none;display:grid;place-items:center;width:54px;height:54px;border-radius:50%;background:#ffd166;color:#4a2a10;font-size:30px;box-shadow:0 3px 0 #c9971f}
+.gate .cell span{flex:1;overflow:hidden}.gate .cell span p{margin:0}
+.gate .cell.hot{background:linear-gradient(#ffd166,#f4a259);color:#3a2208;transform:scale(1.03);border-color:#fff}
+.gate .cell.good{background:linear-gradient(#52d681,#2ea85a);border-color:#fff;box-shadow:0 0 36px #52d681}
+.gate .cell.bad{background:linear-gradient(#ef476f,#b3123a);animation:shake .3s 2}
+.gate .cell.answer{background:linear-gradient(#52d681,#2ea85a);border-color:#fff;animation:pulse .6s infinite alternate}
+@keyframes shake{25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}@keyframes pulse{to{transform:scale(1.03)}}
+.bird{left:0;top:0;width:120px;height:96px;z-index:4;pointer-events:none;will-change:transform}
+.bird .wing{transform-origin:46px 52px;animation:flap .5s ease-in-out infinite alternate}.bird.fast .wing{animation-duration:.16s}
+@keyframes flap{from{transform:rotate(-14deg)}to{transform:rotate(26deg)}}
+.verdict{left:770px;right:24px;top:270px;text-align:center;z-index:6;font-size:58px;line-height:1.15;font-weight:900;opacity:0;pointer-events:none;-webkit-text-stroke:2px #fff;paint-order:stroke fill}
+.verdict small{display:block;font-size:26px;-webkit-text-stroke:0;color:#0d3b66;background:rgba(255,255,255,.92);max-width:460px;margin:10px auto 0;padding:4px 18px;border-radius:14px}
+.verdict.on{opacity:1;animation:pop .35s}.verdict.ok{color:#1a9e5c}.verdict.no{color:#d6284f}
+@keyframes pop{from{transform:scale(.4)}to{transform:scale(1)}}
+.mic{left:24px;right:90px;bottom:10px;height:44px;z-index:5;display:flex;align-items:center;gap:12px;padding:0 18px;border-radius:24px;background:rgba(255,255,255,.9);color:#0d3b66;font-size:22px;font-weight:700;box-sizing:border-box}
+.micdot{width:16px;height:16px;border-radius:50%;background:#9aa9b5;flex:none}.mic.on .micdot{background:#ef476f;animation:rec 1s infinite alternate}.mic.off{background:#fff0b3}.mic.off .micdot{background:#d6284f}
+@keyframes rec{to{opacity:.3;transform:scale(.7)}}
+.mictext{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.mute{right:24px;bottom:10px;width:56px;height:44px;border-radius:22px;border:0;background:#fff;font-size:24px;cursor:pointer;z-index:6}
+.spark{position:absolute;width:14px;height:14px;margin:-7px;border-radius:3px;background:#ffd166;z-index:7;animation:fly 1s ease-out forwards}.spark:nth-child(3n){background:#ef476f}.spark:nth-child(3n+1){background:#06d6a0}
+@keyframes fly{to{transform:translate(var(--dx),var(--dy)) rotate(360deg);opacity:0}}
+.overlay{inset:0;z-index:20;display:none;place-items:center;background:rgba(13,59,102,.55)}.overlay.on{display:grid}
+.card{width:760px;box-sizing:border-box;padding:28px 40px;border-radius:28px;background:#fff;text-align:center;color:#0d3b66;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.card h1{margin:0 0 8px;font-size:56px;line-height:1.2;letter-spacing:0}.card p{margin:8px 0;font-size:26px;line-height:1.4}.card .hint{font-size:20px;color:#4d6a85}.card .big{font-size:40px;font-weight:900}
+.logo{height:96px}.stars{font-size:70px;color:#ffb703;line-height:1.1}.stars s{text-decoration:none;color:#cfd8de}
+.go{margin-top:14px;font:900 32px "Be Vietnam Pro","Segoe UI",system-ui,sans-serif;padding:14px 48px;border:0;border-radius:36px;background:#06d6a0;color:#06382b;cursor:pointer;box-shadow:0 6px 0 #049b74}.go:hover{background:#2be0b4}.go:active{transform:translateY(4px);box-shadow:0 2px 0 #049b74}
+.go:focus-visible,.mute:focus-visible,.settings button:focus-visible{outline:4px solid #ffd166;outline-offset:3px}
+.settings{right:24px;top:150px;width:330px;z-index:15;display:none;padding:12px 16px;border-radius:16px;background:rgba(255,255,255,.95);color:#0d3b66;font-size:16px}.settings.on{display:block}
+.settings h3{margin:0 0 6px;font-size:18px}.settings .row{margin:6px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.settings label{width:100%;font-weight:700}
+.settings button{font-weight:700;font-size:15px;font-family:inherit;padding:5px 12px;border-radius:14px;border:2px solid #0d3b66;background:#fff;color:#0d3b66;cursor:pointer}.settings button.sel{background:#0d3b66;color:#fff}
+@media (prefers-reduced-motion:reduce){.cloud,.bird .wing,.gate .cell.answer,.mic.on .micdot{animation:none}}
+</style>
+</head>
+<body>
+<div id="scene"></div>
+<script>
+(() => {
+  // src/bridge.js
+  var TF = [{ key: "T", html: "\u0110\xFAng", text: "\u0110\xFAng" }, { key: "F", html: "Sai", text: "Sai" }];
+  function playable(questions2) {
+    const out = [];
+    for (const q of Array.isArray(questions2) ? questions2 : []) {
+      if (!q || q.type !== "single" && q.type !== "truefalse") continue;
+      const choices = Array.isArray(q.choices) && q.choices.length ? q.choices : q.type === "truefalse" ? TF : [];
+      if (choices.length < 2 || choices.length > 6) continue;
+      if (!choices.some((c) => c.key === q.answer)) continue;
+      out.push({
+        id: q.id,
+        type: q.type,
+        html: q.html || "",
+        figure: q.figure || "",
+        answer: q.answer,
+        choices: choices.map((c) => ({ key: c.key, html: c.html || c.text || c.key, text: c.text || "" }))
+      });
+    }
+    return out;
+  }
+  function connect(win, hooks) {
+    let finished = false;
+    win.addEventListener("message", (e) => {
+      const d = e && e.data;
+      if (!d || typeof d !== "object" || e.source !== win.parent) return;
+      if (d.type === "camera.init") {
+        finished = false;
+        const raw = Array.isArray(d.questions) ? d.questions : Array.isArray(d.content) ? d.content : [];
+        hooks.onInit({ locale: d.locale === "en" ? "en" : "vi", mode: d.mode === "setup" ? "setup" : "play", options: d.options, questions: playable(raw), skipped: raw.length - playable(raw).length });
+      } else if (d.type === "camera.speech") {
+        hooks.onSpeech({ text: typeof d.text === "string" ? d.text : "", final: d.final !== false, available: d.available !== false, error: typeof d.error === "string" ? d.error : "" });
+      }
+    });
+    win.parent.postMessage({ type: "ready" }, "*");
+    return {
+      /** Asks the page to listen and turn speech into text (it answers with camera.speech). */
+      listen(on, lang) {
+        win.parent.postMessage(on ? { type: "speech", on: true, lang } : { type: "speech", on: false }, "*");
+      },
+      saveOptions(options2) {
+        win.parent.postMessage({ type: "options.change", options: options2 }, "*");
+      },
+      finish(summary2) {
+        if (finished) return;
+        finished = true;
+        win.parent.postMessage({ type: "finish", correct: summary2.correct, total: summary2.total }, "*");
+      },
+      again() {
+        finished = false;
+      }
+    };
+  }
+
+  // src/sim.js
+  var DEFAULTS = { seconds: 14, lives: 3, lang: "auto" };
+  var RESOLVE = { ok: 1.9, bad: 3.1 };
+  var LANGS = ["auto", "vi-VN", "en-US"];
+  var clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+  function readOptions(o) {
+    const x = o && typeof o === "object" ? o : {};
+    const num = (v, d, lo, hi) => typeof v === "number" && Number.isFinite(v) ? clamp(Math.round(v), lo, hi) : d;
+    return { seconds: num(x.seconds, DEFAULTS.seconds, 6, 40), lives: num(x.lives, DEFAULTS.lives, 1, 5), lang: LANGS.includes(x.lang) ? x.lang : DEFAULTS.lang };
+  }
+  function createGame(questions2, options2) {
+    const opts = readOptions(options2);
+    return { qs: questions2, opts, i: 0, phase: "ready", t: 0, lives: opts.lives, correct: 0, chosen: null, ok: false, reason: "", results: [], won: false };
+  }
+  function current(g2) {
+    return g2.qs[g2.i] || null;
+  }
+  function approach(g2) {
+    return g2.phase === "ask" ? clamp(1 - g2.t / g2.opts.seconds, 0, 1) : 0;
+  }
+  function start(g2) {
+    if (!g2.qs.length) {
+      g2.phase = "over";
+      return;
+    }
+    g2.phase = "ask";
+    g2.t = 0;
+    g2.chosen = null;
+    g2.ok = false;
+    g2.reason = "";
+  }
+  function resolve(g2, chosen, reason) {
+    const q = current(g2);
+    g2.p0 = clamp(1 - g2.t / g2.opts.seconds, 0, 1);
+    g2.chosen = chosen;
+    g2.reason = reason;
+    g2.ok = chosen !== null && chosen === q.answer;
+    g2.phase = "resolve";
+    g2.t = 0;
+    if (g2.ok) g2.correct++;
+    else g2.lives--;
+    g2.results.push({ id: q.id, chosen, ok: g2.ok });
+  }
+  function choose(g2, key) {
+    const q = current(g2);
+    if (g2.phase !== "ask" || !q || !q.choices.some((c) => c.key === key)) return false;
+    resolve(g2, key, "answer");
+    return true;
+  }
+  function step(g2, dt) {
+    if (g2.phase === "ask") {
+      g2.t += dt;
+      if (g2.t >= g2.opts.seconds) resolve(g2, null, "timeout");
+    } else if (g2.phase === "resolve") {
+      g2.t += dt;
+      if (g2.t >= (g2.ok ? RESOLVE.ok : RESOLVE.bad)) {
+        g2.i++;
+        if (g2.lives <= 0 || g2.i >= g2.qs.length) {
+          g2.phase = "over";
+          g2.won = g2.lives > 0;
+        } else start(g2);
+      }
+    }
+  }
+  function summary(g2) {
+    return { correct: g2.correct, total: g2.qs.length };
+  }
+
+  // src/match.js
+  var NUM = { khong: "0", mot: "1", hai: "2", ba: "3", bon: "4", tu: "4", nam: "5", sau: "6", bay: "7", tam: "8", chin: "9", muoi: "10" };
+  var LETTER = { A: ["a"], B: ["b", "be", "bi"], C: ["c", "ce", "xe", "si", "xi"], D: ["d", "de", "di"], E: ["e"], F: ["f", "ef"] };
+  function fold(s) {
+    return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  }
+  function words(s) {
+    const f = fold(s);
+    return f ? f.split(" ").map((w) => NUM[w] || w) : [];
+  }
+  function plain(html) {
+    return String(html || "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  }
+  function distance(a, b) {
+    const prev2 = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      let diag = prev2[0];
+      prev2[0] = i;
+      for (let j = 1; j <= b.length; j++) {
+        const up = prev2[j];
+        prev2[j] = Math.min(up + 1, prev2[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
+        diag = up;
+      }
+    }
+    return prev2[b.length];
+  }
+  function near(a, b) {
+    return a === b || distance(a, b) <= Math.floor(b.length / 5);
+  }
+  function textScore(heard, c) {
+    const n = c.length;
+    if (!n) return 0;
+    const cj = c.join(" ");
+    let best = 0;
+    for (let size = Math.max(1, n - 1); size <= n + 1; size++) {
+      for (let i = 0; i + size <= heard.length; i++) {
+        const w = heard.slice(i, i + size).join(" ");
+        if (w === cj) best = Math.max(best, 4 + n);
+        else if (near(w, cj)) best = Math.max(best, 3 + n);
+      }
+    }
+    if (best === 0 && n >= 4) {
+      const have = c.filter((w) => heard.some((h) => near(h, w))).length;
+      if (have / n >= 0.7) best = 2 + have / n;
+    }
+    return best;
+  }
+  function pickChoice(said, choices, type = "single") {
+    const heard = words(said).slice(-14);
+    if (!heard.length) return null;
+    const scored = choices.map((c) => {
+      const cw = words(c.text != null ? c.text : plain(c.html));
+      let s = textScore(heard, cw);
+      if (type === "single" && heard.length <= 5 && (LETTER[c.key] || []).some((l) => heard.includes(l))) s = Math.max(s, 2.5);
+      return { key: c.key, score: s, cw };
+    }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
+    if (!scored.length) return null;
+    const said2 = scored.filter((x) => x.score >= 4);
+    const inside = (a, b) => a !== b && b.cw.length > a.cw.length && b.cw.join(" ").includes(a.cw.join(" "));
+    const firm = said2.filter((x) => !said2.some((y) => inside(x, y)));
+    if (firm.length > 1) return null;
+    if (scored.length > 1 && scored[1].score === scored[0].score) return null;
+    return { key: scored[0].key, score: scored[0].score };
+  }
+
+  // src/render.js
+  var W = 1280;
+  var FAR = 810;
+  var BX = 250;
+  var MID = 395;
+  var GATE_TOP = 140;
+  var GATE_H = 510;
+  var HIT_X = 300;
+  var STR = {
+    vi: {
+      title: "Chim Bay N\xF3i",
+      how: "\u0110\u1ECDc to \u0111\xE1p \xE1n \u0111\xFAng \u0111\u1EC3 chim bay qua c\u1ED5ng. \u0110\u1ECDc sai th\xEC chim \u0111\u1EE5ng c\u1ED5ng!",
+      start: "B\u1EAFt \u0111\u1EA7u",
+      again: "Ch\u01A1i l\u1EA1i",
+      q: "C\xE2u",
+      listening: "\u0110ang nghe\u2026 h\xE3y \u0111\u1ECDc to \u0111\xE1p \xE1n",
+      heard: "Nghe \u0111\u01B0\u1EE3c",
+      micOff: "Micro kh\xF4ng d\xF9ng \u0111\u01B0\u1EE3c: b\u1EA5m v\xE0o \u0111\xE1p \xE1n \u0111\u1EC3 tr\u1EA3 l\u1EDDi",
+      noq: "Ch\u01B0a c\xF3 c\xE2u h\u1ECFi \u0111\u1EC3 ch\u01A1i.",
+      right: "\u0110\xFAng r\u1ED3i!",
+      wrong: "Sai r\u1ED3i",
+      timeout: "H\u1EBFt gi\u1EDD",
+      answerWas: "\u0110\xE1p \xE1n \u0111\xFAng",
+      win: "Gi\u1ECFi l\u1EAFm!",
+      lose: "H\u1EBFt tim r\u1ED3i!",
+      score: "\u0110\xFAng",
+      sound: "\xC2m thanh",
+      time: "Th\u1EDDi gian m\u1ED7i c\xE2u",
+      lives: "S\u1ED1 tim",
+      lang: "Gi\u1ECDng n\xF3i",
+      auto: "Theo l\u1EDBp",
+      slow: "Ch\u1EADm",
+      mid: "V\u1EEBa",
+      fast: "Nhanh",
+      settings: "C\xE0i \u0111\u1EB7t",
+      skipped: "c\xE2u b\u1ECB b\u1ECF qua (ch\u01B0a ch\u01A1i \u0111\u01B0\u1EE3c)",
+      hint: "M\u1EB9o: c\xF3 th\u1EC3 \u0111\u1ECDc c\u1EA3 \u0111\xE1p \xE1n, ho\u1EB7c ch\u1EC9 \u0111\u1ECDc ch\u1EEF c\xE1i A, B, C, D."
+    },
+    en: {
+      title: "Speak & Flap",
+      how: "Say the right answer out loud and the bird flies through the gate. Say a wrong one and it bumps!",
+      start: "Start",
+      again: "Play again",
+      q: "Q",
+      listening: "Listening\u2026 say your answer out loud",
+      heard: "Heard",
+      micOff: "No microphone: tap an answer instead",
+      noq: "There are no questions to play yet.",
+      right: "Correct!",
+      wrong: "Not quite",
+      timeout: "Time's up",
+      answerWas: "Right answer",
+      win: "Well done!",
+      lose: "Out of hearts!",
+      score: "Correct",
+      sound: "Sound",
+      time: "Time per question",
+      lives: "Hearts",
+      lang: "Speech language",
+      auto: "Match the class",
+      slow: "Slow",
+      mid: "Medium",
+      fast: "Fast",
+      settings: "Settings",
+      skipped: "questions skipped (not playable here)",
+      hint: "Tip: say the whole answer, or just its letter: A, B, C, D."
+    }
+  };
+  var BIRD = `<svg viewBox="0 0 120 96" width="120" height="96" aria-hidden="true">
+<ellipse cx="58" cy="52" rx="40" ry="34" fill="#ffca28"/><ellipse cx="58" cy="66" rx="26" ry="16" fill="#fff3c4"/>
+<path d="M22 40 Q8 30 4 42 Q16 44 22 52Z" fill="#fb8c00"/>
+<g class="wing"><path d="M46 52 Q30 30 12 46 Q28 70 52 62Z" fill="#ffa000" stroke="#e65100" stroke-width="2"/></g>
+<circle cx="78" cy="40" r="11" fill="#fff"/><circle cx="81" cy="41" r="5.5" fill="#263238"/><circle cx="83" cy="39" r="1.8" fill="#fff"/>
+<path d="M92 50 L118 56 L92 64Z" fill="#ff7043" stroke="#d84315" stroke-width="2" stroke-linejoin="round"/>
+<path d="M58 20 Q56 6 66 8 Q62 14 66 22Z" fill="#fb8c00"/></svg>`;
+  var ease = (x) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 3;
+  var lerp = (a, b, k) => a + (b - a) * Math.min(1, Math.max(0, k));
+  function createView(root, hooks) {
+    root.innerHTML = `
+<div class="sky"><i class="cloud c1"></i><i class="cloud c2"></i><i class="cloud c3"></i><div class="hills"></div></div>
+<div class="ground"></div>
+<div class="hud"><span class="hearts"></span><span class="prog"></span></div>
+<div class="qcard"><div class="qtag"></div><div class="qbody"></div></div>
+<div class="fuse"><i></i></div>
+<div class="gate"></div>
+<div class="verdict"></div>
+<div class="bird">${BIRD}</div>
+<div class="mic"><span class="micdot"></span><span class="mictext"></span></div>
+<button class="mute" type="button"></button>
+<div class="settings"></div>
+<div class="overlay"></div>`;
+    const $ = (c) => root.querySelector("." + c);
+    const el = { hearts: $("hearts"), prog: $("prog"), qtag: $("qtag"), qbody: $("qbody"), qcard: $("qcard"), fuse: $("fuse").firstElementChild, gate: $("gate"), verdict: $("verdict"), bird: $("bird"), mic: $("mic"), micdot: $("micdot"), mictext: $("mictext"), mute: $("mute"), settings: $("settings"), overlay: $("overlay") };
+    const bird = { x: BX, y: MID, rot: 0, hitY: MID, sparked: -1 };
+    let builtFor = "";
+    let overlayFor = "";
+    let heartsFor = "";
+    let t = 0;
+    let cells = [];
+    let lastClass = [];
+    let S = STR.vi;
+    el.mute.addEventListener("click", () => hooks.onMute());
+    el.gate.addEventListener("click", (e) => {
+      const c = e.target.closest && e.target.closest(".cell");
+      if (c) hooks.onTap(c.dataset.key);
+    });
+    function buildQuestion(g2) {
+      const q = current(g2);
+      el.qtag.textContent = `${S.q} ${g2.i + 1}/${g2.qs.length}`;
+      el.qbody.innerHTML = (q.html || "") + (q.figure ? `<img alt="" src="${q.figure.replace(/"/g, "")}">` : "");
+      const len = el.qbody.textContent.length;
+      el.qcard.style.setProperty("--qs", (len > 160 ? 20 : len > 90 ? 24 : 30) + "px");
+      const n = q.choices.length;
+      const h = (GATE_H - 8 * (n - 1)) / n;
+      el.gate.innerHTML = q.choices.map((c) => {
+        const L = (c.text || "").length;
+        const fs = n >= 5 ? 22 : L > 60 ? 20 : L > 30 ? 24 : 30;
+        return `<div class="cell" data-key="${c.key}" style="height:${h}px;font-size:${fs}px"><b>${c.key === "T" ? "\u2714" : c.key === "F" ? "\u2718" : c.key}</b><span>${c.html}</span></div>`;
+      }).join("");
+      cells = [...el.gate.children];
+      lastClass = cells.map(() => "");
+      el.verdict.className = "verdict";
+    }
+    function laneY(g2, key) {
+      const q = current(g2);
+      const n = q.choices.length;
+      const i = q.choices.findIndex((c) => c.key === key);
+      const h = (GATE_H - 8 * (n - 1)) / n;
+      return GATE_TOP + i * (h + 8) + h / 2;
+    }
+    function setCells(g2, ui) {
+      const q = current(g2);
+      cells.forEach((c, i) => {
+        const key = q.choices[i].key;
+        let cls = "cell";
+        if (g2.phase === "ask" && ui.hot === key) cls += " hot";
+        if (g2.phase === "resolve" && g2.t > view2.arrive) {
+          if (g2.ok && key === g2.chosen) cls += " good";
+          else if (!g2.ok && key === g2.chosen) cls += " bad";
+          else if (!g2.ok && key === q.answer && g2.t > view2.arrive + 0.4) cls += " answer";
+        }
+        if (cls !== lastClass[i]) {
+          c.className = cls;
+          lastClass[i] = cls;
+        }
+      });
+    }
+    function spark(x, y) {
+      for (let i = 0; i < 12; i++) {
+        const s = document.createElement("i");
+        s.className = "spark";
+        const a = i / 12 * Math.PI * 2;
+        s.style.cssText = `left:${x}px;top:${y}px;--dx:${Math.cos(a) * (90 + Math.random() * 60)}px;--dy:${Math.sin(a) * (90 + Math.random() * 60)}px`;
+        root.appendChild(s);
+        setTimeout(() => s.remove(), 1100);
+      }
+    }
+    function overlay(g2, ui) {
+      const key = g2.phase === "ready" ? "ready:" + ui.nq + ":" + ui.skipped + ":" + ui.locale : g2.phase === "over" ? "over:" + g2.correct + ":" + g2.qs.length : "";
+      if (key === overlayFor) return;
+      overlayFor = key;
+      if (!key) {
+        el.overlay.className = "overlay";
+        el.overlay.innerHTML = "";
+        return;
+      }
+      el.overlay.className = "overlay on";
+      if (g2.phase === "ready") {
+        el.overlay.innerHTML = `<div class="card"><div class="logo">${BIRD}</div><h1>${S.title}</h1>` + (ui.nq ? `<p>${S.how}</p><p class="hint">${S.hint}</p><button class="go" type="button">${S.start}</button>` : `<p>${S.noq}</p>`) + (ui.skipped ? `<p class="hint">${ui.skipped} ${S.skipped}</p>` : "") + "</div>";
+        const b = el.overlay.querySelector(".go");
+        if (b) b.addEventListener("click", () => hooks.onStart());
+      } else {
+        const stars = g2.qs.length ? Math.round(g2.correct / g2.qs.length * 3) : 0;
+        el.overlay.innerHTML = `<div class="card"><h1>${g2.won ? S.win : S.lose}</h1><div class="stars">${"\u2605".repeat(stars)}<s>${"\u2605".repeat(3 - stars)}</s></div><p class="big">${S.score} ${g2.correct}/${g2.qs.length}</p><button class="go" type="button">${S.again}</button></div>`;
+        el.overlay.querySelector(".go").addEventListener("click", () => hooks.onReplay());
+      }
+    }
+    function settings(ui) {
+      if (ui.mode !== "setup") {
+        el.settings.className = "settings";
+        return;
+      }
+      const o = ui.options;
+      const sig = JSON.stringify(o) + ui.locale;
+      if (el.settings.dataset.sig === sig) return;
+      el.settings.dataset.sig = sig;
+      el.settings.className = "settings on";
+      const sec = o.seconds <= 10 ? 9 : o.seconds <= 17 ? 14 : 22;
+      const opt = (v, cur, label) => `<button type="button" data-v="${v}" class="${v === cur ? "sel" : ""}">${label}</button>`;
+      el.settings.innerHTML = `<h3>${S.settings}</h3>
+<div class="row" data-k="seconds"><label>${S.time}</label>${opt(22, sec, S.slow)}${opt(14, sec, S.mid)}${opt(9, sec, S.fast)}</div>
+<div class="row" data-k="lives"><label>${S.lives}</label>${[1, 2, 3, 4, 5].map((n) => opt(n, o.lives, n)).join("")}</div>
+<div class="row" data-k="lang"><label>${S.lang}</label>${opt("auto", o.lang, S.auto)}${opt("vi-VN", o.lang, "Ti\u1EBFng Vi\u1EC7t")}${opt("en-US", o.lang, "English")}</div>`;
+      el.settings.querySelectorAll(".row button").forEach((b) => b.addEventListener("click", () => {
+        const k = b.parentElement.dataset.k;
+        const raw = b.dataset.v;
+        hooks.onOptions({ ...o, [k]: k === "lang" ? raw : Number(raw) });
+      }));
+    }
+    const view2 = {
+      arrive: 0.3,
+      setLocale(l) {
+        S = STR[l] || STR.vi;
+        builtFor = "";
+        overlayFor = "";
+        el.settings.dataset.sig = "";
+      },
+      draw(g2, dt, ui) {
+        t += dt;
+        const q = current(g2);
+        const hs = g2.opts.lives + ":" + g2.lives;
+        if (hs !== heartsFor) {
+          heartsFor = hs;
+          el.hearts.innerHTML = Array.from({ length: g2.opts.lives }, (_, i) => `<i class="${i < g2.lives ? "" : "lost"}">\u2665</i>`).join("");
+        }
+        el.prog.textContent = g2.qs.length ? `${S.q} ${Math.min(g2.i + 1, g2.qs.length)}/${g2.qs.length}  \xB7  \u2714 ${g2.correct}` : "";
+        el.mute.textContent = ui.soundOn ? "\u{1F50A}" : "\u{1F507}";
+        el.mute.title = S.sound;
+        el.mic.className = "mic " + ui.mic.state;
+        el.mictext.textContent = ui.mic.state === "off" ? S.micOff : ui.mic.heard ? `${S.heard}: \u201C${ui.mic.heard}\u201D` : g2.phase === "ask" ? S.listening : "";
+        settings(ui);
+        overlay(g2, ui);
+        const live = g2.phase === "ask" || g2.phase === "resolve";
+        el.qcard.style.visibility = live ? "visible" : "hidden";
+        el.gate.style.visibility = live ? "visible" : "hidden";
+        el.fuse.parentElement.style.visibility = g2.phase === "ask" ? "visible" : "hidden";
+        if (live && q) {
+          const key = g2.i + ":" + q.id + ":" + g2.qs.length;
+          if (key !== builtFor) {
+            builtFor = key;
+            buildQuestion(g2);
+          }
+        }
+        let gl = W;
+        let ty = MID + Math.sin(t * 2.4) * 14;
+        let tx = BX;
+        let rot = 0;
+        if (g2.phase === "ask" && q) {
+          const p = approach(g2);
+          gl = HIT_X + p * (FAR - HIT_X) + (1 - ease(g2.t / 0.6)) * (W - FAR);
+          el.fuse.style.width = p * 100 + "%";
+          el.fuse.className = p < 0.25 ? "low" : "";
+          if (ui.hot) ty = laneY(g2, ui.hot);
+          if (bird.rot > 180) bird.rot -= 360;
+          bird.x = lerp(bird.x, tx, dt * 6);
+          bird.rot = lerp(bird.rot, 0, dt * 6);
+          bird.y = lerp(bird.y, ty, dt * 9);
+          el.verdict.className = "verdict";
+        } else if (g2.phase === "resolve" && q) {
+          const k = g2.t;
+          const arrive = 0.1 + 0.3 * g2.p0;
+          view2.arrive = arrive;
+          if (k < arrive) {
+            gl = HIT_X + g2.p0 * (FAR - HIT_X) * (1 - ease(k / arrive));
+            ty = g2.chosen ? laneY(g2, g2.chosen) : MID;
+            bird.y = lerp(bird.y, ty, dt * 12);
+            bird.x = lerp(bird.x, BX, dt * 8);
+            bird.rot = lerp(bird.rot, 0, dt * 8);
+            bird.hitY = bird.y;
+          } else {
+            const tb = k - arrive;
+            if (g2.ok) {
+              gl = HIT_X - tb * 760;
+              bird.y = lerp(bird.y, laneY(g2, g2.chosen) - 24 * Math.sin(tb * 7), dt * 10);
+              bird.rot = -8;
+              bird.x = BX + Math.min(tb, 0.6) * 60;
+              if (bird.sparked !== g2.i) {
+                bird.sparked = g2.i;
+                spark(bird.x + 60, bird.y);
+                hooks.onFx("good");
+              }
+            } else {
+              gl = HIT_X;
+              bird.x = BX - Math.min(tb, 0.45) * 220;
+              bird.rot = Math.min(tb * 720, 540);
+              bird.y = Math.min(bird.hitY + 800 * tb * tb, 610);
+              if (bird.sparked !== g2.i) {
+                bird.sparked = g2.i;
+                hooks.onFx("bad");
+              }
+            }
+            el.verdict.className = "verdict on " + (g2.ok ? "ok" : "no");
+            const say = g2.ok ? S.right : (g2.reason === "timeout" ? S.timeout : S.wrong) + `<small>${S.answerWas}: ${q.choices.find((c) => c.key === q.answer).html}</small>`;
+            if (el.verdict.dataset.say !== say) {
+              el.verdict.dataset.say = say;
+              el.verdict.innerHTML = say;
+            }
+          }
+          if (g2.phase === "resolve") setCells(g2, ui);
+        } else {
+          bird.x = lerp(bird.x, BX, dt * 6);
+          bird.y = lerp(bird.y, ty, dt * 6);
+          bird.rot = lerp(bird.rot, 0, dt * 6);
+          el.verdict.className = "verdict";
+        }
+        if (g2.phase === "ask" && q) setCells(g2, ui);
+        el.gate.style.transform = `translate(${gl}px, ${GATE_TOP}px)`;
+        el.bird.style.transform = `translate(${bird.x - 60}px, ${bird.y - 48}px) rotate(${bird.rot}deg)`;
+        el.bird.classList.toggle("fast", g2.phase === "resolve" && g2.ok);
+      }
+    };
+    return view2;
+  }
+
+  // src/sound.js
+  function createSound(win) {
+    let ctx = null;
+    let on = true;
+    const Ctx = win.AudioContext || win.webkitAudioContext;
+    function tone(freq, at, len, type, vol, slideTo) {
+      if (!ctx || !on) return;
+      const o = ctx.createOscillator();
+      const g2 = ctx.createGain();
+      const t = ctx.currentTime + at;
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + len);
+      g2.gain.setValueAtTime(vol, t);
+      g2.gain.exponentialRampToValueAtTime(1e-4, t + len);
+      o.connect(g2);
+      g2.connect(ctx.destination);
+      o.start(t);
+      o.stop(t + len + 0.02);
+    }
+    return {
+      unlock() {
+        try {
+          if (!ctx && Ctx) ctx = new Ctx();
+          if (ctx && ctx.state === "suspended") ctx.resume();
+        } catch (e) {
+          ctx = null;
+        }
+      },
+      get on() {
+        return on;
+      },
+      toggle() {
+        on = !on;
+        return on;
+      },
+      flap() {
+        tone(420, 0, 0.12, "triangle", 0.18, 760);
+      },
+      good() {
+        [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.09, 0.2, "square", 0.1));
+      },
+      bad() {
+        tone(220, 0, 0.35, "sawtooth", 0.16, 70);
+        tone(110, 0.05, 0.4, "square", 0.12, 55);
+      },
+      tick() {
+        tone(880, 0, 0.05, "square", 0.05);
+      }
+    };
+  }
+
+  // src/main.js
+  var COMMIT_MS = 550;
+  var locale = "vi";
+  var mode = "play";
+  var options = readOptions({});
+  var questions = [];
+  var skipped = 0;
+  var g = createGame([], options);
+  var mic = { state: "wait", heard: "" };
+  var line = [];
+  var consumed = 0;
+  var hot = null;
+  var hotSince = 0;
+  var hotFinal = false;
+  var wantListen = false;
+  var lastTick = -1;
+  var beganAt = 0;
+  var sound = createSound(window);
+  var speechLang = () => options.lang !== "auto" ? options.lang : locale === "en" ? "en-US" : "vi-VN";
+  var bridge = connect(window, {
+    onInit(info) {
+      locale = info.locale;
+      mode = info.mode;
+      options = readOptions(info.options);
+      questions = info.questions;
+      skipped = info.skipped;
+      view.setLocale(locale);
+      reset(false);
+    },
+    onSpeech(s) {
+      if (!s.available || s.error) {
+        mic = { state: "off", heard: "" };
+        return;
+      }
+      mic = { state: "on", heard: "" };
+      const next = words(s.text);
+      const keep = Math.max(0, consumed - 2);
+      if (next.length < consumed || line.slice(0, keep).join(" ") !== next.slice(0, keep).join(" ")) consumed = 0;
+      line = next;
+      const tail = line.slice(consumed);
+      const raw = s.text.split(/\s+/).filter(Boolean);
+      mic.heard = raw.slice(-Math.min(tail.length, 8)).join(" ");
+      hear(tail.join(" "), s.final);
+    }
+  });
+  var view = createView(document.getElementById("scene"), {
+    onStart: begin,
+    onReplay() {
+      sound.unlock();
+      bridge.again();
+      wantListen = true;
+      bridge.listen(true, speechLang());
+      reset(true);
+    },
+    onTap(key) {
+      if (tapsOk()) answer(key);
+    },
+    onMute() {
+      sound.toggle();
+    },
+    onFx(kind) {
+      if (kind === "good") sound.good();
+      else sound.bad();
+    },
+    onOptions(o) {
+      options = readOptions(o);
+      bridge.saveOptions(options);
+      reset(false);
+      if (wantListen) bridge.listen(true, speechLang());
+    }
+  });
+  function reset(autoStart) {
+    g = createGame(questions, options);
+    hot = null;
+    consumed = line.length;
+    if (autoStart) {
+      start(g);
+      startedAsk();
+    }
+  }
+  function begin() {
+    beganAt = performance.now();
+    sound.unlock();
+    wantListen = true;
+    bridge.listen(true, speechLang());
+    start(g);
+    startedAsk();
+  }
+  function startedAsk() {
+    consumed = line.length;
+    hot = null;
+    mic.heard = "";
+    lastTick = -1;
+  }
+  function answer(key) {
+    if (!choose(g, key)) return;
+    hot = null;
+    sound.flap();
+  }
+  function tapsOk() {
+    return mic.state === "off" || mic.state === "wait" && performance.now() - beganAt > 8e3;
+  }
+  function hear(text, final) {
+    if (g.phase !== "ask") return;
+    const q = g.qs[g.i];
+    if (!q) return;
+    const m = text ? pickChoice(text, q.choices, q.type) : null;
+    const key = m ? m.key : null;
+    if (key !== hot) {
+      hot = key;
+      hotSince = performance.now();
+      if (key) sound.flap();
+    }
+    hotFinal = final;
+    if (key && final) answer(key);
+  }
+  var prev = performance.now();
+  var sentFinish = false;
+  function frame(now) {
+    const dt = Math.min(0.1, (now - prev) / 1e3);
+    prev = now;
+    if (g.phase === "ask") {
+      if (hot && now - hotSince >= COMMIT_MS) answer(hot);
+      else {
+        const left = Math.ceil(g.opts.seconds - g.t);
+        if (left <= 3 && left !== lastTick && left > 0) {
+          lastTick = left;
+          sound.tick();
+        }
+      }
+    }
+    const before = g.phase;
+    step(g, dt);
+    if (before !== "ask" && g.phase === "ask") startedAsk();
+    if (g.phase === "over" && !sentFinish) {
+      sentFinish = true;
+      bridge.finish(summary(g));
+      if (wantListen) {
+        wantListen = false;
+        bridge.listen(false);
+      }
+    }
+    if (g.phase !== "over") sentFinish = false;
+    view.draw(g, dt, { mic, hot, mode, options, locale, soundOn: sound.on, nq: g.qs.length, skipped });
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  function fit() {
+    const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    const sc = document.getElementById("scene");
+    sc.style.transform = `translate(-50%,-50%) scale(${s})`;
+  }
+  window.addEventListener("resize", fit);
+  fit();
+  window.addEventListener("keydown", (e) => {
+    if (!tapsOk() || !g.qs[g.i]) return;
+    const k = e.key.toUpperCase();
+    const q = g.qs[g.i];
+    const byNum = /^[1-6]$/.test(k) ? q.choices[Number(k) - 1] : null;
+    const c = byNum || q.choices.find((x) => x.key === k);
+    if (c) answer(c.key);
+  });
+})();
+
+</script>
+</body>
+</html>
