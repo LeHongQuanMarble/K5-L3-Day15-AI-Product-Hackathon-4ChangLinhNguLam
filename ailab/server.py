@@ -487,7 +487,7 @@ class H(BaseHTTPRequestHandler):
                         raw_html = ((env.get("application_plan") or {}).get("player") or {}).get("html") or ""
                         resp["safety_flags"] = contract.scan(raw_html) if isinstance(raw_html, str) and raw_html else []
                     elif p_cfg.get("player_id") is not None:
-                        resp["preview_url"] = "/api/players/%d/try" % int(p_cfg["player_id"])
+                        resp["preview_url"] = "/api/agent/drafts/%d/try" % saved["draft_id"]
                         prow = c.execute("SELECT name FROM players WHERE id=?", (int(p_cfg["player_id"]),)).fetchone()
                         if prow:
                             p_cfg["player_name"] = prow["name"]

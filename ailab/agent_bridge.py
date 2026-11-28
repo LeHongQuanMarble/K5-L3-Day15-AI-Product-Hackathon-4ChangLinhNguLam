@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import sys
+import threading
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -117,6 +118,9 @@ def trusted_registry(c, user=None):
     return {"players": players, "models": models, "exams": exams}
 
 
+_TRACE_LOCK = threading.Lock()
+
+
 def call(payload, case_id="web-req", registry=None):
     """Gọi Shared Core. Trả dict {envelope, ui, trace, knowledge_review_required}.
 
@@ -124,14 +128,15 @@ def call(payload, case_id="web-req", registry=None):
     Không nuốt ProviderError — để server ánh xạ thành 502/503.
     """
     session_id = payload.get("session_id") if isinstance(payload, dict) else None
-    tracing.begin(str(session_id or case_id))
-    try:
-        envelope = agent.run_agent(payload, registry=registry)
-    except ai.ProviderError as exc:
-        # Kết thúc trace để ghi trung thực lỗi, rồi ném ra cho server ánh xạ 502/503.
-        tracing.end()
-        raise provider_error(exc) from None
-    summary, _ = tracing.end()
+    with _TRACE_LOCK:
+        tracing.begin(str(session_id or case_id))
+        try:
+            envelope = agent.run_agent(payload, registry=registry)
+        except ai.ProviderError as exc:
+            # Kết thúc trace để ghi trung thực lỗi, rồi ném ra cho server ánh xạ 502/503.
+            tracing.end()
+            raise provider_error(exc) from None
+        summary, _ = tracing.end()
     if not isinstance(envelope, dict):
         raise BridgeError(502, "bad_envelope", "Lõi AI trả kết quả không hợp lệ.")
     # Ranh giới Web không tin status do model/plan gửi lên: mọi output đều ở dạng nháp.
@@ -258,19 +263,25 @@ def get_draft(c, draft_id, user):
 
 
 def draft_preview(c, draft_id, user, sample_questions=None):
-    """Trả dữ liệu xem thử trong iframe sandbox cho bản nháp GENERATE (đã bọc CSP)."""
+    """Trả dữ liệu xem thử trong iframe sandbox cho cả bản nháp REUSE và GENERATE (đã bọc CSP, đúng bộ đề sẽ xuất bản)."""
     row = get_draft(c, draft_id, user)
     if row["status"] == "rejected":
         raise BridgeError(409, "draft_rejected", "Bản nháp này đã bị từ chối.")
     env = json.loads(row["envelope_json"])
     plan = env.get("application_plan") or {}
     player = plan.get("player") or {}
-    if player.get("mode") != "generate_new" or not isinstance(player.get("html"), str):
-        raise BridgeError(400, "not_generated_draft", "Bản nháp này không có HTML sinh mới để xem thử.")
-    html = player["html"]
-    man, err = contract.parse(html)
-    if err:
-        raise BridgeError(400, err[0], err[1])
+    if player.get("mode") == "generate_new" and isinstance(player.get("html"), str):
+        html = player["html"]
+        man, err = contract.parse(html)
+        if err:
+            raise BridgeError(400, err[0], err[1])
+    elif player.get("mode") == "reuse_existing" and player.get("player_id") is not None:
+        prow = store.get_player(c, int(player["player_id"]), user)
+        html = prow["html"]
+        man = json.loads(prow["manifest"])
+    else:
+        raise BridgeError(400, "invalid_draft_player", "Bản nháp không có trình chơi hợp lệ để xem thử.")
+
     qs = sample_questions or []
     exam = plan.get("exam") or {}
     if isinstance(exam.get("content"), str) and exam["content"].strip():
@@ -280,6 +291,15 @@ def draft_preview(c, draft_id, user, sample_questions=None):
                 qs = parsed
         except store.Err:
             pass
+    elif exam.get("exam_id") is not None:
+        ex_row = c.execute("SELECT owner_id, content FROM exams WHERE id=?", (int(exam["exam_id"]),)).fetchone()
+        if ex_row and (ex_row["owner_id"] in (0, user["id"]) or user.get("role") == "admin"):
+            try:
+                parsed = store.parse_questions(ex_row["content"])
+                if parsed:
+                    qs = parsed
+            except store.Err:
+                pass
     return {"manifest": man, "srcdoc": contract.secure(html), "sampleQuestions": qs}
 
 

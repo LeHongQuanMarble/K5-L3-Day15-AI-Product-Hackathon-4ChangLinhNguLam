@@ -841,6 +841,8 @@ def _run_agent_core(request, registry=None):
         if _is_capability_limit_text(msg):
             msg = _ensure_catalog_grounding(msg, active_registry, user_msg=req["message"])
             msg = _ensure_info_hitl_policy(msg, req["message"])
+            note("LLM trả REFUSE cho giới hạn năng lực → chuyển về INFO/ASK_CLARIFY")
+            return _make_envelope("ASK_CLARIFY", msg, simulated=is_simulated), None
         note("LLM quyết định REFUSE")
         return _make_envelope("REFUSE", msg, errors=[ac.issue("refused", msg, "message")], simulated=is_simulated), None
 

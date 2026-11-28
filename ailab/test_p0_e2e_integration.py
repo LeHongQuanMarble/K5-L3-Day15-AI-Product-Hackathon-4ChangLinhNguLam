@@ -157,6 +157,13 @@ class P0E2EIntegrationTests(unittest.TestCase):
         self.assertIn("plan_hash", res)
         self.assertEqual(res["application_plan"]["player"]["player_id"], 1)
         self.assertEqual(res["application_plan"]["player"]["player_name"], "Quiz ABCD bằng cử chỉ")
+        self.assertEqual(res["preview_url"], "/api/agent/drafts/%d/try" % res["draft_id"])
+
+        # Preview for REUSE must serve the draft's ACTUAL exam questions (not hardcoded 2-question SAMPLE_QUESTIONS)
+        st_prev, prev_d, _ = _http_json(self.base, "GET", res["preview_url"], cookie=self.cookie_a)
+        self.assertEqual(st_prev, 200)
+        self.assertIn("Content-Security-Policy", prev_d["srcdoc"])
+        self.assertGreater(len(prev_d["sampleQuestions"]), 2)
 
         # HITL bypass check: missing approved -> 403
         st_b, err_b, _ = _http_json(self.base, "POST", "/api/agent/publish", {
@@ -317,6 +324,24 @@ class P0E2EIntegrationTests(unittest.TestCase):
         # Confirm 0 apps persisted
         st_a, apps_a, _ = _http_json(self.base, "GET", "/api/apps", cookie=self.cookie_a)
         self.assertEqual(len(apps_a["apps"]), 0)
+
+    def test_e2e_04_capability_limit_routes_to_info_not_refuse(self):
+        def _mock_audio_cap(system, user):
+            payload = {
+                "decision": "REFUSE",
+                "message": "Runtime chưa hỗ trợ model giọng nói (audio). Bạn có thể dùng chuột (Mouse Fallback) thay thế.",
+            }
+            return {"text": "```json\n%s\n```" % json.dumps(payload, ensure_ascii=False),
+                    "model": "gpt-4o-mini", "tokens_in": 100, "tokens_out": 50}
+        with mock.patch.object(agent, "call_model", side_effect=_mock_audio_cap):
+            st, res, _ = _http_json(self.base, "POST", "/api/agent", {
+                "text": "Tạo game trắc nghiệm điều khiển bằng giọng nói qua micro"
+            }, self.cookie_a)
+        self.assertEqual(st, 200)
+        self.assertEqual(res["decision"], "ASK_CLARIFY")
+        self.assertEqual(res["status"], "needs_clarification")
+        self.assertIsNone(res["application_plan"])
+        self.assertNotIn("draft_id", res)
 
     def test_e2e_05_refuse_creates_no_draft_and_no_app(self):
         st, res, _ = _http_json(self.base, "POST", "/api/agent", {
