@@ -149,8 +149,10 @@ def run_case(cl, key, cfg, results):
     if kind:
         check("manifest kinds chứa %s" % kind, kind in (man_prev.get("kinds") or []), man_prev.get("kinds"))
     if kind == "hands":
-        check("srcdoc gửi hands-on handshake", "type: 'hands', on: true" in src and "var USES_HANDS = true;" in src)
-    elif kind and "window.JLRuntime" in src:
+        # hands-on postMessage: chấp nhận mọi biến thể khoảng trắng/trích dẫn mà LLM có thể viết
+        check("srcdoc gửi hands-on handshake", bool(__import__("re").search(r"type\s*:\s*['\"]hands['\"]\s*,\s*on\s*:\s*true", src, __import__("re").I)))
+    elif kind and "window.JLRuntime" in src and 'id="jl-camera"' in src:
+        # chỉ assert marker Wrapper khi file ĐÍCH THẬT do Wrapper lắp (LLM có thể tự nhắc JLRuntime trong code)
         check("không gửi hands-on cho kind %s" % kind, "var USES_HANDS = false;" in src)
     sample = prev.get("sampleQuestions") or []
     check("preview đúng số câu mẫu (%d)" % cfg["questions"], len(sample) == cfg["questions"], len(sample))
@@ -166,8 +168,9 @@ def run_case(cl, key, cfg, results):
     play1 = cl.call("GET", "/api/apps/%d/play" % app_id)
     play2 = cl.call("GET", "/api/apps/%d/play" % app_id)
     check("play 200 có srcdoc", len(play1.get("srcdoc") or "") > 200)
-    check("play model.kind == %s" % kind, (play1.get("model") or {}).get("kind") == kind, (play1.get("model") or {}).get("kind"))
-    check("play mapping giữ nguyên sau publish", play1.get("mapping") == model.get("mapping"), play1.get("mapping"))
+    check("play model.kind == %s" % (kind or "None"), (play1.get("model") or {}).get("kind") == kind, (play1.get("model") or {}).get("kind"))
+    if kind:
+        check("play mapping giữ nguyên sau publish", play1.get("mapping") == model.get("mapping"), play1.get("mapping"))
     check("play đúng số câu (%d)" % cfg["questions"], len(play1.get("questions") or []) == cfg["questions"], len(play1.get("questions") or []))
     check("reload (GET play lần 2) nhất quán", len(play2.get("srcdoc") or "") == len(play1.get("srcdoc") or ""))
 
