@@ -101,8 +101,22 @@ def reference_html() -> str:
 @pytest.fixture
 def happy_llm(fake_llm: FakeLLM, sample_bank: dict, reference_html: str) -> FakeLLM:
     """Kịch bản trọn luồng thành công: intake ok -> question_gen -> design -> codegen(reference)."""
-    fake_llm.add("intake", json.dumps({"is_game_request": True, "reason": "ok"}))
+    intake = {"is_educational": True, "reason": "ôn tập", "subject": "Toán", "grade": "4"}
+    fake_llm.add("intake", json.dumps(intake, ensure_ascii=False))
     fake_llm.add("question_gen", json.dumps(sample_bank, ensure_ascii=False))
-    fake_llm.add("design", json.dumps({"theme": "quiz", "title": sample_bank.get("title", "")}))
+    fake_llm.add(
+        "design",
+        json.dumps(
+            {
+                "title": sample_bank.get("title", "Game"),
+                "game_type": "quiz",
+                "mechanics": "chọn đáp án",
+                "visual_style": "tươi sáng",
+                "scoring": "10 điểm/câu",
+                "result_screen": "tổng điểm",
+            },
+            ensure_ascii=False,
+        ),
+    )
     fake_llm.add("codegen", f"```html\n{reference_html}\n```")
     return fake_llm

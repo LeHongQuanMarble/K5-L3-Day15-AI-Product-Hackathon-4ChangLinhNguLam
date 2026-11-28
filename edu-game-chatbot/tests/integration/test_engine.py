@@ -131,6 +131,12 @@ async def test_flow_user_file_to_review(store, fake_llm, llm, bus, settings, sam
     assert review_ids(s)[0] == replies.BTN_APPROVE
 
 
+async def test_happy_llm_fixture_reaches_review(store, happy_llm, bus, settings, sample_bank) -> None:
+    engine = make_engine(store, happy_llm, bus, settings)
+    s = await topic_to_review(engine, len(sample_bank["questions"]))
+    assert s.state == State.AWAIT_REVIEW, s.error
+
+
 async def test_reject_non_educational(store, fake_llm, bus, settings) -> None:
     fake_llm.add("intake", json.dumps({"is_educational": False, "reason": "đây là game bắn súng giải trí"}))
     engine = make_engine(store, fake_llm, bus, settings)
