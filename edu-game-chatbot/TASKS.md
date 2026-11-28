@@ -150,7 +150,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Kiểm tra:** `pytest tests/integration/test_n4.py -q -m browser`
 - **Bẫy:** listener `console`/`pageerror` phải đăng ký **trước** `goto`. Dialog phải `dismiss()`, nếu không page sẽ treo. Timeout lấy từ settings, không hard-code.
 
-### [ ] T14. FIX — AI sửa lỗi (≤ 2 lần)
+### [x] T14. FIX — AI sửa lỗi (≤ 2 lần)
 - **Đọc:** SPEC §2 (bổ sung 4)
 - **File:** `app/nodes/fixer.py`, `tests/unit/test_fixer.py`
 - **Làm:** `fix(llm, session, version, errors)`: prompt `fix` gồm tối đa 20 lỗi và HTML hiện tại. Kết quả đi qua `extract_html` rồi `inject_bank`, ghi đè file của **cùng version**, tăng `fix_attempts`. Không tự kiểm tra giới hạn (pipeline kiểm).
