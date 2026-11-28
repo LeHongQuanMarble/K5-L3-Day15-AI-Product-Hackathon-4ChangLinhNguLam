@@ -31,6 +31,7 @@ import contract  # noqa: E402
 import game_spec  # noqa: E402
 import game_templates  # noqa: E402
 import guardrails  # noqa: E402
+import player_assembler  # noqa: E402
 import store  # noqa: E402
 import tools  # noqa: E402
 from tools import check_game  # noqa: E402
@@ -289,6 +290,8 @@ def _run_generate_html(user_message: str, game_idea: str, need_exam: bool, spec:
                         "viết lại NGẮN hơn một nửa (dưới 150 dòng, bỏ hiệu ứng phụ), vẫn đủ từ <!doctype html> đến </html>.")
             note("GENERATE lượt %d: thiếu khối HTML" % step)
             continue
+        if isinstance(spec, dict) and 'id="jl-camera"' not in html and "id='jl-camera'" not in html:
+            html = player_assembler.assemble_player(spec, html)
         vres = guardrails.validate_html_draft(html, check_fn=check_game)
         if not vres["ok"]:
             last_err = vres["error"]

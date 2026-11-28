@@ -151,10 +151,11 @@ export function chatView(ctx) {
         histAnchor,
         btn('Cuộc mới', 'plus', { cls: 'sm', onclick: function () { closeHistory(); newChat(); } })),
       h('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap' },
-        devUi ? h('span', { class: 'ail-llm-pill ' + (llmOk ? 'is-ok' : 'is-mock'), title: 'Chế độ model hiện hành' }, 'Model AI: ' + (llmMode || '…')) : null,
-        !devUi ? null : h('div', { class: 'ail-mode-switch', role: 'group', 'aria-label': 'Chế độ hoạt động' },
-          modeBtn('real', 'Chế độ thật', 'Gọi Shared Core thật (/api/agent + HITL).'),
-          modeBtn('mock', 'Mock (Plan v1.0)', 'Xem trước ApplicationPlan v1.0 (cô lập, không ghi DB).'))));
+        h('span', { class: 'ail-llm-pill ' + (llmOk ? 'is-ok' : 'is-mock'), title: 'Chế độ model hiện hành' }, 'Model AI: ' + (llmMode || '…')),
+        h('div', { class: 'ail-mode-switch', role: 'group', 'aria-label': 'Chế độ hoạt động' },
+          modeBtn('real', 'Chế độ thật', 'AI Composer đầy đủ (/api/agent + ApplicationPlan + HITL + Lưu Ứng dụng).'),
+          modeBtn('flow', 'Soạn khung nhanh', 'Luồng hỏi 2 ý tạo Trình chơi (/api/flow).'),
+          devUi ? modeBtn('mock', 'Mock (Plan v1.0)', 'Xem trước ApplicationPlan v1.0 (cô lập, không ghi DB).') : null)));
   }
   function drawBanner() {
     bannerSlot.replaceChildren();
@@ -322,9 +323,9 @@ export function chatView(ctx) {
   }
   function drawLog(forceScroll) {
     var wasNearBottom = (log.scrollHeight - log.scrollTop - log.clientHeight) < 120;
-    var list = mode === 'real' ? real.msgs : mock.msgs;
-    var busy = mode === 'real' ? real.busy : mock.busy;
-    main.classList.toggle('is-empty', !list.length && !busy && !(mode === 'real' && real.openErr));
+    var list = mode === 'mock' ? mock.msgs : real.msgs;
+    var busy = mode === 'mock' ? mock.busy : real.busy;
+    main.classList.toggle('is-empty', !list.length && !busy && !(mode !== 'mock' && real.openErr));
     send.disabled = busy; // khóa nút Gửi khi đang bận (cả hai chế độ)
     stopThink();
     log.replaceChildren();
@@ -340,23 +341,45 @@ export function chatView(ctx) {
   }
   function drawAll() { drawHead(); drawBanner(); drawSide(); drawLog(); }
 
-  /* ================= 3a · Gửi tin — Chế độ thật (không mất nội dung khi lỗi) ================= */
-  function submit() { if (mode === 'real') submitReal(); else submitMock(); }
-  function submitReal() {
+  /* ================= 3a · Gửi tin — Chế độ thật (/api/agent) & Soạn khung nhanh (/api/flow) ================= */
+  function submit() {
+    if (mode === 'real') submitAgent();
+    else if (mode === 'flow') submitFlow();
+    else submitMock();
+  }
+  function submitAgent() {
+    var t = input.value.trim();
+    if (real.busy || t.length < 3) return;
+    real.busy = true; send.disabled = true; real.thinkSteps = null;
+    real.msgs.push({ role: 'user', text: t });
+    input.value = ''; input.style.height = '';
+    drawLog(true);
+    api('POST', '/api/agent', { text: t }).then(function (d) {
+      var plan = d || {};
+      var topText = plan.application_plan ? (plan.message || '') : '';
+      real.msgs.push({ role: 'bot', text: topText, plan: plan, simulated: !!plan.simulated });
+    }).catch(function (e) {
+      real.msgs.push({ role: 'bot', text: '', error: e.message || 'Lỗi kết nối máy chủ AI.', retryText: t });
+      if (!input.value.trim()) input.value = t; // KHÔNG làm mất nội dung người dùng đã gõ
+    }).then(function () {
+      real.busy = false; send.disabled = false; drawLog(); focusInput();
+    });
+  }
+  function submitFlow() {
     var t = input.value.trim();
     if (real.busy || t.length < 2) return;
     real.busy = true; send.disabled = true; real.thinkSteps = ['Đang đọc yêu cầu…', 'Đang xem còn thiếu ý chính nào…'];
     real.msgs.push({ role: 'user', text: t });
     input.value = ''; input.style.height = ''; input.placeholder = 'Mô tả game ôn tập bạn muốn tạo (môn, chủ đề, cách chơi)…';
     drawLog(true);
-    /* Luồng mới (/api/flow): chỉ hỏi số đáp án + cách điều khiển; đủ thì lập Kế hoạch (khung bên phải mới hiện); duyệt rồi mới tạo game. */
+    /* Luồng Soạn khung nhanh (/api/flow): hỏi số đáp án + cách điều khiển → tạo Trình chơi Nháp. */
     api('POST', '/api/flow', { text: t, brief: real.brief }).then(function (d) {
       real.brief = d.brief || real.brief;
       if (d.stage === 'plan') real.flowPlan = { plan: d.plan, brief: d.brief, approved: false, built: null };
       real.msgs.push({ role: 'bot', text: d.message || '', steps: d.steps || [], flow: d });
     }).catch(function (e) {
       real.msgs.push({ role: 'bot', text: '', error: e.message || 'Lỗi kết nối máy chủ AI.', retryText: t });
-      if (!input.value.trim()) input.value = t; // KHÔNG làm mất nội dung người dùng đã gõ
+      if (!input.value.trim()) input.value = t;
     }).then(function () {
       real.busy = false; send.disabled = false; real.thinkSteps = null; drawLog(); focusInput();
     });
@@ -614,7 +637,7 @@ export function chatView(ctx) {
   }
   function cellBody(cell) { return cell.lastChild; }
   function planPane() {
-    if (mode === 'real') return flowPane();
+    if (mode === 'flow') return flowPane();
     var m = latestPlanMsg(), plan = m ? m.plan : null, ap = plan && plan.application_plan || null;
     var busy = mode === 'real' ? real.busy : mock.busy;
     var key = plan ? (DECISIONS[plan.decision] ? plan.decision : 'REFUSE') : null;

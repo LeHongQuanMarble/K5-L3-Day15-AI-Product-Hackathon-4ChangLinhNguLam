@@ -342,6 +342,37 @@ class ModelAwareGenerateTests(unittest.TestCase):
         self.assertNotIn(mid, [m["id"] for m in snap["models"]])
         self.assertEqual(len(snap["players"]), 2)
 
+    def test_player_assembler_wraps_jlruntime_snippet_with_deterministic_manifest(self):
+        """Player Assembler: wraps an AI-generated JLRuntime snippet into a valid, 0-flag, GameSpec-compliant HTML."""
+        import guardrails
+        import player_assembler
+        c = store.connect()
+        try:
+            hm = dict(c.execute("SELECT * FROM models WHERE kind='hands' LIMIT 1").fetchone())
+            hm["outputs"] = json.loads(hm["outputs"])
+        finally:
+            c.close()
+        spec = game_spec.build_game_spec(
+            {"app_name": "Hái sao bằng tay", "game_idea": "Di chuyển bàn tay chọn sao đáp án"},
+            {"message": "Tạo trò chơi mới hái sao bằng Bàn tay (MediaPipe)"},
+            {"models": [hm], "players": [], "exams": []},
+            explicit_model=hm,
+        )
+        snippet = """<style>.star{padding:12px;margin:8px;border-radius:10px}</style>
+<h2 id="q"></h2><div id="stars"></div>
+<script>
+var qs=[], i=0, sc=0;
+JLRuntime.onInit(function(list){ qs=list; i=0; sc=0; JLRuntime.setScore(0, qs.length); });
+JLRuntime.onHand(function(h){ if(h.palm){ window._x = h.palm.x; } });
+JLRuntime.onAction(function(a){ if(a.input==='grab'){ sc++; JLRuntime.setScore(sc, qs.length); } });
+</script>"""
+        full_html = player_assembler.assemble_player(spec, snippet)
+        vres = guardrails.validate_html_draft(full_html)
+        self.assertTrue(vres["ok"], vres.get("error"))
+        self.assertEqual(game_spec.validate_html_against_spec(full_html, spec), [])
+        self.assertIn("window.JLRuntime", full_html)
+        self.assertIn("data-jl-camera", full_html)
+
 
 if __name__ == "__main__":
     unittest.main()
