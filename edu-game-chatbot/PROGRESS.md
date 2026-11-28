@@ -28,6 +28,7 @@ T19 | 2026-11-28 | API sessions/messages/files/export/SSE/preview CSP, chuẩn h
 T21 | 2026-11-28 | E2E Playwright: luồng topic+chỉnh sửa→zip+inbox, mobile 375, resume; web resync() khi SSE mở | tester giả; bấm nút không lưu bong bóng user
 T23 | 2026-11-28 | README tiếng Việt: cài đặt, chạy, env, cấu trúc, test, sơ đồ luồng | 
 F01 | 2026-11-28 | Hỏi cách chơi, điều khiển (chuột/phím/camera/micro), giao diện trước khi tạo game | camera/micro chỉ chạy ở tab "Mở toàn màn hình" (iframe sandbox chặn)
+F02 | 2026-11-28 | AI gợi ý 3 ý tưởng game có chiều sâu tương tác ở bước cách chơi; prompt design/codegen sâu hơn | state bận SUGGESTING_GAMES; lỗi gợi ý → nút tĩnh F01
 
 ## Câu hỏi cần người dùng trả lời
 

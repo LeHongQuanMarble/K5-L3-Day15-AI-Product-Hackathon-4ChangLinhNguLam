@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
-PROMPT_NAMES = ("intake", "intent", "question_gen", "question_edit", "design", "codegen", "fix")
+PROMPT_NAMES = ("intake", "intent", "question_gen", "question_edit", "design", "codegen", "fix", "game_ideas")
 
 _VAR_RE = re.compile(r"\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}")
 
