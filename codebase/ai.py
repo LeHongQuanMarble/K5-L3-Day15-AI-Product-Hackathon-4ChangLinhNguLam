@@ -129,9 +129,9 @@ def _join_texts(provider, texts, field):
 # → text="" kèm token thật, không ném lỗi (khi có exception, tracing ghi 0 token và token đã tính tiền bị mất).
 # Chỉ phản hồi hỏng cấu trúc / sai kiểu mới là bad_response.
 
-def call_openai(system, user):
+def call_openai(system, user, model=None):
     data = post_json("https://api.openai.com/v1/chat/completions", {"Authorization": "Bearer " + API_KEY},
-                     {"model": MODEL_NAME, "messages": _messages(system, user)}, provider="openai")
+                     {"model": model or MODEL_NAME, "messages": _messages(system, user)}, provider="openai")
     tin, tout = extract_usage("openai", data)
     choices = data.get("choices")
     if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
@@ -145,10 +145,10 @@ def call_openai(system, user):
     return {"text": content or "", "tokens_in": tin, "tokens_out": tout}
 
 
-def call_claude(system, user):
+def call_claude(system, user, model=None):
     data = post_json("https://api.anthropic.com/v1/messages",
                      {"x-api-key": API_KEY, "anthropic-version": "2023-06-01"},
-                     {"model": MODEL_NAME, "max_tokens": MAX_OUT, "system": system or "",
+                     {"model": model or MODEL_NAME, "max_tokens": MAX_OUT, "system": system or "",
                       "messages": [{"role": "user", "content": user}]}, timeout=240, provider="anthropic")
     tin, tout = extract_usage("anthropic", data)
     blocks = data.get("content")
@@ -158,9 +158,9 @@ def call_claude(system, user):
     return {"text": text, "tokens_in": tin, "tokens_out": tout}
 
 
-def call_ollama(system, user):
+def call_ollama(system, user, model=None):
     data = post_json("http://localhost:11434/api/chat", {},
-                     {"model": MODEL_NAME, "messages": _messages(system, user), "stream": False}, timeout=300,
+                     {"model": model or MODEL_NAME, "messages": _messages(system, user), "stream": False}, timeout=300,
                      provider="ollama")
     tin, tout = extract_usage("ollama", data)
     msg = data.get("message")
@@ -169,13 +169,13 @@ def call_ollama(system, user):
     return {"text": msg["content"], "tokens_in": tin, "tokens_out": tout}
 
 
-def call_gemini(system, user):
+def call_gemini(system, user, model=None):
     """Gemini (generativelanguage v1beta). Key đi qua header, không nằm trên URL. Token ra gồm cả token suy nghĩ nếu có."""
     body = {"contents": [{"role": "user", "parts": [{"text": user}]}],
             "generationConfig": {"maxOutputTokens": MAX_OUT}}
     if system:
         body["systemInstruction"] = {"parts": [{"text": system}]}
-    data = post_json("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % MODEL_NAME,
+    data = post_json("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % (model or MODEL_NAME),
                      {"x-goog-api-key": API_KEY}, body, provider="gemini")
     cands = data.get("candidates")
     if cands is None or cands == []:
@@ -206,7 +206,9 @@ PROVIDERS = {"openai": call_openai, "anthropic": call_claude, "claude": call_cla
 
 
 @model_call
-def call_model(system: str, user: str) -> dict:
+def call_model(system: str, user: str, model: str = None) -> dict:
+    """Gọi model. `model` cho phép chỉ định model theo nhiệm vụ (multi-model routing):
+    None = dùng MODEL_NAME mặc định (.env); ví dụ GAME_GENERATOR_MODEL cho bước sinh game."""
     if MODEL_PROVIDER == "fake":
         last = (user.strip().splitlines() or [""])[-1]
         return {"text": "[câu trả lời giả — chưa nối model] " + last[:60], "model": "fake", "tokens_in": 0, "tokens_out": 0}
@@ -214,7 +216,8 @@ def call_model(system: str, user: str) -> dict:
     if fn is None:
         raise NotImplementedError("MODEL_PROVIDER=%s chưa được hỗ trợ (có: %s) — xem docs/connect-model.md mục 2.4"
                                   % (MODEL_PROVIDER, ", ".join(sorted(PROVIDERS))))
-    if not MODEL_NAME or (MODEL_PROVIDER != "ollama" and not API_KEY):
+    use_name = (model or MODEL_NAME or "").strip()
+    if not use_name or (MODEL_PROVIDER != "ollama" and not API_KEY):
         raise RuntimeError("Thiếu MODEL_NAME hoặc API_KEY trong .env (xem .env.example).")
-    r = fn(system, user)
-    return {"text": r["text"], "model": MODEL_NAME, "tokens_in": r["tokens_in"], "tokens_out": r["tokens_out"]}
+    r = fn(system, user, use_name)
+    return {"text": r["text"], "model": use_name, "tokens_in": r["tokens_in"], "tokens_out": r["tokens_out"]}

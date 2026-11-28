@@ -1,41 +1,48 @@
-"""Real AI UAT chấp nhận cho blocker GENERATE (P0) — CHẤP NHẬN CHẠY KHI CÓ --confirm-paid.
+"""Real AI UAT chấp nhận Model-aware GENERATE — CHẤP NHẬN CHẠY KHI CÓ --confirm-paid.
 
-Mục đích: chứng minh luồng Chat → GENERATE (player MỚI, model thật) → Preview → HITL Publish
-→ Play → Reload hoạt động với model AI thật (không mock, không REUSE giả GENERATE).
+Mục đích: chứng minh giáo viên có thể yêu cầu AI tạo Player MỚI với từng Model thật của team
+(Lái Xe pose / Âm thanh ABCD audio / Bàn tay MediaPipe hands) — không REUSE giả GENERATE,
+không rơi về mouse-only, chạy trọn luồng Chat → GENERATE → Preview → HITL → Publish → Play → Reload.
 
-Chạy (cần .env có MODEL_PROVIDER/API_KEY thật và server đang chạy):
-    python ailab/accept_real_ai_uat.py --confirm-paid            # cả TC02 + TC01
-    python ailab/accept_real_ai_uat.py --confirm-paid --cases tc02
+Chạy (cần server đang chạy với .env Real AI; audio case cần AILAB_ENABLE_AUDIO=1 khi khởi động server):
+    python ailab/accept_real_ai_uat.py --confirm-paid --cases driving,audio,hands
 
-Kiểm chứng ở đây là STATIC + PROTOCOL (srcdoc/manifest/mapping/questions/persistence).
-Tương tác camera/media THẬT (landmark, chỉ tay, micro) là phần Human UAT của PM — không đánh PASS thay.
-
-Exit code 0 = mọi case PASS. Không ghi vào DB catalog, không sửa benchmark/eval.
+Mức kiểm chứng: STATIC + PROTOCOL (srcdoc/manifest/mapping/số câu/persistence).
+Inference camera/microphone THẬT là phần Human UAT của PM — script không đánh PASS thay.
 """
 import argparse
 import http.cookiejar
 import json
 import sys
 import time
-import urllib.error
-import urllib.parse
 import urllib.request
 
 BASE = "http://127.0.0.1:8800"
 
-TC02_PROMPT = (
-    "Tạo một trò chơi mới chọn đáp án bằng cách chỉ ngón tay vào một trong bốn hành tinh trên màn hình. "
-    "Chủ đề hệ Mặt Trời lớp 5, gồm 4 câu hỏi mới. Dùng MediaPipe Hands và chuột dự phòng."
-)
-TC01_PROMPT = (
-    "Tạo một trò chơi mới thu hoạch táo ôn tập phép nhân lớp 3 gồm 5 câu hỏi mới. "
-    "Học sinh di chuyển bàn tay để chọn quả táo mang đáp án đúng, nắm tay để hái và có chuột dự phòng. "
-    "Sử dụng Model Bàn tay MediaPipe có sẵn. Không sử dụng Player có sẵn."
-)
-
 CASES = {
-    "tc02": {"prompt": TC02_PROMPT, "questions": 4, "name_hint": "hành tinh"},
-    "tc01": {"prompt": TC01_PROMPT, "questions": 5, "name_hint": "táo"},
+    "driving": {
+        "prompt": (
+            "Tạo một trò chơi mới đua xe chọn làn dùng Model \"Lái Xe\": học sinh nghiêng người trái/phải "
+            "để xe chạy vào làn chứa đáp án đúng, nút Nitro tăng tốc sau khi chọn. "
+            "Chủ đề phép nhân lớp 3, gồm 4 câu hỏi mới. Có chuột dự phòng."
+        ),
+        "kind": "pose", "questions": 4, "model_name": "Lái Xe",
+    },
+    "audio": {
+        "prompt": (
+            "Tạo một trò chơi mới chủ đề Hệ Mặt Trời gồm 4 câu hỏi mới: học sinh phát âm A, B, C, D vào micro "
+            "dùng Model \"Âm thanh A B C D\" để chọn đáp án. Có chuột dự phòng."
+        ),
+        "kind": "audio", "questions": 4, "model_name": "Âm thanh A B C D",
+    },
+    "hands": {
+        "prompt": (
+            "Tạo một trò chơi mới thu hoạch táo ôn tập phép nhân lớp 3 gồm 5 câu hỏi mới. "
+            "Học sinh di chuyển bàn tay để chọn quả táo mang đáp án đúng, nắm tay để hái và có chuột dự phòng. "
+            "Sử dụng Model Bàn tay MediaPipe có sẵn. Không sử dụng Player có sẵn."
+        ),
+        "kind": "hands", "questions": 5, "model_name": "Bàn tay (MediaPipe)",
+    },
 }
 
 
@@ -57,7 +64,7 @@ class Client:
 
 
 def collect_tokens(obj):
-    """Đi toàn bộ trace/steps, cộng dồn tokens_in/tokens_out tìm thấy (không ước lượng)."""
+    """Đi toàn bộ trace/steps, cộng dồn tokens_in/tokens_out + số lần gọi model (không ước lượng)."""
     total = {"tokens_in": 0, "tokens_out": 0, "calls": 0}
     if isinstance(obj, dict):
         ti, to = obj.get("tokens_in"), obj.get("tokens_out")
@@ -76,14 +83,14 @@ def collect_tokens(obj):
 
 
 def run_case(cl, key, cfg, results):
-    out = {"case": key.upper(), "checks": [], "ok": True}
+    out = {"case": key, "checks": [], "ok": True}
 
     def check(label, cond, detail=""):
         out["checks"].append({"check": label, "ok": bool(cond), "detail": str(detail)[:300]})
         if not cond:
             out["ok"] = False
 
-    # 1) Chat → /api/agent (Real AI)
+    kind = cfg["kind"]
     res = cl.call("POST", "/api/agent", {"text": cfg["prompt"]})
     check("decision == GENERATE", res.get("decision") == "GENERATE", res.get("decision"))
     check("draft_id được cấp", isinstance(res.get("draft_id"), int) and res["draft_id"] > 0, res.get("draft_id"))
@@ -95,29 +102,30 @@ def run_case(cl, key, cfg, results):
     exam = plan.get("exam") or {}
     check("player.mode == generate_new (không REUSE)", player.get("mode") == "generate_new", player.get("mode"))
     check("player.player_id is None (player MỚI)", player.get("player_id") is None, player.get("player_id"))
-    check("model.kind == hands", model.get("kind") == "hands", model.get("kind"))
+    check('model.kind == "%s"' % kind, model.get("kind") == kind, model.get("kind"))
     check("model gắn model_id thật", isinstance(model.get("model_id"), int), model.get("model_id"))
-    check("mapping có grab/open", isinstance(model.get("mapping"), dict) and "grab" in model.get("mapping", {}), model.get("mapping"))
-    check("interaction.primary == hands", (plan.get("interaction") or {}).get("primary") == "hands", (plan.get("interaction") or {}).get("primary"))
+    check("mapping không rỗng", isinstance(model.get("mapping"), dict) and len(model.get("mapping") or {}) > 0, model.get("mapping"))
+    check('interaction.primary == "%s"' % kind, (plan.get("interaction") or {}).get("primary") == kind, (plan.get("interaction") or {}).get("primary"))
     check("mouse_always_enabled", (plan.get("interaction") or {}).get("mouse_always_enabled") is True)
     check("exam mode generate_new", exam.get("mode") == "generate_new", exam.get("mode"))
     check("safety_flags == []", res.get("safety_flags") == [], res.get("safety_flags"))
 
-    # 2) Preview (sandbox srcdoc)
     prev = cl.call("GET", res.get("preview_url") or "")
     src = prev.get("srcdoc") or ""
     check("preview 200 có srcdoc", len(src) > 200, len(src))
     check("srcdoc có CSP", "Content-Security-Policy" in src)
     check("srcdoc có manifest jl-camera", 'id="jl-camera"' in src)
     check("srcdoc có Runtime Wrapper", "window.JLRuntime" in src)
-    check("srcdoc gửi hands-on khi cần", "type: 'hands', on: true" in src)
-    check("srcdoc có ô camera", "data-jl-camera" in src)
+    check("srcdoc có ô camera duy nhất", src.count("data-jl-camera") == 1, src.count("data-jl-camera"))
     man_prev = prev.get("manifest") if isinstance(prev.get("manifest"), dict) else {}
-    check("srcdoc manifest kinds chứa hands", "hands" in (man_prev.get("kinds") or []), man_prev.get("kinds"))
+    check("manifest kinds chứa %s" % kind, kind in (man_prev.get("kinds") or []), man_prev.get("kinds"))
+    if kind == "hands":
+        check("srcdoc gửi hands-on handshake", "type: 'hands', on: true" in src and "var USES_HANDS = true;" in src)
+    else:
+        check("không gửi hands-on cho kind %s" % kind, "var USES_HANDS = false;" in src)
     sample = prev.get("sampleQuestions") or []
-    check("preview có đúng số câu mẫu (%d)" % cfg["questions"], len(sample) == cfg["questions"], len(sample))
+    check("preview đúng số câu mẫu (%d)" % cfg["questions"], len(sample) == cfg["questions"], len(sample))
 
-    # 3) HITL Publish
     pub = cl.call("POST", "/api/agent/publish", {
         "draft_id": res["draft_id"], "plan_hash": res["plan_hash"],
         "approved": True, "reviewed_knowledge": True,
@@ -126,14 +134,13 @@ def run_case(cl, key, cfg, results):
     check("publish share == 0 (private, không tự public)", pub.get("share") == 0, pub.get("share"))
     app_id = pub.get("app_id") or 0
 
-    # 4) Play + Reload (persistence)
     play1 = cl.call("GET", "/api/apps/%d/play" % app_id)
     play2 = cl.call("GET", "/api/apps/%d/play" % app_id)
     check("play 200 có srcdoc", len(play1.get("srcdoc") or "") > 200)
-    check("play model.kind == hands", (play1.get("model") or {}).get("kind") == "hands", (play1.get("model") or {}).get("kind"))
+    check("play model.kind == %s" % kind, (play1.get("model") or {}).get("kind") == kind, (play1.get("model") or {}).get("kind"))
     check("play mapping giữ nguyên sau publish", play1.get("mapping") == model.get("mapping"), play1.get("mapping"))
-    check("play có đúng số câu (%d)" % cfg["questions"], len(play1.get("questions") or []) == cfg["questions"], len(play1.get("questions") or []))
-    check("reload (lần GET play thứ 2) nhất quán", len(play2.get("srcdoc") or "") == len(play1.get("srcdoc") or ""))
+    check("play đúng số câu (%d)" % cfg["questions"], len(play1.get("questions") or []) == cfg["questions"], len(play1.get("questions") or []))
+    check("reload (GET play lần 2) nhất quán", len(play2.get("srcdoc") or "") == len(play1.get("srcdoc") or ""))
 
     out["app_id"] = app_id
     out["draft_id"] = res.get("draft_id")
@@ -147,7 +154,7 @@ def main():
     global BASE
     ap = argparse.ArgumentParser()
     ap.add_argument("--confirm-paid", action="store_true", help="Xác nhận chạy API TRẢ PHÍ (bắt buộc)")
-    ap.add_argument("--cases", default="tc02,tc01")
+    ap.add_argument("--cases", default="driving,audio,hands")
     ap.add_argument("--base", default=BASE)
     args = ap.parse_args()
     if not args.confirm_paid:
@@ -174,8 +181,9 @@ def main():
 
     tot_in = sum(r["usage"]["tokens_in"] for r in results)
     tot_out = sum(r["usage"]["tokens_out"] for r in results)
-    print("\nTỔNG TOKEN (từ usage API, không ước lượng): in=%d out=%d" % (tot_in, tot_out))
-    print("KẾT LUẬN:", "PASS — sẵn sàng UAT camera thật của PM" if all_ok else "FAIL — phân tích nguyên nhân trước khi retry")
+    tot_calls = sum(r["usage"]["calls"] for r in results)
+    print("\nTỔNG TOKEN (usage API thật): in=%d out=%d | lượt gọi model=%d" % (tot_in, tot_out, tot_calls))
+    print("KẾT LUẬN:", "PASS — sẵn sàng UAT camera/micro thật của PM" if all_ok else "FAIL — phân tích nguyên nhân trước khi retry")
     return 0 if all_ok else 1
 
 

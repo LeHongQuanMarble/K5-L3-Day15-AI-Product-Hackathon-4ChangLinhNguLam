@@ -38,6 +38,11 @@ from tools import check_game  # noqa: E402
 from tracing import note  # noqa: E402
 
 MAX_STEPS = 2        # Tối đa 2 lượt sinh HTML: 1 tạo + 1 sửa theo lỗi check_game
+
+# Multi-model routing (PHASE 3): model mạnh cho bước SINH GAME, model tiết kiệm cho routing/exam.
+# Không hardcode tên model trong business logic — cấu hình qua biến môi trường (mặc định = MODEL_NAME).
+GAME_GENERATOR_MODEL = (os.environ.get("GAME_GENERATOR_MODEL") or "").strip() or None
+GAME_REPAIR_MODEL = (os.environ.get("GAME_REPAIR_MODEL") or "").strip() or None
 MAX_EXAM_RETRIES = 1 # Tối đa 1 lượt sửa cú pháp bộ đề khi validate_exam báo lỗi
 
 FENCE = chr(96) * 3
@@ -98,6 +103,7 @@ GENERATE_HTML_SYSTEM = (
     + "- BẮT BUỘC hỗ trợ chơi trọn vẹn bằng chuột/chạm/bàn phím (Mouse Fallback) song song với Model camera/micro.\n"
     + "- BẮT BUỘC xử lý `window.addEventListener('message', ...)` nhận `camera.init` (nạp động `d.questions` hoặc `d.content`), gửi `parent.postMessage({type:'ready'}, '*')`, có chấm điểm, phản hồi đúng/sai, cooldown chống chọn lặp khi tay đứng yên, kết thúc gửi `finish`, và nút Chơi lại (Reset) xóa sạch trạng thái cũ. Dùng `textContent` để hiển thị chữ an toàn.\n"
     + "- GIỮ FILE GỌN: tối đa khoảng 250 dòng, CSS/JS ngắn, không thư viện ngoài, ít hiệu ứng, 4–8 mục dữ liệu mẫu để không bị cắt cụt giữa chừng.\n"
+    + "- CHẤT LƯỢNG TRỰC QUAN (bắt buộc — game demo trước ban giám khảo): dựng bối cảnh theo chủ đề bài học bằng CSS/SVG/Canvas (nền gradient hoặc vẽ cảnh đơn giản, vật thể/trò chơi vẽ bằng CSS hoặc inline SVG, KHÔNG nạp ảnh từ mạng; ảnh tĩnh chỉ dùng data: URI nhỏ), có MÀN HÌNH BẮT ĐẦU (tên game + hướng dẫn cách chơi 1–2 câu + nút Bắt đầu) và MÀN HÌNH KẾT THÚC (điểm + lời khen/nhận xét + nút Chơi lại), phản hồi đúng/sai rõ ràng (đổi màu + biểu tượng ✓/✗ + hiệu ứng nhẹ ≤0.4s), chữ to bố cục lớn hiển thị tốt trên máy chiếu, các vật tương tác đủ to để chỉ tay bằng camera. Ưu tiên gameplay KHÔNG phải quiz đổi màu: có chuyển động/vị trí/thuật đo điểm riêng theo chủ đề.\n"
     + "- Trả về 1–2 câu mô tả tiếng Việt và ĐÚNG MỘT khối mã ```html ... ``` hoàn chỉnh từ `<!doctype html>` đến `</html>`.\n"
 )
 
@@ -252,6 +258,25 @@ def _validate_and_repair_exam(content: str, player_id=None, expected_count=None,
     return cur, res
 
 
+def _call_generator(system, prompt):
+    """Gọi model sinh game — dùng GAME_GENERATOR_MODEL khi có cấu hình (multi-model routing),
+    không thì dùng MODEL_NAME mặc định. Không truyền kwarg khi không cần (tương thích mock/tests)."""
+    if GAME_GENERATOR_MODEL:
+        return call_model(system, prompt, model=GAME_GENERATOR_MODEL)
+    return call_model(system, prompt)
+
+
+def _ensure_single_camera(html: str) -> str:
+    """Đảm bảo đúng MỘT ô [data-jl-camera] trong file: LLM tự vẽ nhiều ô camera (mỗi ô một canvas
+    HELPER vẽ vào — trông như hai camera song song) → giữ ô ĐẦU, bỏ attribute ở các ô sau."""
+    if html.count("data-jl-camera") <= 1:
+        return html
+    first = html.find("data-jl-camera")
+    cut = first + len("data-jl-camera")
+    head, tail = html[:cut], html[cut:]
+    return head + re.sub(r"[\s]*data-jl-camera(?:\s*=\s*(\"[^\"]*\"|'[^']*'|[^\s>]+))?", "", tail)
+
+
 def _run_generate_html(user_message: str, game_idea: str, need_exam: bool, spec: dict = None):
     """Sinh 1 file HTML nháp theo GameSpec + contract.BRIEF, tối đa MAX_STEPS lượt (1 tạo + 1 sửa).
     Kiểm bằng L1–L4: guardrails.validate_html_draft + game_spec.validate_html_against_spec."""
@@ -279,7 +304,7 @@ def _run_generate_html(user_message: str, game_idea: str, need_exam: bool, spec:
             "%s\n\n[Hệ thống] Bản nháp trước bị từ chối: %s. Hãy sửa triệt để và trả lại đầy đủ file HTML."
             % (base_prompt, last_err)
         )
-        reply = call_model(GENERATE_HTML_SYSTEM, prompt)
+        reply = _call_generator(GENERATE_HTML_SYSTEM, prompt)
         text = (reply.get("text") or "").strip()
         if not text:
             note("dừng GENERATE: model không trả nội dung ở lượt %d" % step)
@@ -290,6 +315,7 @@ def _run_generate_html(user_message: str, game_idea: str, need_exam: bool, spec:
                         "viết lại NGẮN hơn một nửa (dưới 150 dòng, bỏ hiệu ứng phụ), vẫn đủ từ <!doctype html> đến </html>.")
             note("GENERATE lượt %d: thiếu khối HTML" % step)
             continue
+        html = _ensure_single_camera(html)  # một ô camera duy nhất trên MỌI đường sinh (kể cả full-HTML của LLM)
         if isinstance(spec, dict) and 'id="jl-camera"' not in html and "id='jl-camera'" not in html:
             html = player_assembler.assemble_player(spec, html)
         vres = guardrails.validate_html_draft(html, check_fn=check_game)
@@ -332,7 +358,7 @@ def _legacy_direct_html_loop(user_text: str, first_reply_text: str):
     for step in range(1, MAX_STEPS + 1):
         if step > 1:
             prompt = "%s\n\n[Hệ thống] Bản trước bị từ chối: %s Hãy sửa và trả lại đầy đủ file." % (user_text, last_err)
-            reply = call_model(GENERATE_HTML_SYSTEM, prompt)
+            reply = _call_generator(GENERATE_HTML_SYSTEM, prompt)
             cur_text = reply.get("text") or ""
             if not cur_text.strip():
                 note("dừng: model không trả nội dung ở lượt %d" % step)
