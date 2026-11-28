@@ -1,10 +1,16 @@
 // Giao diện chat (T20). JS thuần, không framework, không CDN.
 "use strict";
 
-const state = { sessionId: null, sessionState: null, eventSource: null, seen: new Set() };
+const state = { sessionId: null, sessionState: null, eventSource: null, seen: new Set(), versions: new Map(), current: null };
 const BUSY = ["BUILDING_QUESTIONS", "READY_TO_DESIGN", "PIPELINE_RUNNING", "EXPORTING"];
 const TERMINAL = ["DONE", "REJECTED", "CANCELLED"];
 const KEY = "edu_game_session";
+const PIPELINE = ["READY_TO_DESIGN", "PIPELINE_RUNNING"];
+const STEP_OF = {
+  AWAIT_REQUEST: 0, REJECTED: 0, AWAIT_SOURCE: 1, AWAIT_SOURCE_INPUT: 1, BUILDING_QUESTIONS: 1,
+  AWAIT_QUESTION_APPROVAL: 1, READY_TO_DESIGN: 2, PIPELINE_RUNNING: 2, AWAIT_REVIEW: 3,
+  AWAIT_REVISION_TEXT: 3, EXPORTING: 4, DONE: 5,
+};
 
 const $ = (id) => document.getElementById(id);
 const api = (path) => "/api/sessions" + path;
@@ -30,6 +36,7 @@ async function init() {
     if (e.target.files.length) uploadFiles(e.target.files);
     e.target.value = "";
   });
+  initGamePane();
   const id = new URLSearchParams(location.search).get("session") || storeGet();
   if (id) await loadSession(id); else await createSession();
 }
@@ -51,8 +58,7 @@ async function createSession() {
     if (!r.ok) throw new Error(r.status);
     const data = await r.json();
     useSession(data.id);
-    $("messages").innerHTML = "";
-    state.seen.clear();
+    resetUi();
     (data.messages || []).forEach(renderMessage);
     setState(data.state || "AWAIT_REQUEST");
     connectEvents(data.id);
@@ -69,8 +75,7 @@ async function loadSession(sessionId) {
     if (!r.ok) throw new Error(r.status);
     const data = await r.json();
     useSession(sessionId);
-    $("messages").innerHTML = "";
-    state.seen.clear();
+    resetUi();
     (data.messages || []).forEach(renderMessage);
     setState(data.state);
     connectEvents(sessionId);
@@ -167,7 +172,16 @@ function renderMessage(message) {
   el.appendChild(p);
   if (message.buttons && message.buttons.length) renderButtons(el, message.buttons);
   $("messages").appendChild(el);
-  if (message.preview_url) renderPreview(message.preview_url);
+  if (message.preview_url) {
+    renderPreview(message.preview_url);
+    const go = document.createElement("button");
+    go.type = "button";
+    go.className = "msg__open-game";
+    const n = versionOf(message.preview_url);
+    go.textContent = "🎮 Xem game" + (n ? " v" + n : "");
+    go.addEventListener("click", () => { selectVersion(n); setView("game"); });
+    el.insertBefore(go, el.querySelector(".buttons"));
+  }
   scrollDown();
 }
 
@@ -191,11 +205,109 @@ function renderButtons(container, buttons) {
   container.appendChild(box);
 }
 
-/** Hiện iframe chơi thử với url, cập nhật link 'Mở toàn màn hình'. */
+/** Ghi nhận phiên bản mới từ preview_url và hiện nó trong khung Game demo. */
 function renderPreview(url) {
-  $("preview-frame").src = url;
-  $("preview-open").href = url;
+  const n = versionOf(url) || state.versions.size + 1;
+  const isNew = !state.versions.has(n);
+  state.versions.set(n, url);
+  renderVersionList();
+  selectVersion(n);
+  if (isNew && !isWide()) $("tab-game-dot").hidden = $("layout").dataset.view === "game";
+}
+
+function versionOf(url) { const m = /\/v(\d+)(?:[/?#]|$)/.exec(url || ""); return m ? Number(m[1]) : 0; }
+
+function renderVersionList() {
+  const box = $("version-list");
+  box.innerHTML = "";
+  [...state.versions.keys()].sort((a, b) => a - b).forEach((n) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = "v" + n;
+    b.className = n === state.current ? "is-active" : "";
+    b.addEventListener("click", () => selectVersion(n));
+    box.appendChild(b);
+  });
+}
+
+/** Hiện iframe của phiên bản n, cập nhật link 'Mở toàn màn hình'. */
+function selectVersion(n) {
+  const url = state.versions.get(n);
+  if (!url) return;
+  state.current = n;
+  const frame = $("preview-frame");
+  if (frame.getAttribute("src") !== url) frame.src = url;
+  const open = $("preview-open");
+  open.href = url;
+  open.removeAttribute("aria-disabled");
+  $("preview-reload").disabled = false;
   $("preview").hidden = false;
+  $("game-empty").hidden = true;
+  renderVersionList();
+}
+
+function isWide() { return window.matchMedia("(min-width: 901px)").matches; }
+
+/** Màn hình hẹp: chuyển giữa khung chat và khung game. */
+function setView(view) {
+  $("layout").dataset.view = view;
+  $("tab-chat").classList.toggle("is-active", view === "chat");
+  $("tab-game").classList.toggle("is-active", view === "game");
+  $("tab-chat").setAttribute("aria-selected", String(view === "chat"));
+  $("tab-game").setAttribute("aria-selected", String(view === "game"));
+  if (view === "game") $("tab-game-dot").hidden = true;
+}
+
+function setDevice(device) {
+  $("device").className = "device device--" + device;
+  $("device-desktop").classList.toggle("is-active", device === "desktop");
+  $("device-mobile").classList.toggle("is-active", device === "mobile");
+}
+
+function initGamePane() {
+  $("tab-chat").addEventListener("click", () => setView("chat"));
+  $("tab-game").addEventListener("click", () => setView("game"));
+  $("device-desktop").addEventListener("click", () => setDevice("desktop"));
+  $("device-mobile").addEventListener("click", () => setDevice("mobile"));
+  $("preview-reload").addEventListener("click", () => {
+    const url = state.versions.get(state.current);
+    if (url) $("preview-frame").src = url + (url.includes("?") ? "&" : "?") + "r=" + Date.now();
+  });
+  $("new-session").addEventListener("click", () => {
+    if (!confirm("Bắt đầu phiên mới? Cuộc trò chuyện hiện tại vẫn được lưu và mở lại được bằng đường link cũ.")) return;
+    if (state.eventSource) state.eventSource.close();
+    state.eventSource = null;
+    createSession();
+  });
+}
+
+/** Xoá giao diện về trạng thái trống trước khi vẽ một phiên. */
+function resetUi() {
+  $("messages").innerHTML = "";
+  state.seen.clear();
+  state.versions.clear();
+  state.current = null;
+  renderVersionList();
+  const frame = $("preview-frame");
+  frame.removeAttribute("src");
+  $("preview").hidden = true;
+  $("game-empty").hidden = false;
+  $("preview-open").removeAttribute("href");
+  $("preview-open").setAttribute("aria-disabled", "true");
+  $("preview-reload").disabled = true;
+  $("game-download").hidden = true;
+  $("tab-game-dot").hidden = true;
+  renderProgress("");
+  setView("chat");
+}
+
+function renderStepper(newState) {
+  const step = STEP_OF[newState] ?? -1;
+  document.querySelectorAll("#stepper li").forEach((li) => {
+    const i = Number(li.dataset.step);
+    li.classList.toggle("is-done", step > i);
+    li.classList.toggle("is-current", step === i);
+  });
 }
 
 /** Cập nhật thanh tiến độ (ẩn khi rỗng). */
@@ -203,6 +315,7 @@ function renderProgress(text) {
   const p = $("progress");
   p.textContent = text || "";
   p.hidden = !text;
+  if (text) $("game-loading-text").textContent = text;
 }
 
 /** Lưu state; bật/tắt nút đính kèm (chỉ AWAIT_SOURCE_INPUT), khoá ô nhập khi bận/kết thúc, hiện link zip khi DONE. */
@@ -215,6 +328,15 @@ function setState(newState) {
   $("text-input").disabled = locked;
   $("send-btn").disabled = locked;
   if (!busy) renderProgress("");
+  renderStepper(newState);
+  const building = PIPELINE.includes(newState);
+  $("game-loading").hidden = !building;
+  $("game-empty").hidden = building || state.versions.size > 0;
+  $("game-pane").classList.toggle("game-pane--loading", building);
+  if (!building) $("game-loading-text").textContent = "Đang tạo game…";
+  const zip = api("/" + encodeURIComponent(state.sessionId) + "/export.zip");
+  $("game-download").hidden = newState !== "DONE";
+  if (newState === "DONE") $("game-download").href = zip;
   let link = $("download-zip");
   if (newState === "DONE") {
     if (!link) {

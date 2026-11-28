@@ -7,22 +7,83 @@
   <link rel="stylesheet" href="/chat.css">
 </head>
 <body>
-  <!-- T20: khung giao diện chat. Giữ nguyên các id bên dưới (chat.js và test e2e dùng). -->
-  <header id="app-header"></header>
-  <main id="chat">
-    <div id="messages" data-testid="messages"></div>
-    <div id="progress" data-testid="progress" hidden></div>
-    <section id="preview" data-testid="preview" hidden>
-      <iframe id="preview-frame" sandbox="allow-scripts" title="Chơi thử game"></iframe>
-      <a id="preview-open" target="_blank" rel="noopener">Mở toàn màn hình</a>
+  <!-- Giữ nguyên các id/data-testid gốc (chat.js và test e2e dùng). -->
+  <header id="app-header" class="topbar">
+    <div class="brand">
+      <span class="brand__logo" aria-hidden="true">🎓</span>
+      <div>
+        <div class="brand__title">Trợ lý tạo game học tập</div>
+        <div class="brand__sub">Chat để tạo game có chấm điểm — chơi thử ngay bên cạnh</div>
+      </div>
+    </div>
+    <ol id="stepper" class="stepper" aria-label="Tiến trình">
+      <li data-step="0">Yêu cầu</li>
+      <li data-step="1">Câu hỏi</li>
+      <li data-step="2">Tạo game</li>
+      <li data-step="3">Chơi thử</li>
+      <li data-step="4">Xuất file</li>
+    </ol>
+    <button id="new-session" class="btn btn--ghost" type="button" title="Bắt đầu cuộc trò chuyện mới">＋ Phiên mới</button>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Chuyển khung">
+    <button id="tab-chat" class="tab is-active" role="tab" type="button" aria-selected="true">💬 Trò chuyện</button>
+    <button id="tab-game" class="tab" role="tab" type="button" aria-selected="false">🎮 Game demo <span id="tab-game-dot" class="dot" hidden></span></button>
+  </nav>
+
+  <div id="layout" class="layout" data-view="chat">
+    <section class="pane pane--chat" aria-label="Trò chuyện">
+      <main id="chat">
+        <div id="messages" data-testid="messages"></div>
+        <div id="progress" data-testid="progress" hidden></div>
+      </main>
+      <form id="composer" data-testid="composer">
+        <input id="file-input" data-testid="file-input" type="file" multiple hidden
+               accept=".json,.csv,.pdf,.docx,.txt,.md">
+        <button id="attach-btn" data-testid="attach-btn" class="btn btn--ghost" type="button" hidden title="Đính kèm file">📎<span class="hide-sm"> Đính kèm</span></button>
+        <input id="text-input" data-testid="text-input" type="text" autocomplete="off"
+               placeholder="Nhập tin nhắn cho trợ lý…">
+        <button id="send-btn" data-testid="send-btn" class="btn btn--primary" type="submit">Gửi</button>
+      </form>
     </section>
-  </main>
-  <form id="composer" data-testid="composer">
-    <input id="file-input" data-testid="file-input" type="file" multiple hidden>
-    <button id="attach-btn" data-testid="attach-btn" type="button" hidden>Đính kèm</button>
-    <input id="text-input" data-testid="text-input" type="text" autocomplete="off">
-    <button id="send-btn" data-testid="send-btn" type="submit">Gửi</button>
-  </form>
+
+    <section id="game-pane" class="pane pane--game" aria-label="Game demo">
+      <div class="game-toolbar">
+        <div class="game-toolbar__title">
+          <strong>Game demo</strong>
+          <div id="version-list" class="versions" role="tablist" aria-label="Phiên bản"></div>
+        </div>
+        <div class="game-toolbar__actions">
+          <div class="seg" role="group" aria-label="Kích thước màn hình">
+            <button id="device-desktop" class="seg__btn is-active" type="button" title="Máy tính">🖥<span class="hide-sm"> Máy tính</span></button>
+            <button id="device-mobile" class="seg__btn" type="button" title="Điện thoại (375px)">📱<span class="hide-sm"> Điện thoại</span></button>
+          </div>
+          <button id="preview-reload" class="btn btn--ghost" type="button" title="Chơi lại từ đầu" disabled>⟳</button>
+          <a id="preview-open" class="btn btn--ghost" target="_blank" rel="noopener" aria-disabled="true">⛶<span class="hide-sm"> Mở toàn màn hình</span></a>
+          <a id="game-download" class="btn btn--primary" hidden>⬇ Tải .zip</a>
+        </div>
+      </div>
+
+      <div class="game-stage">
+        <div id="game-empty" class="game-empty">
+          <div class="game-empty__icon" aria-hidden="true">🕹️</div>
+          <h2>Chưa có game</h2>
+          <p>Hãy trò chuyện với trợ lý ở khung bên trái: nêu nội dung bài học, chọn nguồn câu hỏi rồi duyệt bộ câu hỏi.
+             Game sẽ xuất hiện ở đây để thầy/cô chơi thử.</p>
+        </div>
+        <div id="game-loading" class="game-loading" hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <p id="game-loading-text">Đang tạo game…</p>
+          <p class="muted">Trợ lý đang thiết kế, sinh mã và tự kiểm thử game. Việc này có thể mất 1–3 phút.</p>
+        </div>
+        <section id="preview" data-testid="preview" hidden>
+          <div id="device" class="device device--desktop">
+            <iframe id="preview-frame" sandbox="allow-scripts" title="Chơi thử game"></iframe>
+          </div>
+        </section>
+      </div>
+    </section>
+  </div>
   <script src="/chat.js"></script>
 </body>
 </html>
