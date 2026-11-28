@@ -214,7 +214,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 
 ## Giai đoạn 4 — Chất lượng & bàn giao
 
-### [ ] T21. E2E toàn luồng (FakeLLM + Playwright thật)
+### [x] T21. E2E toàn luồng (FakeLLM + Playwright thật)
 - **File:** `tests/e2e/test_chat_ui.py`
 - **Làm:** chạy uvicorn trên cổng ngẫu nhiên với FakeLLM (inject qua `app.dependency_overrides` hoặc factory `create_app(llm=...)`). Playwright mở `/` và đi đúng kịch bản SPEC §4: chủ đề → duyệt câu hỏi → chơi thử (iframe hiển thị) → chỉnh sửa → v2 → hài lòng → thấy link zip; kiểm `main_inbox/<id>.json` tồn tại.
 - **Kiểm tra:** `pytest tests/e2e -q -m browser`
