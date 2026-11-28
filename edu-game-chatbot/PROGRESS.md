@@ -27,6 +27,7 @@ FIX1 | 2026-11-28 | Sửa happy_llm theo schema thật; replies.retry_button/fix
 T19 | 2026-11-28 | API sessions/messages/files/export/SSE/preview CSP, chuẩn hoá tên file upload | create_app() cần OPENAI_API_KEY
 T21 | 2026-11-28 | E2E Playwright: luồng topic+chỉnh sửa→zip+inbox, mobile 375, resume; web resync() khi SSE mở | tester giả; bấm nút không lưu bong bóng user
 T23 | 2026-11-28 | README tiếng Việt: cài đặt, chạy, env, cấu trúc, test, sơ đồ luồng | 
+F01 | 2026-11-28 | Hỏi cách chơi, điều khiển (chuột/phím/camera/micro), giao diện trước khi tạo game | camera/micro chỉ chạy ở tab "Mở toàn màn hình" (iframe sandbox chặn)
 
 ## Câu hỏi cần người dùng trả lời
 
