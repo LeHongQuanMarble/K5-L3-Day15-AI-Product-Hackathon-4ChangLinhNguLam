@@ -3,6 +3,7 @@ import base64
 import re
 import hashlib
 import hmac
+import http.client
 import json
 import os
 import secrets
@@ -316,21 +317,82 @@ def _model_host_allowed(host):
     return True
 
 
-class _CheckedRedirect(urllib.request.HTTPRedirectHandler):
-    """Theo redirect nhưng chặn mọi đích ngoài allow-list (Chỉ https + host công khai)."""
+def _model_verified_ip(host):
+    """Phân giải host trong allow-list, trả MỘT chuỗi IP công khai đã kiểm (None nếu không hợp lệ).
+    IP này được dùng TRỰC TIẾP để kết nối — diệt DNS rebinding (không resolve lần 2 lúc request)."""
+    import ipaddress
+    import socket
+    h = (host or "").lower()
+    if not any(h == s or h.endswith("." + s) for s in _ALLOWED_MODEL_HOSTS):
+        return None
+    try:
+        for _fam, _typ, _proto, _canon, sa in socket.getaddrinfo(h, 443, proto=socket.IPPROTO_TCP):
+            ip = ipaddress.ip_address(sa[0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                return None
+            return str(ip)  # IP đầu tiên hợp lệ — mọi IP khác cũng đã qua cùng bộ lọc ở _model_host_allowed
+    except (socket.gaierror, ValueError):
+        return None
+    return None
 
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        u = urllib.parse.urlsplit(newurl)
-        if u.scheme != "https" or not _model_host_allowed(u.hostname):
-            raise urllib.error.HTTPError(newurl, code, "model_check_redirect_denied", headers, fp)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """HTTPSConnection kết nối tới IP ĐÃ XÁC MINH nhưng giữ SNI/chứng chỉ theo hostname."""
+
+    def __init__(self, host, ip, timeout=None):
+        super().__init__(host, timeout=timeout)
+        self._pin_ip = ip
+
+    def connect(self):
+        import socket as _socket
+        self.sock = _socket.create_connection((self._pin_ip, self.port), timeout=self.timeout)
+        self.sock = self._context.wrap_socket(self.sock, server_hostname=self.host)
+
+
+def _model_check_get(url, timeout=2.5):
+    """GET model.json bằng kết nối ghim IP (chống DNS rebinding), tự theo redirect tối đa 3 hop,
+    mỗi hop kiểm lại scheme https + host allow-list + IP công khai. Trả True/False."""
+    u = urllib.parse.urlsplit(url)
+    for _hop in range(3):
+        if u.scheme != "https":
+            return False
+        ip = _model_verified_ip(u.hostname)
+        if ip is None:
+            return False
+        conn = _PinnedHTTPSConnection(u.hostname, ip, timeout=timeout)
+        try:
+            path = u.path or "/"
+            if u.query:
+                path += "?" + u.query
+            conn.request("GET", path, headers={"Host": u.hostname, "User-Agent": "ailab-model-check/1"})
+            resp = conn.getresponse()
+            body_head = resp.read(4096)
+            if resp.status in (301, 302, 303, 307, 308):
+                loc = resp.getheader("Location")
+                conn.close()
+                if not loc:
+                    return False
+                u2 = urllib.parse.urlsplit(urllib.parse.urljoin(u.geturl(), loc))
+                if u2.scheme != "https":
+                    return False
+                u = u2
+                continue
+            conn.close()
+            return resp.status < 400
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            raise
 
 
 def check_model_url(url, timeout=2.5):
     """Kiểm nhanh artifact model có tải được không (GET model.json). `jl:builtin` luôn sẵn sàng.
-    An toàn SSRF: chỉ https + host allow-list, mỗi hop redirect được kiểm lại, chặn IP private.
-    Trả True/False — không raise (lỗi mạng/timeout chỉ nghĩa là 'chưa xác minh' → coi như sẵn sàng
-    để không chặn offline; chỉ đánh dấu broken khi chắc chắn 4xx/5xx hoặc đích không hợp lệ)."""
+    An toàn SSRF (Codex round 2): kết nối ghim vào IP đã xác minh (diệt DNS rebinding), chỉ https +
+    host allow-list, mỗi hop redirect kiểm lại, chặn IP private. Trả True/False — không raise
+    (lỗi mạng/timeout chỉ nghĩa là 'chưa xác minh' → coi như sẵn sàng; broken chỉ khi chắc chắn
+    4xx/5xx hoặc đích không hợp lệ)."""
     if not isinstance(url, str) or not url or url.startswith("jl:"):
         return True
     base = url if url.endswith("/") else url + "/"
@@ -338,11 +400,7 @@ def check_model_url(url, timeout=2.5):
     if u.scheme != "https" or not _model_host_allowed(u.hostname):
         return False  # ngoài allow-list (hoặc trông như URL nội bộ) → không được tin là READY
     try:
-        opener = urllib.request.build_opener(_CheckedRedirect)
-        with opener.open(base + "model.json", timeout=timeout) as resp:
-            return resp.status < 400
-    except urllib.error.HTTPError:
-        return False  # 4xx/5xx (kể cả redirect bị chặn) chắc chắn không tải được
+        return _model_check_get(base + "model.json", timeout=timeout)
     except Exception:
         return True  # mạng lỗi/timeout: không kết luận là broken
 

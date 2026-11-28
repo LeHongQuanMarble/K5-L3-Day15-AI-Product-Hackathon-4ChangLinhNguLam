@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Game Composer — RC 28/11 (bộ slide CP4)</title>
+<style>
+  :root{--bg:#0b1220;--surface:#141d31;--line:rgba(148,163,184,.25);--text:#f1f5f9;--muted:#94a3b8;
+        --brand:#6366f1;--brand2:#4f46e5;--ok:#22c55e;--warn:#facc15;--bad:#ef4444;--sky:#38bdf8}
+  *{box-sizing:border-box}
+  body{margin:0;background:#05070d;color:var(--text);font-family:system-ui,-apple-system,'Segoe UI',sans-serif}
+  .slide{width:1280px;height:720px;margin:24px auto;padding:56px 64px;background:radial-gradient(1100px 640px at 85% -10%,rgba(99,102,241,.16),transparent 60%),var(--bg);
+         border:1px solid var(--line);border-radius:18px;position:relative;overflow:hidden;page-break-after:always}
+  .slide h1{font-size:44px;margin:0 0 10px;letter-spacing:.3px}
+  .slide h2{font-size:32px;margin:0 0 18px;color:var(--sky)}
+  .kicker{color:var(--brand);font-weight:800;text-transform:uppercase;letter-spacing:2px;font-size:13px;margin-bottom:14px}
+  .cols{display:flex;gap:28px}
+  .col{flex:1;min-width:0}
+  ul{margin:8px 0;padding-left:20px;line-height:1.55;font-size:19px}
+  li{margin:7px 0}
+  .big{font-size:56px;font-weight:800;color:var(--warn)}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin:10px 0}
+  .stat b{font-size:30px}
+  .muted{color:var(--muted);font-size:15px}
+  .pill{display:inline-block;padding:4px 12px;border-radius:999px;background:rgba(99,102,241,.2);color:#e0e7ff;font-weight:700;font-size:14px;margin:2px 4px 2px 0}
+  .pill.ok{background:rgba(34,197,94,.15);color:#bbf7d0}
+  .pill.warn{background:rgba(250,204,21,.12);color:#fde68a}
+  table{width:100%;border-collapse:collapse;font-size:17px;margin-top:6px}
+  th,td{border-bottom:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top}
+  th{color:var(--muted);font-size:14px;text-transform:uppercase;letter-spacing:1px}
+  .foot{position:absolute;bottom:20px;left:64px;right:64px;display:flex;justify-content:space-between;color:var(--muted);font-size:13px}
+  .note{background:rgba(250,204,21,.08);border:1px solid rgba(250,204,21,.35);border-radius:12px;padding:12px 16px;font-size:16px;margin-top:14px}
+  .ok-chip{color:#bbf7d0;font-weight:700}
+  @media print{body{background:#fff}.slide{border:none;border-radius:0;page-break-after:always;margin:0}}
+</style>
+</head>
+<body>
+
+<!-- 1 · TITLE -->
+<section class="slide">
+  <div class="kicker">AI20K · Mini Hackathon · Track A — EdTech · A3</div>
+  <h1>AI Game Composer</h1>
+  <p style="font-size:24px;color:var(--muted);max-width:900px">Trợ lý AI giúp giáo viên tạo trò chơi ôn tập tương tác trong vài phút — <b style="color:var(--text)">REUSE-first, GENERATE khi cần</b>, gắn Model tương tác thật (tay / tư thế / âm thanh), luôn có chuột dự phòng.</p>
+  <div style="margin-top:26px">
+    <span class="pill ok">Release Candidate 28/11</span>
+    <span class="pill">353/353 offline tests</span>
+    <span class="pill">4 game Premium do AI sinh</span>
+    <span class="pill">3 Model thật sẵn sàng</span>
+  </div>
+  <p class="muted" style="margin-top:30px">Team 4ChangLinhNguLam · Nhánh RC <code>fix/p0-composer-capability @ 9933c8b</code> · Server demo <code>http://127.0.0.1:8800</code></p>
+  <div class="foot"><span>AI Game Composer — RC</span><span>1 / 10</span></div>
+</section>
+
+<!-- 2 · PROBLEM -->
+<section class="slide">
+  <div class="kicker">Vấn đề & bằng chứng người dùng</div>
+  <h2>Giáo viên mất 20–30 phút để làm 1 trò chơi ôn tập</h2>
+  <div class="cols">
+    <div class="col">
+      <ul>
+        <li><b>61,9%</b> giáo viên đau đầu <b>soạn câu hỏi</b> cho trò chơi (khảo sát n=21, hợp lệ n=20)</li>
+        <li><b>61,9%</b> mất công <b>cấu hình/trình bày</b> trò chơi</li>
+        <li><b>66,7%</b> cần chơi bằng <b>chuột/phím</b> — lớp học không phải lúc nào cũng có camera tốt</li>
+        <li><b>33,3%</b> gặp sự cố kỹ thuật / sai đáp án khi tự làm</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div class="stat"><b>20–&lt;30 phút</b><br><span class="muted">thời gian làm 1 trò chơi (baseline, 61,9% tốn ≥20 phút; 66,7% làm ≥3 lần/tháng)</span></div>
+      <div class="stat"><b>n = 21</b> <span class="muted">phỏng vấn/khảo sát ẩn danh (loại P13 vẫn đạt n=20 theo R1) — <code>evidence/summary.md</code></span></div>
+    </div>
+  </div>
+  <div class="foot"><span>Nguồn: evidence/survey/results.csv · evidence/summary.md</span><span>2 / 10</span></div>
+</section>
+
+<!-- 3 · SOLUTION + USP -->
+<section class="slide">
+  <div class="kicker">Giải pháp & USP</div>
+  <h2>REUSE trước — GENERATE khi Catalog chưa có</h2>
+  <ul>
+    <li><b>REUSE</b>: ghép Model + Player + Exam có sẵn trong Catalog — nhanh, rẻ, đã duyệt</li>
+    <li><b>GENERATE</b>: AI thật sự <b>thiết kế Player mới</b> theo yêu cầu của giáo viên (không chỉ quiz đổi màu)</li>
+    <li><b>Model-aware</b>: sinh game đúng năng lực Model thật — tay (MediaPipe), tư thế (Teachable Machine), âm thanh A/B/C/D (micro)</li>
+    <li><b>Mouse Fallback luôn bật</b> — không camera, không micro vẫn chơi trọn vẹn</li>
+    <li><b>HITL 2 lớp</b>: AI không tự duyệt, không tự công khai — giáo viên/Admin kiểm duyệt</li>
+  </ul>
+  <p class="muted">Vì sao tiết kiệm: REUSE (~165 token out) vs GENERATE (~1.100–1.300 token out/câu B13/B25, Run 1) → định hướng REUSE-first tối ưu chi phí & độ trễ.</p>
+  <div class="foot"><span>Nguồn: spec.md §4 · eval/run-1.csv</span><span>3 / 10</span></div>
+</section>
+
+<!-- 4 · MULTI-MODEL ROUTING -->
+<section class="slide">
+  <div class="kicker">Kiến trúc AI — RC mới</div>
+  <h2>Multi-model Routing: model mạnh đúng việc, model rẻ đúng chỗ</h2>
+  <table>
+    <tr><th>Nhiệm vụ</th><th>Model</th><th>Vì sao</th></tr>
+    <tr><td>Định tuyến & sinh bộ đề (router / exam)</td><td><b>gpt-4o-mini</b></td><td>Nhiệm vụ ngắn, rẻ ($0.15/$0.60 per 1M tok)</td></tr>
+    <tr><td><b>Sinh gameplay</b> (HTML/CSS/JS) & <b>repair</b></td><td><b>gpt-4.1</b></td><td>Theo hợp đồng runtime + thiết kế game tốt hơn rõ rệt</td></tr>
+  </table>
+  <ul style="margin-top:16px">
+    <li>Cấu hình qua biến môi trường <code>GAME_GENERATOR_MODEL</code> / <code>GAME_REPAIR_MODEL</code> — <b>không hardcode</b> trong business logic</li>
+    <li>Pipeline: Yêu cầu → Intent → Capability Resolver → GameSpec → AI gameplay → <b>Runtime Wrapper</b> → Assembler → L1–L4 → Preview → HITL → Publish → Play</li>
+    <li>Runtime Wrapper hệ thống kiểm soát protocol camera/micro — AI chỉ sáng tạo gameplay; luôn đúng <b>1 ô camera</b></li>
+  </ul>
+  <div class="foot"><span>Nguồn: codebase/agent.py · codebase/ai.py (RC @ 9933c8b)</span><span>4 / 10</span></div>
+</section>
+
+<!-- 5 · MODEL-AWARE GENERATE -->
+<section class="slide">
+  <div class="kicker">Model-aware GENERATE với Model thật của team</div>
+  <h2>3 Model tương tác thật — sẵn sàng trong Catalog</h2>
+  <table>
+    <tr><th>Model</th><th>Kind</th><th>Điều khiển</th><tr></tr></tr>
+    <tr><td>Bàn tay (MediaPipe)</td><td>hands</td><td>21 điểm landmark, nắm/xòe tay — không cần huấn luyện</td></tr>
+    <tr><td><b>Lái Xe</b> (TV3 train)</td><td>pose</td><td>Nghiêng trái/phải · Bình thường · Nitro</td></tr>
+    <tr><td><b>Âm thanh A B C D</b> (TV3 train)</td><td>audio</td><td>Phát âm A/B/C/D qua micro (+ Background Noise loại trừ)</td></tr>
+  </table>
+  <ul style="margin-top:14px">
+    <li>Artifact thật (TM URL) kiểm <b>200 OK</b>; model lỗi URL bị đánh dấu <b>broken</b> — không bao giờ hiện "sẵn sàng" (TC05)</li>
+    <li>Real AI GENERATE đã chứng minh với cả 3 model: <b>Lái Xe → game đua xe chọn làn</b>, <b>Âm thanh → quiz phát âm Hệ Mặt Trời</b>, Hands → thu hoạch táo</li>
+  </ul>
+  <div class="foot"><span>Nguồn: ailab/seed_data.json (PR #29) · evidence/premium-gen-uat-20261128.md</span><span>5 / 10</span></div>
+</section>
+
+<!-- 6 · QUALITY GATES -->
+<section class="slide">
+  <div class="kicker">Chất lượng & an toàn</div>
+  <h2>Bốn lớp kiểm soát trước khi tới tay học sinh</h2>
+  <div class="cols">
+    <div class="col">
+      <div class="stat"><b class="ok-chip">353/353</b><br><span class="muted">offline tests (229 ailab + 124 codebase) — regression REUSE/GENERATE/HITL/persistence</span></div>
+      <div class="stat"><b class="ok-chip">L5 headless</b><br><span class="muted">browser thật Edge: 6/6 fallback chuột, CSP chặn network/parent-DOM/escape/cookie</span></div>
+    </div>
+    <div class="col">
+      <div class="stat"><b class="ok-chip">0 cờ an toàn</b><br><span class="muted">bản nháp qua 7 luật quét + CSP sandbox <code>connect-src 'none'</code></span></div>
+      <div class="stat"><b class="ok-chip">HITL 2 lớp</b><br><span class="muted">plan_hash tamper-proof · AI không tự APPROVED · draft riêng tư mặc định</span></div>
+    </div>
+  </div>
+  <div class="note">Bảo mật RC: SSRF allow-list cho kiểm artifact model (chặn redirect về IP private) · model hỏng không thể masquerade READY · test suite cách ly DB runtime (hết nhiễm chéo).</div>
+  <div class="foot"><span>Nguồn: evidence/runtime-smoke-20261128-pm.md · Codex review round 1→vá</span><span>6 / 10</span></div>
+</section>
+
+<!-- 7 · BENCHMARK -->
+<section class="slide">
+  <div class="kicker">Evaluation — phân biệt rõ 4 mức kiểm chứng</div>
+  <h2>Benchmark lịch sử (frozen registry, gpt-4o-mini)</h2>
+  <div class="cols">
+    <div class="col">
+      <table>
+        <tr><th>Lượt</th><th>Điểm</th><th>Ghi chú</th></tr>
+        <tr><td>Run 1</td><td><b>19/30</b> (63%)</td><td>baseline</td></tr>
+        <tr><td>Run 2</td><td><b>24/30</b> (80%)</td><td>sau T10 cải tiến</td></tr>
+        <tr><td>Run 3</td><td><b>25/30</b> (83,3%)</td><td>Refusal 4/4 · HITL bypass 0</td></tr>
+      </table>
+      <p class="muted" style="margin-top:10px">Refusal 4/4 · HITL bypass 0 · Catalog snapshot đóng băng <code>79822a4</code> — không đổi qua 3 lượt.</p>
+    </div>
+    <div class="col">
+      <div class="stat"><b>⚠ Phân biệt rõ — không gộp thành 1 con số</b><br>
+        <span class="muted">• <b>Benchmark</b> (30 câu, đo bằng CLI trên cấu hình gpt-4o-mini TRƯỚC nâng cấp generator)<br>
+        • <b>Regression</b>: 353/353 offline<br>
+        • <b>Premium Smoke</b>: 4 game gpt-4.1 (protocol + publish/play)<br>
+        • <b>Human UAT</b>: chờ PM — camera/micro thật</span></div>
+      <p class="muted" style="margin-top:10px">Nâng cấp generator (gpt-4.1) là thay đổi cấu hình hệ thống — <b>chưa đo lại benchmark</b>, không dùng Run 3 thay cho accuracy mới.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Nguồn: eval/run-1..3.csv · eval/metric_spec.yaml (6 metric freeze)</span><span>7 / 10</span></div>
+</section>
+
+<!-- 8 · PREMIUM SMOKE -->
+<section class="slide">
+  <div class="kicker">Premium Generation Smoke Test — gpt-4.1</div>
+  <h2>4 trò chơi mới do AI sinh với Model thật — $0,24</h2>
+  <table>
+    <tr><th>Game</th><th>Model</th><th>Luồng</th><th>Link demo</th></tr>
+    <tr><td>🏁 Đua xe chọn làn (phép nhân lớp 3)</td><td><b>Lái Xe</b> (pose)</td><td>GENERATE→Publish→Play→Reload <span class="ok-chip">PASS</span></td><td><code>/play/13</code></td></tr>
+    <tr><td>🔊 Quiz Hệ Mặt Trời (phát âm A–D)</td><td><b>Âm thanh A B C D</b> (audio)</td><td><span class="ok-chip">PASS</span></td><td><code>/play/14</code></td></tr>
+    <tr><td>🍎 Thu hoạch táo (nắm tay hái)</td><td>Bàn tay MediaPipe</td><td><span class="ok-chip">PASS</span> *(thiếu ô camera pip — cosmetic)*</td><td><code>/play/15</code></td></tr>
+    <tr><td>🐾 Phân loại động vật (kéo thả)</td><td>mouse-only</td><td><span class="ok-chip">PASS</span></td><td><code>/play/16</code></td></tr>
+  </table>
+  <div class="cols" style="margin-top:14px">
+    <div class="col stat"><b>~$0,24</b> <span class="muted">/ trần $0,40 — token thật từ usage API (~62k in · 19k out trên gpt-4.1); router/exam vẫn gpt-4o-mini</span></div>
+    <div class="col stat"><b>0 REUSE giả GENERATE</b> <span class="muted">— cả 4 game là Player MỚI, không rơi về mouse-only khi có Model</span></div>
+  </div>
+  <div class="foot"><span>Nguồn: evidence/premium-gen-uat-20261128.md · screenshots gameplay-*.png</span><span>8 / 10</span></div>
+</section>
+
+<!-- 9 · LIMITS + UAT -->
+<section class="slide">
+  <div class="kicker">Minh bạch giới hạn & Responsible AI</div>
+  <h2>Cái hệ thống CHƯA khẳng định — và phần chỉ con người xác nhận được</h2>
+  <div class="cols">
+    <div class="col">
+      <ul>
+        <li><b>Real inference camera/micro</b>: tự động kiểm protocol, <b>chưa</b> khẳng định "nhận diện đúng tay/âm thanh" — chờ Human UAT (checklist 4 game)</li>
+        <li>Benchmark Run 1–3 đo trên cấu hình cũ — RC chưa đo lại</li>
+        <li>Game /play/15 thiếu ô camera pip (cosmetic); audio dùng Chrome/Edge</li>
+        <li>Sinh game giới hạn 2 lượt (+ repair tất định bằng Runtime Wrapper)</li>
+      </ul>
+    </div>
+    <div class="col">
+      <ul>
+        <li><b>HITL bắt buộc</b>: bản nháp DRAFT — giáo viên duyệt nội dung học tập, Admin duyệt công khai</li>
+        <li><b>Sandbox</b>: iframe không mạng, không thoát khung, không đọc camera ra ngoài — kiểm bằng browser thật</li>
+        <li><b>Mouse Fallback</b>: quyền tiếp cận không phụ thuộc thiết bị</li>
+        <li>Minh bạch nguồn gốc: nền tảng <code>ailab/</code> từ JULY Learning + AI20K starter; phần mới: AI Core, Guardrails, Composer, Bridge/HITL</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note"><b>UAT checklist cho PM:</b> <code>docs/UAT-CHECKLIST-RC.md</code> — đăng nhập demo Admin → /play/13–16 + 1 ca GENERATE trong Trợ lý AI.</div>
+  <div class="foot"><span>Nguồn: docs/UAT-CHECKLIST-RC.md · evidence/audit-games-restore-20261128.md</span><span>9 / 10</span></div>
+</section>
+
+<!-- 10 · CONCLUSION -->
+<section class="slide">
+  <div class="kicker">Kết luận RC</div>
+  <h2>Sẵn sàng demo — chờ PM nghiệm thu để push/merge</h2>
+  <div class="cols">
+    <div class="col">
+      <div class="stat"><b class="ok-chip">GO (điều kiện)</b><br><span class="muted">RC ổn định: 353/353 · 4 game Premium · 3 Model thật · 7/7 game team · lỗi 404 diệt gốc · Codex round 2 đang hoàn tất</span></div>
+      <div class="stat"><b>Kịch bản demo chính</b><br><span class="muted">1) REUSE hands + chuột (nhanh) → 2) GENERATE "Đua xe chọn làn" với Lái Xe → 3) REFUSE prompt injection → 4) /play/14 audio (nếu đủ thời gian)</span></div>
+    </div>
+    <div class="col">
+      <div class="stat"><b>Phương án dự phòng</b><br><span class="muted">4 game đã publish (share=1) mở trực tiếp không cần gọi AI · video backup T15 · logout demo→tài khoản GV thường vẫn demo REUSE</span></div>
+      <div class="stat"><b>Nếu có thêm 1 tuần</b><br><span class="muted">Đo lại benchmark trên cấu hình mới · camera pip cho game hands · Speech-to-Text cho đọc câu hỏi · thư viện component game</span></div>
+    </div>
+  </div>
+  <div class="foot"><span>AI Game Composer — RC 28/11 · chờ PM nghiệm thu</span><span>10 / 10</span></div>
+</section>
+
+</body>
+</html>

@@ -268,19 +268,36 @@ def _call_generator(system, prompt, model=None):
 
 
 _CAM_ATTR_RE = re.compile(r"(?<=\s)data-jl-camera(?=[\s=><])")
+_TAG_RE = re.compile(r"<[^>]*>")
+_TAG_QUOTED_RE = re.compile(r'"[^"]*"|\'[^\']*\'')
+_CAM_STRIP_RE = re.compile(r"\s+data-jl-camera(?=[\s=><])")
 
 
 def _ensure_single_camera(html: str) -> str:
-    """Đảm bảo đúng MỘT ô [data-jl-camera] dạng ATTRIBUTE trong markup: LLM tự vẽ nhiều ô camera
-    (mỗi ô một canvas HELPER vẽ vào — trông như hai camera song song) → giữ ô ĐẦU, bỏ attribute ở các ô sau.
-    Chỉ đếm attribute (đứng sau khoảng trắng trong tag), KHÔNG đụng chuỗi selector trong JS
-    (vd querySelector('[data-jl-camera]') phải giữ nguyên)."""
-    matches = list(_CAM_ATTR_RE.finditer(html))
-    if len(matches) <= 1:
-        return html
-    first = matches[0]
-    head, tail = html[:first.end()], html[first.end():]
-    return head + re.sub(r"\s+data-jl-camera(?=[\s=><])", "", tail)
+    """Đảm bảo đúng MỘT ô [data-jl-camera] dạng ATTRIBUTE trong tag: LLM tự vẽ nhiều ô camera
+    → giữ ô ĐẦU, bỏ attribute ở các ô sau.
+    Chỉ quét TRONG tag mở (<...>), blank-out giá trị attribute trong ngoặc kép/nháy đơn trước khi
+    khớp (chống ăn nhằm `class=" data-jl-camera "` — Codex round 2 MEDIUM); không đụng chuỗi
+    selector data-jl-camera trong JS/text (ngoài tag)."""
+    out = []
+    last = 0
+    seen = False
+    for m in _TAG_RE.finditer(html):
+        seg = m.group(0)
+        cleaned = _TAG_QUOTED_RE.sub(lambda q: " " * len(q.group(0)), seg)
+        hits = list(_CAM_ATTR_RE.finditer(cleaned))
+        if not hits:
+            continue
+        if not seen:
+            new_seg = seg[: hits[0].end()] + _CAM_STRIP_RE.sub("", seg[hits[0].end():])
+            seen = True
+        else:
+            new_seg = _CAM_STRIP_RE.sub("", seg)
+        out.append(html[last:m.start()])
+        out.append(new_seg)
+        last = m.end()
+    out.append(html[last:])
+    return "".join(out)
 
 
 def _audio_rule_text():
