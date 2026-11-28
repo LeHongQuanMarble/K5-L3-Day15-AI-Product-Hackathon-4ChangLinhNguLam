@@ -57,7 +57,7 @@ Khi nhận một `Task ID` (ví dụ `T06`, `T12`, `T17`), AI Agent **bắt bu�
 |---|---|---|---|---|---|---|---|
 | T01 | Team Registration & Product Definition | TV1 | P0 | CP1 | — | 27/11 16:45 | DONE *(đã kiểm `run.py check` & merge `main`)* |
 | T02 | Product Specification & Architecture Alignment | TV1 | P0 | CP2 | T01 | 27/11 19:00 | REVIEW *(PR #5 đã merge `main`; TV1 đã ký freeze §7 + Data Card + `personas.yaml` với TV4 lúc 28/11 00:50; chờ TV2+TV3 chốt xác nhận Contract T06)* |
-| T03 | User Research & Evidence | TV1 | P0 | CP2–CP3 | — *(song song từ đầu)* | 28/11 08:30 | IN_PROGRESS |
+| T03 | User Research & Evidence | TV1 | P0 | CP2–CP3 | — *(song song từ đầu)* | 28/11 08:30 | REVIEW *(đủ 3/3 AC: `n = 20` phiếu khảo sát ẩn danh `P01`–`P20`, 6 trích dẫn nguyên văn, Baseline tần suất & thời gian cho `spec.md` §1–§2 & TV4; chờ TV1 duyệt commit/merge trước CP3 10:00)* |
 | T04 | Product Acceptance Testing | TV1 | P0 | CP3–CP4 | T14 *(nghiệm thu tăng dần)*, T15 | 28/11 12:30 | TODO |
 | T05 | Demo, Pitch & Checkpoint Submission | TV1 | P0 | CP1–CP4 | — *(outline song song; chốt số sau T04, T19, T20)* | 28/11 14:00 | IN_PROGRESS |
 | T21 | Final Submission & Project Closure | TV1 | P0 | Final | T05 | 28/11 23:00 | TODO |
@@ -173,28 +173,28 @@ REVIEW (PR #5 đã merge `main`; `spec.md` §5 đã khớp `B01–B12`; còn ch�
 
 **Công việc:**
 
-- [ ] Điền lịch hẹn phỏng vấn (vai & giờ, không tên) vào `evidence/summary.md` trước CP2 19:30.
-- [ ] Thực hiện tối thiểu 3 phỏng vấn giáo viên/giảng viên ngoài nhóm theo 5 câu Mom Test (ẩn danh `P1.md`, `P2.md`, `P3.md` trong `evidence/interviews/`).
-- [ ] Nếu khả thi, bổ sung khảo sát (≥20 người ngoài nhóm) lưu vào `evidence/survey/` hoặc đối chiếu dữ liệu thật trong `evidence/data-mining.md`.
-- [ ] Tổng hợp số liệu, ≥5 trích dẫn nguyên văn và kết luận xác thực/điều chỉnh giả thuyết vào `evidence/summary.md` và cập nhật `spec.md` §1–§2.
+- [ ] Điền lịch hẹn phỏng vấn (vai & giờ, không tên) vào `evidence/summary.md` trước CP2 19:30 *(không triển khai phỏng vấn sâu; dùng nguồn khảo sát ≥20 đạt ngưỡng R1)*.
+- [ ] Thực hiện tối thiểu 3 phỏng vấn giáo viên/giảng viên ngoài nhóm theo 5 câu Mom Test *(0/3 — dùng nguồn khảo sát ≥20 thay thế theo chuẩn ≥1 nguồn của R1)*.
+- [x] Bổ sung khảo sát đạt **20 phản hồi ẩn danh** (`P01`–`P20`) lưu vào `evidence/survey/results.csv` (0 PII, 0 trùng lặp, ghi nhận minh bạch hạn chế mẫu `P13` & cụm sáng 28/11).
+- [x] Tổng hợp số liệu, **6 trích dẫn nguyên văn** (`P02, P04, P05, P07`) và kết luận xác thực/điều chỉnh giả thuyết vào `evidence/summary.md`, `evidence/hypothesis.md` và cập nhật `spec.md` §1–§2.
 
 **Deliverables:**
 
-`evidence/interviews/P1.md`–`P3.md`, `evidence/summary.md` (và `evidence/survey/` nếu có).
+`evidence/survey/results.csv`, `evidence/survey/questions.md`, `evidence/summary.md`, `evidence/hypothesis.md`, `spec.md` (§1–§2).
 
 **Acceptance Criteria:**
 
-- [ ] Tối thiểu 1 nguồn đạt ngưỡng rubric (≥3 phỏng vấn đúng vai ngoài nhóm hoặc ≥20 phiếu khảo sát thật).
-- [ ] Có ≥5 trích dẫn nguyên văn ẩn danh (không lộ PII, không bịa số liệu).
-- [ ] Cung cấp được số Baseline (thời gian chuẩn bị/kiểm duyệt, tần suất tạo game/tháng) cho TV4 đưa vào `cost/personas.yaml` (T20).
+- [x] Tối thiểu 1 nguồn đạt ngưỡng rubric (`20/20` phiếu khảo sát thật, đạt ngưỡng `≥20` của R1).
+- [x] Có `≥5` trích dẫn nguyên văn ẩn danh (`6` trích dẫn nguyên văn từ `P02, P04, P05, P07`, 0 PII, không bịa số liệu).
+- [x] Cung cấp được số Baseline (thời gian chuẩn bị trung vị khoảng `20–<30 phút/trò chơi`, tần suất `35%` 1–2 lần / `25%` 3–5 lần / `40%` ≥6 lần/tháng) cho TV4 cập nhật `cost/personas.yaml` & `data/DATA_CARD.md`.
 
 **Handoff:**
 
-Bàn giao số liệu tần suất & thời gian Baseline từ `evidence/summary.md` cho TV4 (T20) và cập nhật `spec.md` §1–§2.
+Bàn giao số liệu tần suất & thời gian Baseline từ `evidence/summary.md` cho TV4 (T16 Data Card & T20 Cost Personas) và cập nhật `spec.md` §1–§2.
 
 **Status:**
 
-IN_PROGRESS.
+REVIEW *(đạt 3/3 AC trên `n = 20` phiếu khảo sát; chờ TV1 duyệt commit/merge trước CP3 10:00)*.
 
 ---
 

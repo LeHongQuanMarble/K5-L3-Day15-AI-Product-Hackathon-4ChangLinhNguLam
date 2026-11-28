@@ -65,13 +65,13 @@
 
 ## 3. Checklist Nộp Checkpoint (T05) & Final Submission (T21)
 
-### CP3 — Hạn `10:00 ngày 28/11/2026` *(Nộp bằng mã Đội trưởng `2A202603487`)*
-- [x] `spec.md` §0–§7 (đã freeze §7 `≥24/30`, không sửa sau CP2) · `data/DATA_CARD.md` (snapshot `79822a4`) · `eval/benchmark.csv` (30 câu, 10/30 nguồn thật, `run.py check` 0 warning) · `eval/metric_spec.yaml` (6 metric)
-- [x] `eval/run-1.csv` & `traces/run-1.jsonl` (`run-1@20261128-021031`, `19/30`, Refusal `4/4`, HITL `0`)
-- [x] `cost/simulate --try` 10 phiên Real AI (`simulate-try@20261128-004848`, 0 lỗi)
-- [ ] **T03 Evidence đạt ngưỡng R1:** `≥3` phỏng vấn sâu (`P1–P3`) **HOẶC** `≥20` khảo sát (`6/20` hiện tại) — *Owner: TV1 (hạn 08:30)*
-- [ ] **Chấm chéo 5 câu Run 1** (`B01, B10, B13, B24, B30`) ghi vào `eval/README.md` mục 3 & `eval/report.md` mục 5 — *Owner: TV1 + TV4*
-- [ ] **Video 30 giây chạy Real AI** (mở được cửa sổ ẩn danh, không dùng Mock) — *Owner: TV3 (hạn 09:30)*
+### CP3 — Hạn `10:00 ngày 28/11/2026` *(Nộp bằng mã Đội trưởng `2A202603487` · cập nhật 08:35)*
+- [x] `spec.md` §0–§7 (đã freeze §7 `≥24/30`, cập nhật §1–§2 theo khảo sát `n = 20`) · `data/DATA_CARD.md` (snapshot `79822a4`; chờ TV4 cập nhật thêm cỡ mẫu khảo sát `n = 20`) · `eval/benchmark.csv` (30 câu, 10/30 nguồn thật, `run.py check` 0 warning) · `eval/metric_spec.yaml` (6 metric)
+- [x] `eval/run-1.csv` & `traces/run-1.jsonl` (`run-1@20261128-021031`, `19/30`, Refusal `4/4`, HITL `0`) *(ghi chú: TV4 đã hoàn tất sớm cả Run 3 `25/30 = 83%` & Cost 50 phiên ở `359a485` cho CP4)*
+- [x] `cost/simulate --try` 10 phiên Real AI (`simulate-try@20261128-004848`, 0 lỗi; TV1 đã ký xác nhận tại `cost/cost-estimate.md`)
+- [x] **T03 Evidence đạt ngưỡng R1:** `20/20` phiếu khảo sát ẩn danh (`evidence/survey/results.csv`, `evidence/summary.md`, 7 trích dẫn nguyên văn, 0 PII) *(khuyến nghị thu thêm 1–2 phiếu sạch phòng trường hợp giám khảo loại phiếu mâu thuẫn `P13`)* — *Owner: TV1*
+- [x] **Chấm chéo 5 câu Run 1** (`B01, B10, B13, B24, B30`, đồng thuận `5/5`) đã ghi vào `eval/README.md` mục 3 & `eval/report.md` mục 5 (đã merge `main` @ `2f521c9` / `6eadb40`) — *Owner: TV1 + TV4*
+- [ ] **Video 30 giây chạy Real AI** (mở được cửa sổ ẩn danh, không dùng Mock) — **BLOCKER CP3** — *Owner: TV3 (hạn 09:30, xem `docs/T15-e2e.md` mục 4)*
 - [ ] **Xác nhận đã nộp CP3** *(trạng thái hiện tại: `NOT_SUBMITTED`)*
 
 ### CP4 — Hạn `14:30 ngày 28/11/2026`
