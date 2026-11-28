@@ -28,9 +28,15 @@ for _stream in (sys.stdout, sys.stderr):
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import agent_bridge  # noqa: E402  (T14: Shared Core + HITL)
+import game_flow  # noqa: E402  (Soạn trò chơi: hỏi ý chính → kế hoạch → duyệt → tạo → chơi thử → sửa)
+import motions  # noqa: E402  (tạo motion bằng chatbot: kịch bản → dựng bài → phiên bản)
 import train_jobs  # noqa: E402  (train mô hình qua Teachable Machine)
 import contract  # noqa: E402
 import llm  # noqa: E402
+import threading  # noqa: E402
+import tracing  # noqa: E402  (khung ghi trace của codebase/: mỗi lần gọi model/công cụ là một sự kiện)
+import importer  # noqa: E402  (nhập bộ đề từ Excel/văn bản)
+import rooms  # noqa: E402  (phòng chơi nhiều người)
 import store  # noqa: E402
 from store import Err  # noqa: E402
 
@@ -39,6 +45,52 @@ COOKIE = "ailab_sid"
 MAX_BODY = 3 * 1024 * 1024
 MAX_TRAIN_BODY = 80 * 1024 * 1024  # ảnh của một việc train (JPEG đã thu nhỏ, base64)
 FAILS = {}  # ip -> [thời điểm đăng nhập sai]
+_TRACE_LOCK = agent_bridge._TRACE_LOCK  # tracing giữ một "ca" toàn cục: dùng chung khoá với /api/agent để hai luồng không ghi chồng nhau
+
+
+def _steps(events):
+    """Sự kiện trace thật (gọi model, gọi công cụ) → thẻ công cụ cho khung chat."""
+    out = []
+    for e in events:
+        if e.get("kind") == "model":
+            name = "call_model"
+            res = "model %s · %s token vào, %s token ra" % (e.get("model") or "?", e.get("tokens_in", 0), e.get("tokens_out", 0))
+            if e.get("output"):
+                res += "\n" + e["output"]
+        elif e.get("kind") == "tool":
+            name, res = e.get("name") or "tool", e.get("output") or ""
+        else:
+            continue
+        failed = bool(e.get("error")) or "'ok': False" in res[:80]  # công cụ trả {'ok': False, ...} mà không ném lỗi vẫn là bị từ chối
+        out.append({"tool": name, "status": "bad" if failed else "ok", "input": e.get("input") or "",
+                    "output": e.get("error") or res, "ms": int((e.get("latency_s") or 0) * 1000)})
+    return out
+
+
+def _traced(fn):
+    """Chạy fn() và trả (kết quả, các bước thật mà lõi AI đã làm: gọi model/công cụ)."""
+    with _TRACE_LOCK:
+        tracing.begin("web-flow")
+        try:
+            out = fn()
+        finally:
+            _, events = tracing.end()
+    return out, _steps(events)
+
+
+def _generate_traced(msgs):
+    """llm.generate kèm các bước thật đã xảy ra bên trong. Chế độ giả không gọi model/công cụ nào: ghi đúng như vậy."""
+    with _TRACE_LOCK:
+        tracing.begin("web-chat")
+        try:
+            out = llm.generate(msgs)
+        finally:
+            _, events = tracing.end()
+    steps = _steps(events)
+    if out.get("simulated") and not steps:
+        steps.append({"tool": "fake_template", "status": "ok", "input": msgs[-1]["text"][:200],
+                      "output": "Chế độ giả: chọn khuôn có sẵn theo từ khoá, không gọi model.", "ms": 0})
+    return out, steps
 
 
 def _need_admin(u):
@@ -162,6 +214,8 @@ class H(BaseHTTPRequestHandler):
         m = re.match(r"^/play/(\d+)$", path)
         if m:
             path = "/play.html"
+        elif re.match(r"^/room(/[A-Za-z0-9]{1,12})?$", path):
+            path = "/room.html"
         full = os.path.normpath(os.path.join(WEB, path.lstrip("/")))
         if not full.startswith(WEB + os.sep) or not os.path.isfile(full):
             raise Err(404, "not_found", "Không thấy trang này.")
@@ -199,6 +253,8 @@ class H(BaseHTTPRequestHandler):
             m = re.match(r"^apps/(\d+)/play$", p)
             if method == "GET" and m:
                 return self._json(200, store.play_data(c, int(m.group(1)), user))
+            if p == "rooms" or p.startswith("rooms/"):
+                return self._rooms(c, method, p.split("/"), user)
             # --- cần đăng nhập ---
             if not user:
                 raise Err(401, "login", "Bạn cần đăng nhập.")
@@ -237,6 +293,10 @@ class H(BaseHTTPRequestHandler):
             return self._exams(c, method, parts, user)
         if res == "train":
             return self._train(c, method, parts, user)
+        if res == "motions":
+            return self._motions(c, method, parts, user)
+        if res == "flow":
+            return self._flow(c, method, parts, user)
         if res == "models":
             return self._models(c, method, parts, user)
         if res == "players":
@@ -250,6 +310,38 @@ class H(BaseHTTPRequestHandler):
         if res == "admin":
             _need_admin(user)
             return self._admin(c, method, parts)
+        raise Err(404, "not_found", "Không thấy.")
+
+    def _rooms(self, c, method, parts, user):
+        """Phòng chơi. Mở: xem trạng thái, vào phòng, gửi điểm, lấy dữ liệu chơi (xác thực bằng token thành viên ở header X-Room-Token).
+        Cần đăng nhập (chủ phòng): tạo, bắt đầu, kết thúc, mời ra."""
+        token = self.headers.get("X-Room-Token")
+        if len(parts) == 1 and method == "POST":
+            if not user:
+                raise Err(401, "login", "Bạn cần đăng nhập để mở phòng.")
+            return self._json(201, {"code": rooms.create(c, user, self._body().get("app_id"))})
+        if len(parts) == 2 and method == "GET":
+            return self._json(200, rooms.state(c, parts[1], user, token))
+        if len(parts) == 3 and method == "GET" and parts[2] == "play":
+            return self._json(200, rooms.play_data(c, parts[1], user, token))
+        if len(parts) == 3 and method == "POST":
+            code, act = parts[1], parts[2]
+            if act == "join":
+                return self._json(200, rooms.join(c, code, self._body().get("name")))
+            if act == "score":
+                d = self._body()
+                rooms.submit(c, code, token, d.get("correct"), d.get("total"))
+                return self._json(200, {"ok": True})
+            if act in ("start", "end", "kick"):
+                if not user:
+                    raise Err(401, "login", "Bạn cần đăng nhập.")
+                if act == "start":
+                    rooms.start(c, code, user)
+                elif act == "end":
+                    rooms.end(c, code, user)
+                else:
+                    rooms.kick(c, code, user, self._body().get("member_id"))
+                return self._json(200, {"ok": True})
         raise Err(404, "not_found", "Không thấy.")
 
     def _exams(self, c, method, parts, user):
@@ -276,6 +368,8 @@ class H(BaseHTTPRequestHandler):
                                 (user["id"], name, desc, image, content, now, now))
                 c.commit()
                 return self._json(201, {"id": cur.lastrowid})
+        elif len(parts) == 2 and parts[1] == "import" and method == "POST":
+            return self._json(200, importer.run(self._body(limit=8 * 1024 * 1024)))  # chỉ đọc & kiểm, chưa lưu gì
         elif len(parts) == 2:
             eid = _int(parts[1])
             r = store.get_exam(c, eid, user, edit=method in ("PUT", "DELETE"))
@@ -309,6 +403,75 @@ class H(BaseHTTPRequestHandler):
         elif len(parts) == 3 and parts[2] == "cancel" and method == "POST":
             train_jobs.cancel(c, user, _int(parts[1]))
             return self._json(200, {"ok": True})
+        raise Err(404, "not_found", "Không thấy.")
+
+    def _flow(self, c, method, parts, user):
+        """Soạn trò chơi (luồng mới): POST /flow (một lượt chat) · /flow/build (duyệt kế hoạch → tạo) · /flow/fix · /flow/accept."""
+        if method != "POST":
+            raise Err(405, "method", "Chỉ hỗ trợ POST.")
+        body = self._body()
+        if parts == ["flow"]:
+            text = body.get("text") if isinstance(body.get("text"), str) else ""
+            out, steps = _traced(lambda: game_flow.step(c, user, text, body.get("brief")))
+            if out["stage"] == "other":
+                # Không phải yêu cầu soạn game (hỏi thông tin, chào hỏi...): để lõi AI cũ trả lời, hiện như lời nhắn thường
+                legacy = agent_bridge.call({"message": text, "session_id": "web-%d" % user["id"]}, case_id="web-%d" % user["id"])
+                out["stage"] = "info"
+                out["message"] = legacy["envelope"].get("message") or "Mình chưa hiểu, bạn nói rõ hơn giúp mình nhé."
+                steps = steps + _steps(legacy.get("events") or [])
+            out["steps"] = list(out.pop("notes", [])) + steps
+            return self._json(200, out)
+        if parts == ["flow", "build"]:
+            out, steps = _traced(lambda: game_flow.build(c, user, body.get("brief")))
+            out["steps"] = steps
+            return self._json(200, out)
+        if parts == ["flow", "fix"]:
+            out, steps = _traced(lambda: game_flow.fix(c, user, body.get("draftId"), body.get("feedback")))
+            out["steps"] = steps
+            return self._json(200, out)
+        if parts == ["flow", "accept"]:
+            return self._json(200, game_flow.accept(c, user, body.get("draftId")))
+        raise Err(404, "not_found", "Không thấy.")
+
+    def _motions(self, c, method, parts, user):
+        """Motion: /motions · /motions/<id> · /messages · /script · /build · /requests/<rid>/cancel · /versions · /versions/<n>/play"""
+        if len(parts) == 1:
+            if method == "GET":
+                return self._json(200, {"motions": motions.mine(c, user)})
+            if method == "POST":
+                mid = motions.create(c, user, self._body())
+                return self._json(201, {"motion": motions.get(c, mid, user)})
+        else:
+            mid, sub = _int(parts[1]), parts[2:]
+            if not sub:
+                if method == "GET":
+                    return self._json(200, {"motion": motions.get(c, mid, user)})
+                if method == "PUT":
+                    motions.rename(c, mid, user, self._body())
+                    return self._json(200, {"motion": motions.get(c, mid, user)})
+                if method == "DELETE":
+                    motions.delete(c, mid, user)
+                    return self._json(200, {"ok": True})
+            elif sub == ["messages"]:
+                if method == "GET":
+                    return self._json(200, motions.thread(c, mid, user))
+                if method == "POST":
+                    return self._json(201, {"requestId": motions.ask(c, mid, user, self._body())})
+            elif sub == ["script"] and method == "PUT":
+                motions.save_script(c, mid, user, self._body())
+                return self._json(200, {"motion": motions.get(c, mid, user)})
+            elif sub == ["build"] and method == "POST":
+                return self._json(201, {"requestId": motions.build(c, mid, user)})
+            elif len(sub) == 3 and sub[0] == "requests" and sub[2] == "cancel" and method == "POST":
+                motions.cancel(c, mid, user, _int(sub[1]))
+                return self._json(200, {"ok": True})
+            elif sub == ["versions"] and method == "GET":
+                return self._json(200, {"versions": motions.versions(c, mid, user)})
+            elif len(sub) == 3 and sub[0] == "versions" and sub[2] == "play" and method == "GET":
+                html = motions.version_html(c, mid, _int(sub[1]), user)
+                # bản dựng là trang tự chứa: chỉ cho chạy mã nội tuyến của chính nó, không mạng, không chạm vào AI Lab
+                return self._send(200, html, "text/html; charset=utf-8", {
+                    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; sandbox allow-scripts"})
         raise Err(404, "not_found", "Không thấy.")
 
     def _models(self, c, method, parts, user):
@@ -452,7 +615,7 @@ class H(BaseHTTPRequestHandler):
                     rows = c.execute("SELECT a.*, u.username owner FROM apps a JOIN users u ON u.id=a.owner_id WHERE a.owner_id=? ORDER BY a.id DESC", (user["id"],)).fetchall()
                 out = []
                 for r in rows:
-                    d = store.app_row(r, user)
+                    d = store.app_row(r, user, c)
                     d["owner"] = r["owner"]
                     out.append(d)
                 return self._json(200, {"apps": out})
@@ -468,12 +631,14 @@ class H(BaseHTTPRequestHandler):
             aid = _int(parts[1])
             r = store.get_app(c, aid, user)
             if method == "GET":
-                return self._json(200, {"app": store.app_row(r, user)})
+                return self._json(200, {"app": store.app_row(r, user, c)})
             if method == "PUT":
                 if r["owner_id"] != user["id"]:
                     raise Err(403, "forbidden", "Chỉ người tạo được sửa ứng dụng này.")
                 v = store.clean_app(c, user, self._body(), existing=r)
-                c.execute("UPDATE apps SET name=?,description=?,player_id=?,model_id=?,mapping=?,content=?,sure=?,hold_ms=?,share=?,exam_id=?,image=? WHERE id=?", (*v, aid))
+                # v[4] là dict mapping ô→lớp: lưu dạng JSON như lúc tạo (trước đây quên đổi nên mọi lần sửa ứng dụng đều lỗi 500)
+                c.execute("UPDATE apps SET name=?,description=?,player_id=?,model_id=?,mapping=?,content=?,sure=?,hold_ms=?,share=?,exam_id=?,image=? WHERE id=?",
+                          (v[0], v[1], v[2], v[3], json.dumps(v[4]), *v[5:], aid))
                 c.commit()
                 return self._json(200, {"ok": True})
             if method == "DELETE":
@@ -506,6 +671,7 @@ class H(BaseHTTPRequestHandler):
             out = agent_bridge.call(payload, case_id="web-%d" % user["id"])
             resp = dict(out["ui"])
             resp["trace"] = out["trace"]
+            resp["steps"] = _steps(out.get("events") or [])  # các bước thật (gọi model/công cụ) cho thẻ công cụ trong chat
             env = out["envelope"]
             plan = resp.get("application_plan")
             if isinstance(plan, dict) and env.get("decision") in ("REUSE", "GENERATE") and env.get("status") == "pending_approval":
@@ -570,16 +736,22 @@ class H(BaseHTTPRequestHandler):
             if len(msgs) >= 60:
                 raise Err(409, "chat_full", "Cuộc trò chuyện này đã dài. Mở cuộc mới nhé.")
             msgs.append({"role": "user", "text": text})
-            out = llm.generate(msgs)
+            out, steps = _generate_traced(msgs)
             reply = {"role": "bot", "text": out["text"], "simulated": out["simulated"], "model": out["model"]}
             if out.get("error"):
                 reply["error"] = out["error"]
             if out["html"]:
                 # Chatbot chỉ ĐỀ XUẤT: chưa lưu gì. Người dùng bấm Chấp nhận thì mới thành trình chơi Nháp (AGENTS.md: chờ người duyệt).
+                t0 = time.perf_counter()
                 man, _ = contract.parse(out["html"])
+                flags = contract.scan(out["html"])
+                steps.append({"tool": "check_game", "status": "bad" if flags else "ok", "input": "%d ký tự HTML" % len(out["html"]),
+                              "output": ("%d cảnh báo an toàn: %s" % (len(flags), ", ".join(sorted({f["code"] for f in flags})))) if flags
+                              else "Không có cảnh báo. Tên: %s" % man["name"], "ms": int((time.perf_counter() - t0) * 1000)})
                 reply["proposal"] = {"html": out["html"], "name": man["name"], "description": man["description"],
                                      "flags": contract.scan(out["html"]), "status": "pending", "playerId": None,
                                      "source": "fake" if out["simulated"] else "ai"}
+            reply["steps"] = steps
             msgs.append(reply)
             c.execute("UPDATE chats SET messages=? WHERE id=?", (json.dumps(msgs, ensure_ascii=False), cid))
             c.commit()
@@ -692,6 +864,7 @@ def main():
         print("Tài khoản Admin đầu tiên: admin / %s   (hiện một lần — hãy đổi bằng set-password)" % made
               if not os.environ.get("AILAB_ADMIN_PASSWORD") else "Tài khoản Admin đầu tiên: admin (mật khẩu từ AILAB_ADMIN_PASSWORD)")
     train_jobs.start()
+    motions.start()
     ThreadingHTTPServer((host, port), H).serve_forever()
 
 

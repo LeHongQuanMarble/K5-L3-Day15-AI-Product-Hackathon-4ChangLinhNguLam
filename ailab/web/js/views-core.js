@@ -7,10 +7,11 @@
 
 import { h, api, ico, btn, errBox, STATUS, fmtStatus, KIND, srcOf, QHELP,
          toast, modal, confirmModal, promptModal, copyText,
-         validateQuestionsClient, serializeQuestionsClient } from './dom.js';
-import { listPage, previewFrame, cameraTry, imageField, pickField } from './list-page.js';
+         validateQuestionsClient, serializeQuestionsClient, parseQuestionsClient } from './dom.js';
+import { listPage, previewFrame, cameraTry, micTry, imageField, pickField } from './list-page.js';
 import { trainPage } from './train.js';
-import { showIntro } from './motion-intro.js';
+import { createHostInput } from './host-input.js';
+import { showIntro, INTROS } from './motion-intro.js';
 import { kindChooser, kindPicker } from './kindart.js';
 
 var KEYS = 'ABCD';
@@ -84,7 +85,11 @@ function modelsCfg(ctx, items, o) {
         cameraTry(m, box, setScores, cb);
         body.push(box, h('div', { class: 'ail-row' }, cb), h('div', { class: 'ail-row' }, h('span', { class: 'jlps-card-title' }, 'Tự mở camera khi xem trước'), h('label', { class: 'ail-switch' }, auto, h('i'), h('span', { class: 'sr' }, 'Tự mở camera khi xem trước'))));
         if (localStorage.getItem('ail.autocam') === '1') setTimeout(function () { if (cb.isConnected) cb.click(); }, 0);
-      } else body.push(h('div', { class: 'ail-cambox' }, ico('image'), h('div', null, m.kind === 'hands' ? 'Bàn tay có sẵn: thử khi chơi một ứng dụng dùng nó.' : 'Mô hình âm thanh mới chỉ lưu, chưa xem trước được ở bản này.')));
+      } else if (m.kind === 'audio') {
+        var abox = h('div', { class: 'ail-cambox' }), ab = h('button', { type: 'button', class: 'ail-btn pri', style: 'align-self:flex-start' });
+        micTry(m, abox, setScores, ab);
+        body.push(abox, h('div', { class: 'ail-row' }, ab), h('p', { class: 'meta', style: 'margin:0' }, 'Cần cho phép micro. Mô hình càng chắc với một âm thì thanh của lớp đó càng đầy.'));
+      } else body.push(h('div', { class: 'ail-cambox' }, ico('image'), h('div', null, 'Bàn tay có sẵn: thử khi chơi một ứng dụng dùng nó.')));
       body.push(bars);
       var foot = [];
       if (o.pick) foot.push(btn('Chọn mô hình này', 'check', { cls: 'pri', onclick: function () { o.pick(m); } }));
@@ -110,13 +115,67 @@ function playerActions(ctx, p) {
   return a;
 }
 
+/* Chạy thử trình chơi cỡ lớn trong hộp thoại (iframe sandbox, dữ liệu mẫu), không cần ghép ứng dụng. */
+function tryPlayer(p) {
+  var host = null, info = null;
+  /* Khung xem nhanh bên phải vẫn đang chạy game (3D nặng) — tạm dừng khi mở hộp lớn để khỏi tranh CPU/GPU, mở lại khi đóng. */
+  var side = document.querySelector('.jlps-detail iframe'), sideDoc = side ? side.srcdoc : null;
+  if (side && sideDoc) side.srcdoc = '<!doctype html><body style="background:#111">';
+  var bar = h('div', { class: 'ail-try-cam', hidden: true });
+  var w = previewFrame(p.id, function (d) { info = d; buildCamBar(d.manifest || {}); });
+  function stopHost() { if (host) { host.stop(true); host = null; } }
+  w.onFrameReady = function () { if (host) host.status(); };
+  w.onFrameMsg = function (m) { if (host) host.message(m); else if (m.type === 'hands' && m.on === true) w.frame.contentWindow.postMessage({ type: 'camera.hand', hands: [], available: false }, '*'); };
+  function autoMap(model, inputs) {
+    var cls = (model.outputs || []).filter(function (o) { return o.role !== 'empty'; }).map(function (o) { return o.key; }), map = {};
+    inputs.forEach(function (i, n) { if (cls[n] != null) map[i.key] = cls[n]; });
+    return map;
+  }
+  function buildCamBar(man) {
+    var inputs = man.inputs || [], kinds = man.kinds || [];
+    if (!inputs.length || !kinds.length) return; // trình chơi không dùng camera/micro
+    bar.hidden = false;
+    bar.replaceChildren(h('span', { class: 'meta' }, 'Đang tìm mô hình…'));
+    api('GET', '/api/models?scope=usable').then(function (d) {
+      var ms = ((d && d.models) || []).filter(function (m) { return kinds.indexOf(m.kind) >= 0; });
+      if (!ms.length) { bar.replaceChildren(h('span', { class: 'meta' }, 'Chưa có mô hình loại ' + kinds.map(function (k) { return KIND[k] || k; }).join(' / ') + ' trong Kho mô hình để thử camera/micro. Chuột vẫn dùng được.')); return; }
+      var sel = h('select', { 'aria-label': 'Chọn mô hình để thử' }, ms.map(function (m) { return h('option', { value: m.id }, (KIND[m.kind] || m.kind) + ' · ' + m.name); }));
+      var note = h('span', { class: 'meta' }), go = h('button', { type: 'button', class: 'ail-btn pri sm' });
+      var msg = h('span', { class: 'meta', role: 'status', 'aria-live': 'polite' });
+      function cur() { return ms.filter(function (m) { return String(m.id) === sel.value; })[0]; }
+      function label() { var m = cur(); go.replaceChildren(ico(m.kind === 'audio' ? 'play' : 'camera'), (host && host.isRunning() ? 'Tắt ' : 'Bật ') + (m.kind === 'audio' ? 'micro' : 'camera')); go.disabled = false; }
+      function showMap() {
+        var m = cur(), map = autoMap(m, inputs), keys = Object.keys(map);
+        note.textContent = keys.length ? 'Ánh xạ tự động: ' + keys.map(function (k) { return k + ' ← ' + map[k]; }).join(', ') + (keys.length < inputs.length ? ' (mô hình ít lớp hơn số ô — các ô còn lại dùng chuột)' : '') : 'Mô hình này không có lớp hành động để ánh xạ.';
+        go.disabled = !keys.length; label();
+      }
+      sel.addEventListener('change', function () { stopHost(); msg.textContent = ''; showMap(); });
+      go.addEventListener('click', function () {
+        if (host && host.isRunning()) { host.stop(); return; }
+        stopHost();
+        var m = cur();
+        host = createHostInput({ frame: w.frame, model: { kind: m.kind, url: m.url }, mapping: autoMap(m, inputs), sure: 0.8, holdMs: 800,
+          fallbackHint: ' Chuột vẫn dùng được.', onSay: function (t) { msg.textContent = t; },
+          onRunning: function (r) { if (r === null) go.disabled = true; else label(); } });
+        host.start();
+      });
+      bar.replaceChildren(h('div', { class: 'row', style: 'gap:8px;align-items:center' }, sel, go), note, msg);
+      showMap();
+    }).catch(function (e) { bar.replaceChildren(errBox(e)); });
+  }
+  modal('Chạy thử: ' + p.name, h('div', { class: 'ail-try-wrap' },
+    h('span', { class: 'meta' }, 'Chạy trong iframe sandbox với dữ liệu mẫu. Chuột luôn dùng được; trình chơi camera/micro có thể thử bằng mô hình ngay bên dưới.'), bar, w),
+    { cls: 'ail-try', label: 'Chạy thử trình chơi ' + p.name, onClose: function () { stopHost(); if (side && side.isConnected && sideDoc) side.srcdoc = sideDoc; } });
+}
+
 function playersCfg(ctx, items, o) {
   o = o || {};
   function menu(p) {
-    return o.pick ? [] : playerActions(ctx, p).map(function (a) {
+    var tryItem = { label: 'Chạy thử', icon: 'play', onclick: function () { tryPlayer(p); } };
+    return o.pick ? [] : [tryItem].concat(playerActions(ctx, p).map(function (a) {
       if (a.del) return { label: 'Xoá', icon: 'trash', cls: 'bad', onclick: function () { delDo(ctx, 'trình chơi', p.name, '/api/players/' + p.id); } };
       return { label: a.label, icon: a.icon, cls: a.cls, href: a.href, onclick: a.action ? function () { act('/api/players/' + p.id + '/' + a.action, a.body, a.msg, null, ctx); } : null };
-    });
+    }));
   }
   return {
     noun: 'trình chơi', res: 'players', items: items, value: o.value, pick: o.pick, actions: o.actions,
@@ -140,17 +199,24 @@ function playersCfg(ctx, items, o) {
         h('dl', { class: 'ail-dl' }, h('dt', null, 'Trạng thái'), h('dd', null, fmtStatus(p.status)), h('dt', null, 'Loại'), h('dd', null, playerKind(p)), h('dt', null, 'Người tạo'), h('dd', null, p.mine ? 'Tôi' : (p.owner || 'AI Lab')),
           h('dt', null, 'Cờ xem xét'), h('dd', null, p.flags.length ? p.flags.map(function (f) { return h('span', { class: 'ail-chip warn', style: 'margin:0 4px 4px 0' }, f.label); }) : 'Không có'))];
       if (p.note) body.push(h('div', { class: 'note' }, p.note));
-      var foot = o.pick ? [btn('Chọn trình chơi này', 'check', { cls: 'pri', onclick: function () { o.pick(p); } })]
-        : playerActions(ctx, p).map(function (a) {
+      var tryBtn = btn('Chạy thử', 'play', { cls: o.pick ? '' : 'pri', onclick: function () { tryPlayer(p); } });
+      var foot = o.pick ? [btn('Chọn trình chơi này', 'check', { cls: 'pri', onclick: function () { o.pick(p); } }), tryBtn]
+        : [tryBtn].concat(playerActions(ctx, p).map(function (a) {
             if (a.del) return btn('Xoá', 'trash', { cls: 'bad', onclick: function () { delDo(ctx, 'trình chơi', p.name, '/api/players/' + p.id); } });
             return btn(a.label, a.icon, { href: a.href, cls: a.cls, onclick: a.action ? function (e) { act('/api/players/' + p.id + '/' + a.action, a.body, a.msg, e.currentTarget, ctx); } : null });
-          });
-      return { title: p.name, sub: playerKind(p) + (p.owner && !p.mine ? ' · ' + p.owner : ''), body: body, footer: foot };
+          }));
+      return { title: p.name, sub: playerKind(p) + (p.owner && !p.mine ? ' · ' + p.owner : ''), body: body, footer: foot, noImage: true };  // khung xem thử đã thay cho ảnh bìa
     }
   };
 }
 
 /* ---------- cấu hình danh sách Ứng dụng ---------- */
+/* Chủ phòng: mở phòng cho một trò chơi rồi sang trang phòng (mã + danh sách thành viên + nút Bắt đầu). */
+function openRoom(a) {
+  api('POST', '/api/rooms', { app_id: a.id }).then(function (d) { location.href = '/room/' + d.code; })
+    .catch(function (e) { toast((e && e.message) || 'Không mở được phòng.', 'err'); });
+}
+
 function appsCfg(ctx, items, players, models, o) {
   o = o || {};
   var pn = {}, mn = {};
@@ -168,7 +234,7 @@ function appsCfg(ctx, items, players, models, o) {
     ],
     card: function (a) {
       return { icon: 'grid', title: a.name, meta: (pn[a.player_id] || 'Trình chơi') + (a.model_id ? ' · ' + (mn[a.model_id] || 'Mô hình') : ''), tags: [a.share ? h('span', { class: 'ail-chip ok' }, 'Chia sẻ') : h('span', { class: 'ail-chip' }, 'Riêng tư')],
-        state: ['play', '', 'Chơi được'], menu: [{ label: 'Chơi', icon: 'play', href: '/play/' + a.id, target: '_blank' }, a.mine ? { label: 'Sửa', icon: 'edit', href: '#/apps/' + a.id } : null, { label: 'Xoá', icon: 'trash', cls: 'bad', onclick: function () { delDo(ctx, 'ứng dụng', a.name, '/api/apps/' + a.id); } }] };
+        state: ['play', '', 'Chơi được'], menu: [{ label: 'Chơi', icon: 'play', href: '/play/' + a.id, target: '_blank' }, a.mine ? { label: 'Mở phòng', icon: 'grid', onclick: function () { openRoom(a); } } : null, a.mine ? { label: 'Sửa', icon: 'edit', href: '#/apps/' + a.id } : null, { label: 'Xoá', icon: 'trash', cls: 'bad', onclick: function () { delDo(ctx, 'ứng dụng', a.name, '/api/apps/' + a.id); } }] };
     },
     detail: function (a) {
       var link = location.origin + '/play/' + a.id;
@@ -178,17 +244,33 @@ function appsCfg(ctx, items, players, models, o) {
       return { title: a.name, sub: a.mine ? 'Của tôi' : 'Của ' + (a.owner || ''), body: [a.description ? h('p', { class: 'ail-desc' }, a.description) : null,
         h('dl', { class: 'ail-dl' }, h('dt', null, 'Trình chơi'), h('dd', null, pn[a.player_id] || '—'), h('dt', null, 'Mô hình'), h('dd', null, a.model_id ? (mn[a.model_id] || '—') : 'Không cần'),
           h('dt', null, 'Chia sẻ'), h('dd', null, a.share ? 'Ai có link đều chơi được' : 'Chỉ mình tôi'), a.model_id ? [h('dt', null, 'Độ chắc chắn'), h('dd', null, String(a.sure)), h('dt', null, 'Giữ trong'), h('dd', null, a.hold_ms + ' ms')] : null)],
-        footer: [btn('Chơi', 'play', { cls: 'pri', href: '/play/' + a.id, target: '_blank' })].concat(a.share ? [copy] : [], a.mine ? [btn('Sửa', 'edit', { href: '#/apps/' + a.id })] : [], [btn('Xoá', 'trash', { cls: 'bad', onclick: function () { delDo(ctx, 'ứng dụng', a.name, '/api/apps/' + a.id); } })]) };
+        footer: [btn('Chơi', 'play', { cls: 'pri', href: '/play/' + a.id, target: '_blank' }),
+          btn('Xem thử', 'eye', { onclick: function () { modal('Xem thử: ' + a.name, h('div', { class: 'ail-motion-wrap' }, h('iframe', { class: 'ail-motion-frame', title: 'Xem thử ' + a.name, src: '/play/' + a.id, allow: 'camera; microphone; autoplay; fullscreen' })), { cls: 'ail-motion', label: 'Xem thử ứng dụng ' + a.name }); } })].concat(a.mine ? [btn('Mở phòng', 'grid', { onclick: function () { openRoom(a); } })] : [], a.share ? [copy] : [], a.mine ? [btn('Sửa', 'edit', { href: '#/apps/' + a.id })] : [], [btn('Xoá', 'trash', { cls: 'bad', onclick: function () { delDo(ctx, 'ứng dụng', a.name, '/api/apps/' + a.id); } })]) };
     }
   };
 }
 
 /* ---------- cấu hình danh sách Bộ đề ---------- */
+/* Xem trước bộ đề ngay ở khung chi tiết: nạp nội dung của bộ đề, hiện 5 câu đầu, đáp án đúng có dấu ✓. */
+function examPreview(id) {
+  var box = h('div', { class: 'ail-exam-prev', 'aria-live': 'polite' }, h('span', { class: 'meta' }, 'Đang nạp câu hỏi…'));
+  api('GET', '/api/exams/' + id).then(function (d) {
+    var qs = parseQuestionsClient(d.exam.content).questions;
+    if (!qs.length) return box.replaceChildren(h('span', { class: 'meta' }, 'Bộ đề chưa có câu hỏi hợp lệ.'));
+    box.replaceChildren(h('strong', null, 'Toàn bộ ' + qs.length + ' câu hỏi (✓ = đáp án đúng)'),
+      h('ol', { class: 'ail-exam-list' }, qs.map(function (q) {
+        return h('li', null, h('div', null, q.text), h('ul', null, q.choices.map(function (c) {
+          return h('li', { class: c.key === q.answer ? 'ok' : '' }, c.key + '. ' + c.text + (c.key === q.answer ? ' ✓' : '')); })));
+      })));
+  }).catch(function (e) { box.replaceChildren(h('span', { class: 'meta' }, 'Không nạp được bộ đề: ' + e.message)); });
+  return box;
+}
+
 function examsCfg(ctx, items, o) {
   o = o || {};
   function editable(x) { return !(x.builtin && ctx.me.role !== 'admin'); }
   return {
-    noun: 'bộ đề', res: 'exams', items: items, actions: o.actions, canMeta: editable,
+    noun: 'bộ đề', res: 'exams', detailBtn: true, items: items, actions: o.actions, canMeta: editable,
     onRefresh: function () { ctx.route(); },
     empty: 'Bạn chưa có bộ đề nào. Bấm “Thêm bộ đề” để soạn câu hỏi dùng cho nhiều ứng dụng.',
     text: function (x) { return x.name + ' ' + (x.description || ''); },
@@ -199,7 +281,7 @@ function examsCfg(ctx, items, o) {
         menu: !editable(x) ? [] : [{ label: 'Sửa', icon: 'edit', href: '#/exams/' + x.id }, { label: 'Xoá', icon: 'trash', cls: 'bad', onclick: function () { delDo(ctx, 'bộ đề', x.name, '/api/exams/' + x.id); } }] };
     },
     detail: function (x) {
-      return { title: x.name, sub: x.count + ' câu hỏi', body: [x.description ? h('p', { class: 'ail-desc' }, x.description) : null,
+      return { title: x.name, sub: x.count + ' câu hỏi', body: [x.description ? h('p', { class: 'ail-desc' }, x.description) : null, examPreview(x.id),
         h('dl', { class: 'ail-dl' }, h('dt', null, 'Số câu'), h('dd', null, String(x.count)), h('dt', null, 'Người tạo'), h('dd', null, x.mine ? 'Tôi' : (x.owner || '')))],
         footer: !editable(x) ? [] : [btn('Sửa', 'edit', { cls: 'pri', href: '#/exams/' + x.id }), btn('Xoá', 'trash', { cls: 'bad', onclick: function () { delDo(ctx, 'bộ đề', x.name, '/api/exams/' + x.id); } })] };
     }
@@ -214,6 +296,30 @@ function createModelPage(ctx) {
       h('p', { class: 'meta' }, 'Chọn loại mô hình bạn muốn dạy. Bạn tải ảnh hoặc âm thanh, chia lớp ngay trên AI Lab; Teachable Machine huấn luyện giúp. Bấm “Xem giới thiệu” ở mỗi thẻ để xem video trước.')),
       h('a', { class: 'ail-btn', href: '#/models' }, 'Quay lại danh sách')),
     kindPicker(function (k) { location.hash = '#/models/train/' + k; }, function (k) { showIntro(k === 'image' ? 'overview' : k); })));
+}
+
+/* Trang "Tạo": một cửa cho ba thứ giáo viên tạo được — Game (luồng soạn trò chơi của AI Lab, ghép trình chơi có sẵn như learning),
+   Tương tác (mô hình Hình ảnh/Tư thế/Âm thanh) và Motion (video giới thiệu chạy bằng Trình phát của learning). */
+export function createHubView(ctx) {
+  function card(art, title, hint, main, extra) {
+    return h('div', { class: 'ail-kind-card ail-kind-pickcard', role: 'listitem' },
+      h('a', { class: 'ail-kind-pick', href: main[1], 'aria-label': main[0] }, art, h('strong', { class: 'ail-kind-title' }, title, h('span', { 'aria-hidden': 'true' }, ' →')), h('span', { class: 'meta' }, hint)),
+      h('div', { class: 'ail-kind-foot', style: 'display:flex;gap:6px;flex-wrap:wrap' }, extra));
+  }
+  function icoArt(name, label) { return h('span', { class: 'ail-kind-art ail-create-art' }, ico(name), h('span', { class: 'ail-kind-badge' }, label)); }
+  var motionBtns = Object.keys(INTROS).map(function (k) {
+    return h('button', { type: 'button', class: 'ail-btn sm', onclick: function () { showIntro(k); } }, ico('play'), INTROS[k].title.split(':')[0]);
+  });
+  ctx.mount(h('div', { class: 'ail-create' },
+    h('div', { class: 'ail-tb-top' }, h('div', null, h('h2', null, 'Tạo'),
+      h('p', { class: 'meta' }, 'Bạn muốn tạo gì? Game ôn tập, mô hình tương tác (camera, micro) hoặc video giới thiệu (motion).'))),
+    h('div', { class: 'ail-kind-row ail-kind-pickrow', role: 'list' },
+      card(icoArt('play', 'Game'), 'Game', 'Mô tả ý tưởng, AI ghép trình chơi và bộ đề có sẵn rồi bạn xem thử, duyệt.',
+        ['Soạn trò chơi', '#/chat'], [h('a', { class: 'ail-btn sm', href: '#/apps' }, 'Trò chơi của tôi'), h('a', { class: 'ail-btn sm', href: '#/players' }, 'Kho mẫu game')]),
+      card(icoArt('cube', 'Tương tác'), 'Tương tác', 'Dạy mô hình Hình ảnh, Tư thế hoặc Âm thanh để học sinh điều khiển game bằng cơ thể.',
+        ['Tạo mô hình', '#/models/create'], [h('a', { class: 'ail-btn sm', href: '#/models' }, 'Mô hình tương tác')]),
+      card(icoArt('wand', 'Motion'), 'Motion', 'Nói với AI bài bạn muốn dạy, AI viết kịch bản và dựng thành video tương tác. Hoặc xem các video giới thiệu có sẵn.',
+        ['Tạo motion', '#/motions'], motionBtns))));
 }
 
 export function modelsView(ctx, parts) {
@@ -384,6 +490,49 @@ function examForm(ctx, id) {
       return h('div', null, ta, h('div', { style: 'margin-top:10px' }, panel));
     }
 
+    /* --- nhập nhanh từ Excel/CSV/văn bản: máy chủ đọc & kiểm, giáo viên xem lại trong trình soạn rồi mới Lưu --- */
+    function importBox() {
+      var file = h('input', { type: 'file', accept: '.xlsx,.csv,.txt,.tsv', 'aria-label': 'Chọn tệp Excel, CSV hoặc văn bản' });
+      var paste = h('textarea', { class: 'code', rows: 6, spellcheck: 'false', placeholder: '1. Thủ đô của Việt Nam là gì?\nA. Huế\nB. Hà Nội\nC. Đà Nẵng\nĐáp án: B\n\n2. Trái đất hình tròn.\nĐáp án: Đúng', 'aria-label': 'Dán câu hỏi dạng văn bản' });
+      var replace = h('input', { type: 'checkbox' }); replace.checked = !id;
+      var out = h('div', { class: 'ail-val-list', 'aria-live': 'polite' }), box = h('details', { class: 'ail-import' });
+      function apply(res) {
+        var rows = [];
+        if (res.count) {
+          var cur = mode === 'text' ? raw : serializeQuestionsClient(qs);
+          raw = replace.checked || !cur.trim() ? res.content : cur.replace(/\s+$/, '') + '\n' + res.content;
+          if (mode === 'builder') qs = toBuilder(raw);
+          drawEditor();
+          rows.push(h('div', { class: 'ok' }, ico('checkCircle'), ' Đã nhập ' + res.count + ' câu — xem lại bên dưới rồi bấm Lưu.'));
+        } else rows.push(h('div', { class: 'bad' }, ico('xCircle'), ' Không nhập được câu nào.'));
+        res.errors.slice(0, 10).forEach(function (e) { rows.push(h('div', { class: 'bad' }, (e.line ? 'Dòng ' + e.line + ': ' : '') + e.error)); });
+        if (res.error_count > 10) rows.push(h('div', { class: 'bad' }, '… và ' + (res.error_count - 10) + ' lỗi nữa.'));
+        out.replaceChildren.apply(out, rows);
+      }
+      function send(body, b) {
+        b.disabled = true; out.replaceChildren(h('div', { class: 'meta' }, 'Đang đọc…'));
+        api('POST', '/api/exams/import', body).then(apply).catch(function (e) { out.replaceChildren(errBox(e)); }).then(function () { b.disabled = false; });
+      }
+      var fbtn = btn('Nhập từ tệp', 'plus', { cls: 'sm', type: 'button', onclick: function () {
+        var f = file.files[0];
+        if (!f) { out.replaceChildren(errBox({ message: 'Hãy chọn một tệp .xlsx, .csv hoặc .txt.' })); return; }
+        var rd = new FileReader();
+        rd.onload = function () { if (!name.value.trim()) name.value = f.name.replace(/\.[^.]+$/, ''); send({ filename: f.name, data: String(rd.result).split(',')[1] || '' }, fbtn); };
+        rd.readAsDataURL(f);
+      } });
+      var pbtn = btn('Nhập từ văn bản đã dán', 'plus', { cls: 'sm', type: 'button', onclick: function () { send({ text: paste.value }, pbtn); } });
+      var tpl = btn('Tải tệp mẫu (.csv)', 'upload', { cls: 'ghost sm', type: 'button', onclick: function () {
+        var csv = String.fromCharCode(65279) + 'Câu hỏi,A,B,C,D,Đáp án\nThủ đô của Việt Nam là gì?,Huế,Hà Nội,Đà Nẵng,,B\n2 + 3 = ?,4,5,6,7,B\nTrái đất hình tròn,,,,,Đúng\n';
+        var a = h('a', { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })), download: 'mau-bo-de.csv' }); document.body.appendChild(a); a.click(); a.remove();
+      } });
+      box.appendChild(h('summary', null, 'Nhập nhanh từ Excel hoặc văn bản'));
+      box.appendChild(h('div', { style: 'display:flex;flex-direction:column;gap:10px;margin-top:10px' },
+        h('p', { class: 'meta' }, 'Excel/CSV: cột Câu hỏi, A, B, C, D, Đáp án (ô Đáp án ghi A–D hoặc Đúng/Sai). Văn bản: mỗi câu gồm câu hỏi, các dòng A. B. C. D. và dòng “Đáp án: B” (hoặc đánh dấu * trước đáp án đúng).'),
+        h('div', { class: 'ail-row', style: 'justify-content:flex-start' }, file, fbtn, tpl),
+        paste, h('div', { class: 'ail-row', style: 'justify-content:flex-start' }, pbtn, h('label', { class: 'meta' }, replace, ' Thay các câu hiện có (bỏ chọn để nối thêm)')), out));
+      return box;
+    }
+
     function drawCount() { count.textContent = 'Hiện có ' + qs.length + ' câu trong trình soạn.'; }
     function drawEditor() {
       drawModeBar();
@@ -418,6 +567,7 @@ function examForm(ctx, id) {
       h('label', { class: 'l' }, 'Tên bộ đề', name),
       h('label', { class: 'l' }, 'Mô tả (không bắt buộc)', desc),
       img.el,
+      importBox(),
       h('div', null, modeBar, h('div', { style: 'margin-top:12px' }, editor)),
       msg,
       h('div', { class: 'row' }, h('button', { class: 'ail-btn pri', type: 'submit' }, ico('check'), 'Lưu'), h('a', { class: 'ail-btn', href: '#/exams' }, 'Huỷ')));
@@ -447,7 +597,8 @@ function appForm(ctx, id) {
     }
     var name = h('input', { type: 'text', maxlength: 80, required: true, value: ex ? ex.name : '' });
     var desc = h('input', { type: 'text', maxlength: 300, value: ex ? ex.description : '' });
-    var player = pickField('player', players, ex ? ex.player_id : null, 'Trình chơi', pickCfg);
+    var preset = parseInt(ctx.query && ctx.query.get('player'), 10);  // #/apps/new?player=ID (từ Soạn trò chơi)
+    var player = pickField('player', players, ex ? ex.player_id : (preset && players.some(function (p) { return p.id === preset; }) ? preset : null), 'Trình chơi', pickCfg);
     var model = pickField('model', models, ex ? ex.model_id : null, 'Mô hình', pickCfg);
     var map = h('div'), contentWrap = h('div');
     var sure = h('input', { type: 'number', min: 0.5, max: 0.99, step: 0.01, value: ex ? ex.sure : 0.8 });

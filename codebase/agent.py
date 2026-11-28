@@ -91,6 +91,7 @@ GENERATE_HTML_SYSTEM = (
     + "- Phải chạy hoàn toàn cục bộ trong iframe sandbox, 0 cờ an toàn (KHÔNG fetch, XHR, WebSocket, window.open, eval, new Function, localStorage, toDataURL, top.location, parent.* ngoài parent.postMessage).\n"
     + "- BẮT BUỘC hỗ trợ chơi trọn vẹn bằng chuột/chạm/bàn phím (Mouse Fallback) không cần camera. Với trò chơi chạy chuột (không gắn model camera), KHÔNG khai trường `inputs` trong khối `jl-camera` (dùng `{\"name\",\"description\",\"questions\":\"exam\"}` hoặc `{\"name\",\"description\",\"content\":{\"kind\":\"texts\",...},\"demo\":{...}}`).\n"
     + "- KHÔNG hardcode câu hỏi cố định nếu manifest khai `questions: \"exam\"`; nhận câu hỏi động qua `camera.init` và có demo mẫu để xem thử.\n"
+    + "- GIỮ FILE GỌN: tối đa khoảng 250 dòng, CSS/JS ngắn, không thư viện ngoài, ít hiệu ứng, 6–8 mục dữ liệu mẫu. File dài quá giới hạn trả lời sẽ bị cắt cụt giữa chừng và bị từ chối.\n"
     + "- Trả về 1–2 câu mô tả tiếng Việt và ĐÚNG MỘT khối mã ```html ... ``` hoàn chỉnh từ `<!doctype html>` đến `</html>`.\n"
 )
 
@@ -238,7 +239,8 @@ def _run_generate_html(user_message: str, game_idea: str, need_exam: bool):
             return None, None, "Model không trả nội dung ở lượt sinh HTML %d." % step
         msg, html = _split(text)
         if not html:
-            last_err = "Không tìm thấy khối mã ```html ... ```."
+            last_err = ("Không tìm thấy khối mã ```html ... ```. Nhiều khả năng file quá dài nên bị cắt cụt: "
+                        "viết lại NGẮN hơn một nửa (dưới 150 dòng, bỏ hiệu ứng phụ), vẫn đủ từ <!doctype html> đến </html>.")
             note("GENERATE lượt %d: thiếu khối HTML" % step)
             continue
         vres = guardrails.validate_html_draft(html, check_fn=check_game)

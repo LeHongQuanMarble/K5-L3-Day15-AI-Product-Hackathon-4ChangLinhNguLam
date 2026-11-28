@@ -96,7 +96,8 @@ export function itemCard(o) {
     h('div', { class: 'ail-card-in' },
       h('div', { class: 'jlps-card-title' }, o.title), o.meta ? h('div', { class: 'jlps-card-sub' }, o.meta) : null,
       h('div', { class: 'ail-tags' }, o.tags || []),
-      h('div', { class: 'ail-foot' }, h('span', { class: 'ail-state ' + (o.state ? o.state[1] : ''), title: o.state ? o.state[2] : '', role: 'img', 'aria-label': o.state ? o.state[2] : null }, ico(o.state ? o.state[0] : 'check')), o.menu && o.menu.length ? menuBtn(o.menu) : null)));
+      h('div', { class: 'ail-foot' }, h('span', { class: 'ail-state ' + (o.state ? o.state[1] : ''), title: o.state ? o.state[2] : '', role: 'img', 'aria-label': o.state ? o.state[2] : null }, ico(o.state ? o.state[0] : 'check')), h('span', { class: 'ail-foot-r' }, o.onDetail ? h('button', { type: 'button', class: 'ail-btn sm', title: 'Xem toàn bộ câu hỏi',
+        onclick: function (e) { e.stopPropagation(); o.onDetail(); } }, ico('eye'), 'Xem chi tiết') : null, o.menu && o.menu.length ? menuBtn(o.menu) : null))));
   return el;
 }
 
@@ -177,15 +178,29 @@ export function listPage(cfg) {
       h('div', { class: 'jlps-card-title' }, none ? (cfg.empty || 'Chưa có ' + cfg.noun + ' nào.') : 'Không có ' + cfg.noun + ' nào khớp.'),
       none ? null : h('div', { class: 'meta' }, 'Thử bỏ bớt bộ lọc hoặc xoá từ khoá tìm kiếm.'));
   }
+  function detailParts(it) {
+    var d = cfg.detail(it), f = (d.footer || []).slice();
+    if (cfg.canMeta && !cfg.pick && cfg.canMeta(it)) f.push(btn('Sửa thông tin', 'edit', { onclick: function () { editMeta(it); } }));
+    return { d: d, head: h('div', { class: 'jlps-detail-head' }, h('h3', null, d.title), d.sub ? h('div', { class: 'ail-sub' }, d.sub) : null),
+      body: h('div', { class: 'jlps-detail-body' }, it.image && !d.noImage ? h('img', { class: 'ail-detail-img', src: it.image, alt: '' }) : null, d.body),
+      foot: f.length ? h('div', { class: 'jlps-detail-foot' }, h('div', { class: 'ail-row', style: 'justify-content:flex-start;flex-wrap:wrap' }, f)) : null };
+  }
   function drawDetail(it) {
     stopTry();
     if (!it) return detail.replaceChildren(h('div', { class: 'jlps-detail-empty' }, 'Chọn một ' + cfg.noun + ' để xem chi tiết.'));
-    var d = cfg.detail(it), f = (d.footer || []).slice();
-    if (cfg.canMeta && !cfg.pick && cfg.canMeta(it)) f.push(btn('Sửa thông tin', 'edit', { onclick: function () { editMeta(it); } }));
-    detail.replaceChildren(h('div', { class: 'jlps-detail-head' }, h('h3', null, d.title), d.sub ? h('div', { class: 'ail-sub' }, d.sub) : null),
-      h('div', { class: 'jlps-detail-body' }, it.image ? h('img', { class: 'ail-detail-img', src: it.image, alt: '' }) : null, d.body),
-      f.length ? h('div', { class: 'jlps-detail-foot' }, h('div', { class: 'ail-row', style: 'justify-content:flex-start;flex-wrap:wrap' }, f)) : null);
+    var p = detailParts(it);
+    detail.replaceChildren.apply(detail, [p.head, p.body, p.foot].filter(Boolean));  // replaceChildren(null) sẽ chèn chữ "null"
   }
+  /* Màn hình hẹp (≤1100px) ẩn khung chi tiết bên phải: mở chi tiết (và xem thử) trong hộp thoại thay vào đó.
+     Cũng là lối "Xem chi tiết" ở menu thẻ ở mọi cỡ màn hình. */
+  function openDetailModal(it) {
+    stopTry();
+    var p = detailParts(it), close;
+    var box = h('div', { class: 'ail-detail-modal' }, [p.body, p.foot].filter(Boolean));
+    if (p.foot) p.foot.addEventListener('click', function (e) { if (e.target.closest('a[href],button')) setTimeout(function () { if (close) close(); }, 0); });
+    close = modal(p.d.title, box, { cls: 'ail-detail', label: 'Chi tiết ' + cfg.noun + ': ' + p.d.title, onClose: function () { stopTry(); } });
+  }
+  function narrow() { return !!(window.matchMedia && window.matchMedia('(max-width: 1100px)').matches); }
   var lastSel = null;
   function draw() {
     var fl = cfg.items.filter(function (it) { return matches(it, null); }), total = fl.length, pages = Math.max(1, Math.ceil(total / st.size));
@@ -199,8 +214,10 @@ export function listPage(cfg) {
       var o = cfg.card(it, i);
       o.image = it.image;
       if (cfg.canMeta && !cfg.pick && cfg.canMeta(it)) o.menu = [{ label: 'Sửa thông tin', icon: 'edit', onclick: function () { editMeta(it); } }].concat(o.menu || []);
+      o.menu = [{ label: 'Xem chi tiết', icon: 'eye', onclick: function () { st.sel = String(it.id); draw(); openDetailModal(it); } }].concat(o.menu || []);
+      if (cfg.detailBtn) o.onDetail = function () { st.sel = String(it.id); draw(); openDetailModal(it); };
       o.hue = CARD_HUES[(it.id + i) % 4]; o.selected = String(it.id) === st.sel;
-      o.onSelect = function () { st.sel = String(it.id); draw(); };
+      o.onSelect = function () { st.sel = String(it.id); draw(); if (narrow()) openDetailModal(it); };
       if (cfg.pick) o.onOpen = function () { cfg.pick(it); };
       grid.appendChild(itemCard(o));
     });
@@ -280,13 +297,76 @@ export function cameraTry(m, box, setScores, button) {
   return handle;
 }
 
+/* ---------- thử mô hình âm thanh bằng micro (Teachable Machine audio = speech-commands, BROWSER_FFT) ---------- */
+var SPEECH = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js';
+export function micTry(m, box, setScores, button) {
+  var rec = null, run = false, handle;
+  function idle() { box.className = 'ail-cambox'; box.replaceChildren(ico('image'), h('div', null, 'Bấm “Bật micro”, rồi vỗ tay hoặc phát âm thanh bạn đã dạy.')); button.replaceChildren(ico('camera'), 'Bật micro'); button.disabled = false; setScores(null); }
+  function stop() {
+    run = false;
+    if (activeTry === handle) activeTry = null;
+    try { if (rec && rec.isListening()) rec.stopListening(); } catch (e) { /* đã dừng */ }
+    rec = null; idle();
+  }
+  function micError(err) {
+    var name = err && err.name;
+    if (name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError')
+      return 'Bạn chưa cho phép dùng micro. Hãy bấm “Cho phép” trên hộp thoại của trình duyệt rồi thử lại.';
+    if (name === 'NotFoundError' || name === 'DevicesNotFoundError' || name === 'OverconstrainedError')
+      return 'Không tìm thấy micro trên máy này. Hãy gắn hoặc bật micro rồi thử lại.';
+    if (name === 'NotReadableError' || name === 'TrackStartError')
+      return 'Micro đang được ứng dụng khác sử dụng. Đóng ứng dụng đó rồi thử lại.';
+    return 'Không bật được: ' + ((err && err.message) || err) + '. Kiểm tra đường dẫn mô hình và kết nối internet.';
+  }
+  function start() {
+    if (run) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { box.replaceChildren(errBox({ message: 'Trình duyệt chỉ cho dùng micro khi mở bằng https hoặc localhost.' })); return; }
+    button.disabled = true; box.replaceChildren(h('div', { role: 'status' }, 'Đang bật micro và nạp mô hình…'));
+    /* xin quyền trước để lời từ chối hiện rõ ràng, rồi trả micro lại: thư viện tự mở micro của nó */
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) { s.getTracks().forEach(function (t) { t.stop(); }); })
+      .then(function () { return [TF, SPEECH].reduce(function (p, src) { return p.then(function () { return loadScript(src); }); }, Promise.resolve()); })
+      .then(function () {
+        rec = window.speechCommands.create('BROWSER_FFT', undefined, m.url + 'model.json', m.url + 'metadata.json');
+        return rec.ensureModelLoaded();
+      })
+      .then(function () {
+        var labels = rec.wordLabels();
+        run = true; box.className = 'ail-cambox on';
+        box.replaceChildren(h('div', { role: 'status' }, ico('camera'), h('div', null, 'Đang nghe… hãy phát âm thanh')));
+        button.replaceChildren(ico('x'), 'Tắt micro'); button.disabled = false;
+        return rec.listen(function (r) {
+          var o = {}; for (var i = 0; i < labels.length; i++) o[labels[i]] = r.scores[i];
+          setScores(o);
+        }, { probabilityThreshold: 0.75, invokeCallbackOnNoiseAndUnknown: true, overlapFactor: 0.5 });
+      })
+      .catch(function (err) { stop(); box.replaceChildren(errBox({ message: micError(err) })); });
+  }
+  button.onclick = function () { run ? stop() : start(); };
+  handle = { stop: stop, start: start };
+  activeTry = handle;
+  idle();
+  return handle;
+}
+
 /* ---------- xem thử trình chơi trong iframe sandbox, bắt tay postMessage ---------- */
 export function previewFrame(playerIdOrUrl, onInfo) {
-  var wrap = h('div'), frame = h('iframe', { sandbox: 'allow-scripts', title: 'Xem thử trình chơi' });
+  var wrap = h('div'), frame = h('iframe', { sandbox: 'allow-scripts', allow: 'camera; microphone', title: 'Xem thử trình chơi' });
+  wrap.frame = frame;
   wrap.appendChild(h('p', { class: 'meta', role: 'status', 'aria-live': 'polite' }, 'Đang nạp bản xem thử…'));
   var url = typeof playerIdOrUrl === 'string' ? playerIdOrUrl : '/api/players/' + playerIdOrUrl + '/try';
   api('GET', url).then(function (d) {
-    wrap.replaceChildren(frame);
+    var loading = h('div', { class: 'meta', role: 'status', 'aria-live': 'polite', style: 'padding:8px 0' }, 'Đang khởi động trình chơi…');
+    var slowT = 0;
+    function gotReady() { clearTimeout(slowT); if (loading.isConnected) loading.remove(); }
+    wrap.replaceChildren(loading, frame);
+    slowT = setTimeout(function () {
+      if (!loading.isConnected) return;
+      loading.replaceChildren('Trình chơi nạp chậm (game 3D nặng cần vài giây). ',
+        h('button', { type: 'button', class: 'ail-btn sm', onclick: function () {
+          loading.replaceChildren('Đang tải lại…'); frame.srcdoc = ''; setTimeout(function () { frame.srcdoc = d.srcdoc; }, 50);
+          slowT = setTimeout(function () { if (loading.isConnected) loading.replaceChildren('Vẫn chưa chạy — thử đóng rồi mở lại, hoặc dùng máy mạnh hơn.'); }, 12000);
+        } }, 'Tải lại'));
+    }, 7000);
     try { if (onInfo) onInfo(d); } catch (e2) { /* lỗi callback không được che mất bản xem thử đã nạp */ }
     var man = d.manifest;
     function init() {
@@ -298,10 +378,13 @@ export function previewFrame(playerIdOrUrl, onInfo) {
     }
     function onMsg(e) {
       if (!frame.isConnected) return cleanup();
-      if (e.source === frame.contentWindow && e.data && e.data.type === 'ready') init();
+      if (e.source !== frame.contentWindow || !e.data) return;
+      if (e.data.type === 'ready') { gotReady(); init(); if (wrap.onFrameReady) wrap.onFrameReady(); }
+      else if (wrap.onFrameMsg) wrap.onFrameMsg(e.data);
     }
     var obs = null;
     function cleanup() {
+      clearTimeout(slowT);
       window.removeEventListener('message', onMsg);
       if (obs) { obs.disconnect(); obs = null; }
     }
