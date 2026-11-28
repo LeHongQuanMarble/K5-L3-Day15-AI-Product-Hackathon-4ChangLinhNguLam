@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz mẫu</title>
+<script type="application/json" id="question-bank">{"title": "Ôn tập phân số", "subject": "Toán", "grade": "Lớp 4", "questions": [{"id": "q1", "type": "mcq", "question": "1/2 + 1/4 = ?", "options": ["3/4", "2/6", "1/6", "2/4"], "answer": 0, "explanation": "Quy đồng: 2/4 + 1/4 = 3/4", "points": 10}, {"id": "q2", "type": "true_false", "question": "3/5 lớn hơn 1/2", "answer": true, "explanation": "3/5 = 0,6 > 0,5", "points": 10}, {"id": "q3", "type": "fill_blank", "question": "Phân số 4/8 rút gọn là ___", "answer": "1/2", "accept": ["1 / 2"], "explanation": "Chia cả tử và mẫu cho 4", "points": 10}, {"id": "q4", "type": "mcq", "question": "Phân số nào bằng 2/3?", "options": ["4/6", "3/4", "2/5"], "answer": 0, "explanation": "Nhân cả tử và mẫu với 2", "points": 20}, {"id": "q5", "type": "true_false", "question": "5/5 bằng 1", "answer": true, "explanation": "Tử bằng mẫu thì phân số bằng 1", "points": 10}]}</script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:#eef3fb;color:#1c2a44}
+#game-root{max-width:640px;margin:0 auto;padding:16px}
+svg{display:block;width:100%;height:auto;max-width:100%}
+.panel{background:#fff;border-radius:12px;padding:16px;margin-top:12px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+button{font:inherit;padding:10px 16px;margin:4px 4px 4px 0;border:0;border-radius:8px;background:#3b6fd8;color:#fff;cursor:pointer}
+input{font:inherit;padding:8px;border:1px solid #99a;border-radius:8px;max-width:100%}
+#q-text{font-size:1.2rem;font-weight:600;margin-bottom:8px;overflow-wrap:anywhere}
+#result-screen li{margin-bottom:8px;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<div id="game-root">
+<svg viewBox="0 0 400 60" role="img" aria-label="Thanh tiến độ">
+<rect x="0" y="0" width="400" height="60" rx="10" fill="#cfdcf5"/>
+<rect id="bar" x="0" y="0" width="0" height="60" rx="10" fill="#3b6fd8"/>
+<text x="200" y="38" text-anchor="middle" font-size="22" fill="#1c2a44">Quiz</text>
+</svg>
+<div class="panel" id="idle-screen"><h1 id="title"></h1><button data-testid="start-button" id="start-btn">Bắt đầu</button></div>
+<div class="panel" id="play-screen" style="display:none">
+<div>Điểm: <span data-testid="score" id="score">0</span></div>
+<div data-testid="question" id="question"><div id="q-text"></div><div id="q-input"></div></div>
+</div>
+<div class="panel" id="result-screen" data-testid="result-screen" style="display:none">
+<h2>Kết quả</h2>
+<p>Điểm: <strong data-testid="final-score" id="final-score"></strong></p>
+<p id="correct-line"></p>
+<p id="feedback"></p>
+<ul id="wrong-list"></ul>
+<button data-testid="restart-button" id="restart-btn">Chơi lại</button>
+</div>
+</div>
+<script>
+(function(){
+var bank=JSON.parse(document.getElementById("question-bank").textContent||"{}");
+var qs=bank.questions||[];
+var st,score,correct,idx,wrong,maxScore=0;
+qs.forEach(function(q){maxScore+=q.points||0;});
+function $(id){return document.getElementById(id);}
+function norm(s){return String(s).trim().replace(/\s+/g," ").toLowerCase();}
+function show(id,on){$(id).style.display=on?"block":"none";}
+function render(){
+  $("score").textContent=score;
+  $("bar").setAttribute("width",qs.length?400*idx/qs.length:0);
+  if(st!=="playing")return;
+  var q=qs[idx],box=$("q-input");
+  $("q-text").textContent=(idx+1)+"/"+qs.length+". "+q.question;
+  box.innerHTML="";
+  if(q.type==="mcq"){
+    q.options.forEach(function(o,i){var b=document.createElement("button");b.textContent=o;b.onclick=function(){api.answer(i);};box.appendChild(b);});
+  }else if(q.type==="true_false"){
+    [[true,"Đúng"],[false,"Sai"]].forEach(function(p){var b=document.createElement("button");b.textContent=p[1];b.onclick=function(){api.answer(p[0]);};box.appendChild(b);});
+  }else{
+    var inp=document.createElement("input");inp.id="fill";inp.setAttribute("aria-label","Đáp án");
+    var b=document.createElement("button");b.textContent="Trả lời";b.onclick=function(){api.answer(inp.value);};
+    box.appendChild(inp);box.appendChild(b);
+  }
+}
+function isRight(q,c){
+  if(q.type==="fill_blank"){return [q.answer].concat(q.accept||[]).map(norm).indexOf(norm(c))>=0;}
+  return c===q.answer;
+}
+function shown(q,v){
+  if(q.type==="mcq")return q.options[v];
+  if(q.type==="true_false")return v?"Đúng":"Sai";
+  return v;
+}
+function finish(){
+  st="finished";
+  show("play-screen",false);show("result-screen",true);
+  $("final-score").textContent=score+"/"+maxScore;
+  $("correct-line").textContent="Số câu đúng: "+correct+"/"+qs.length;
+  var pct=maxScore?score/maxScore*100:0;
+  $("feedback").textContent=pct>=80?"Xuất sắc":pct>=50?"Khá":"Cần ôn thêm";
+  var ul=$("wrong-list");ul.innerHTML="";
+  wrong.forEach(function(w){
+    var q=qs.filter(function(x){return x.id===w.id;})[0];
+    var li=document.createElement("li");
+    li.textContent=w.question+" - Đáp án đúng: "+shown(q,w.correctAnswer)+". "+w.explanation;
+    ul.appendChild(li);
+  });
+  $("bar").setAttribute("width",400);
+}
+var api={
+  ready:false,
+  start:function(){throw new Error("start failed");
+    st="playing";score=0;correct=0;idx=0;wrong=[];
+    show("idle-screen",false);show("result-screen",false);show("play-screen",true);
+    if(!qs.length){finish();return;}
+    render();
+  },
+  getState:function(){return {status:st,score:score,maxScore:maxScore,correctCount:correct,questionIndex:idx,totalQuestions:qs.length};},
+  answer:function(c){
+    if(st!=="playing")return false;
+    var q=qs[idx],ok=isRight(q,c);
+    if(ok){score+=q.points||0;correct++;}
+    else wrong.push({id:q.id,question:q.question,yourAnswer:c,correctAnswer:q.answer,explanation:q.explanation||""});
+    idx++;
+    if(idx>=qs.length)finish();else render();
+    return ok;
+  },
+  getCorrectAnswer:function(){return qs[idx]?qs[idx].answer:null;},
+  getResult:function(){return {score:score,maxScore:maxScore,correctCount:correct,totalQuestions:qs.length,wrong:wrong.slice()};}
+};
+st="idle";score=0;correct=0;idx=0;wrong=[];
+$("title").textContent=bank.title||"Quiz";
+$("start-btn").onclick=api.start;
+$("restart-btn").onclick=api.start;
+window.__GAME__=api;
+api.ready=true;
+})();
+</script>
+</body>
+</html>
