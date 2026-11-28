@@ -12,6 +12,8 @@ from app.domain.questions import max_score
 
 REQUIRED_KEYS = ("title", "game_type", "mechanics", "visual_style", "scoring", "result_screen")
 SAMPLE_QUESTIONS = 3
+# khoá chiều sâu (không bắt buộc): thiếu thì lấy từ game_concept
+CONCEPT_DEFAULTS = {"question_integration": "question_integration", "progression": "progression"}
 
 
 async def design(llm: LLMClient, settings: Settings, session: Session, revision: str | None = None) -> dict:
@@ -29,6 +31,9 @@ async def design(llm: LLMClient, settings: Settings, session: Session, revision:
         raise LLMFormatError(f"Thiết kế thiếu trường bắt buộc: {', '.join(missing)}")
     if session.controls and not result.get("controls"):
         result["controls"] = session.controls
+    for key, src in CONCEPT_DEFAULTS.items():
+        if not result.get(key) and session.game_concept.get(src):
+            result[key] = session.game_concept[src]
     if session.design:
         session.design_history.append(session.design)
     session.design = result
@@ -54,6 +59,12 @@ def build_design_prompt(session: Session, revision: str | None) -> str:
     reqs = teacher_requirements(session)
     if reqs:
         parts += ["", "## YÊU CẦU BẮT BUỘC CỦA GIÁO VIÊN (chỉ đứng sau yêu cầu chỉnh sửa)", *reqs]
+    if session.game_concept:
+        parts += [
+            "",
+            "## Ý TƯỞNG GAME GIÁO VIÊN ĐÃ CHỌN (BẮT BUỘC, chỉ yêu cầu chỉnh sửa mới được ghi đè)",
+            dump(session.game_concept),
+        ]
     if session.design:
         parts += ["", "## Thiết kế hiện tại", dump(session.design)]
     if revision:

@@ -17,6 +17,7 @@ class State(StrEnum):
     AWAIT_SOURCE_INPUT = "AWAIT_SOURCE_INPUT"
     BUILDING_QUESTIONS = "BUILDING_QUESTIONS"
     AWAIT_QUESTION_APPROVAL = "AWAIT_QUESTION_APPROVAL"
+    SUGGESTING_GAMES = "SUGGESTING_GAMES"
     AWAIT_GAMEPLAY = "AWAIT_GAMEPLAY"
     AWAIT_CONTROLS = "AWAIT_CONTROLS"
     AWAIT_VISUAL = "AWAIT_VISUAL"
@@ -31,7 +32,13 @@ class State(StrEnum):
     FAILED = "FAILED"
 
 
-BUSY_STATES = {State.BUILDING_QUESTIONS, State.READY_TO_DESIGN, State.PIPELINE_RUNNING, State.EXPORTING}
+BUSY_STATES = {
+    State.BUILDING_QUESTIONS,
+    State.SUGGESTING_GAMES,
+    State.READY_TO_DESIGN,
+    State.PIPELINE_RUNNING,
+    State.EXPORTING,
+}
 TERMINAL_STATES = {State.DONE, State.REJECTED, State.CANCELLED}
 
 
@@ -104,6 +111,9 @@ class Session(BaseModel):
     controls: str = ""
     controls_code: str = ""  # mouse | keyboard | motion | voice | custom
     visual: str = ""
+    # Gợi ý ý tưởng game (F02): lần gợi ý gần nhất + ý tưởng được chọn đầy đủ
+    game_ideas: list[dict] = []
+    game_concept: dict = {}
 
     design: dict = {}
     design_history: list[dict] = []

@@ -10,6 +10,7 @@ import pytest
 from app.api.events import stream_events
 from app.main import create_app
 from app.nodes.n4_test import TestReport
+from tests.conftest import ideas_reply
 
 DESIGN = {
     "title": "Phân số vui",
@@ -32,6 +33,7 @@ def app(settings, fake_llm, sample_bank, reference_html):
         "intake", json.dumps({"is_educational": True, "reason": "ôn tập", "subject": "Toán", "grade": "4"})
     )
     fake_llm.add("question_gen", json.dumps(sample_bank, ensure_ascii=False))
+    fake_llm.add("game_ideas", ideas_reply())
     fake_llm.add("design", json.dumps(DESIGN, ensure_ascii=False))
     fake_llm.add("codegen", f"```html\n{reference_html}\n```")
     a = create_app(settings=settings, llm=fake_llm)
@@ -64,7 +66,8 @@ async def _to_review(client, app, n: int) -> str:
     await _msg(client, app, sid, text=f"Phân số lớp 4, {n} câu")
     await _msg(client, app, sid, action="qb_approve")
     assert app.state.store.get(sid).state == "AWAIT_GAMEPLAY"
-    await _msg(client, app, sid, action="gp_quiz")
+    await _msg(client, app, sid, action="idea_1")
+    assert app.state.store.get(sid).game_concept["title"] == "Ý tưởng 1"
     await _msg(client, app, sid, text="dùng phím mũi tên và chuột")
     await _msg(client, app, sid, action="vis_space")
     s = app.state.store.get(sid)

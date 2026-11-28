@@ -6,6 +6,9 @@ import pytest
 
 from app.core.prompts import PROMPT_NAMES, PROMPTS_DIR, PromptVarMissingError, load_prompt, prompt_name_of
 
+# game_ideas (F02) chưa có trong PROMPT_NAMES (app/core/prompts.py ngoài phạm vi) -> thêm ở đây
+ALL_PROMPTS = tuple(dict.fromkeys((*PROMPT_NAMES, "game_ideas")))
+
 VARS = {
     "codegen": {"CONTRACT": "CONTRACT_X"},
     "fix": {"CONTRACT": "CONTRACT_X"},
@@ -15,13 +18,13 @@ VARS = {
 }
 
 
-@pytest.mark.parametrize("name", PROMPT_NAMES)
+@pytest.mark.parametrize("name", ALL_PROMPTS)
 def test_all_prompts_load(name: str) -> None:
     text = load_prompt(name, **VARS.get(name, {}))
     assert "TODO" not in text and not re.search(r"\{\{", text)
 
 
-@pytest.mark.parametrize("name", PROMPT_NAMES)
+@pytest.mark.parametrize("name", ALL_PROMPTS)
 def test_first_line_is_prompt_name(name: str) -> None:
     raw = (PROMPTS_DIR / f"{name}.md").read_text(encoding="utf-8")
     assert raw.split("\n", 1)[0] == f"# prompt: {name}"

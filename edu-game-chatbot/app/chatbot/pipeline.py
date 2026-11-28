@@ -5,21 +5,25 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import logging
 from typing import TYPE_CHECKING, Any
 
 from app.chatbot import replies
 from app.core.models import DocumentInfo, Message, Session, Source, State, Version
 from app.domain.questions import BankFileError, validate_bank
-from app.nodes import fixer, n1b_questions, n2_design, n3_generate, n5_review, n6_export
+from app.nodes import fixer, game_ideas, n1b_questions, n2_design, n3_generate, n5_review, n6_export
 from app.nodes.n1_read_docs import DocumentError, read_documents
 
 if TYPE_CHECKING:
     from .engine import ChatEngine
 
+log = logging.getLogger(__name__)
+
 # node -> khoá câu chữ trong replies.progress
 _PROGRESS_KEYS = {
     "N1": "questions",
     "N1b": "questions",
+    "IDEAS": "ideas",
     "N2": "design",
     "N3": "codegen",
     "N4": "test",
@@ -29,7 +33,7 @@ _PROGRESS_KEYS = {
 
 
 async def run_build_questions(engine: ChatEngine, session_id: str, feedback: str = "") -> None:
-    """N1 (nếu nguồn document) -> N1b. Nguồn user: hiện preview rồi hỏi cách chơi -> AWAIT_GAMEPLAY.
+    """N1 (nếu nguồn document) -> N1b. Nguồn user: hiện preview rồi gợi ý ý tưởng game -> AWAIT_GAMEPLAY.
     Nguồn document/topic: hiện preview + nút duyệt -> AWAIT_QUESTION_APPROVAL.
     BankFileError -> báo lỗi, quay lại AWAIT_SOURCE_INPUT."""
     await _mark_step(engine, session_id, "run_build_questions", feedback=feedback)
@@ -42,8 +46,8 @@ async def run_build_questions(engine: ChatEngine, session_id: str, feedback: str
                 raise BankFileError([replies.ASK_UPLOAD_QUESTIONS])
             work.question_bank = await asyncio.to_thread(n1b_questions.from_user_file, files[0])
             preview = _bot(n1b_questions.preview_text(work.question_bank))
-            ask = _bot(replies.ASK_GAMEPLAY, replies.gameplay_buttons())
-            await _commit(engine, work, "question_bank", messages=[preview, ask], state=State.AWAIT_GAMEPLAY)
+            await _commit(engine, work, "question_bank", messages=[preview], state=State.SUGGESTING_GAMES)
+            await _suggest(engine, work, [])
             return
         doc_text = ""
         if work.source == Source.DOCUMENT:
@@ -81,6 +85,16 @@ async def run_build_questions(engine: ChatEngine, session_id: str, feedback: str
     await _commit(
         engine, work, "question_bank", "documents", messages=[preview], state=State.AWAIT_QUESTION_APPROVAL
     )
+
+
+async def run_suggest_games(engine: ChatEngine, session_id: str, avoid: list[str] | None = None) -> None:
+    """Gợi ý 3 ý tưởng game (tránh các title trong avoid) -> AWAIT_GAMEPLAY.
+    Lỗi khi gợi ý không làm FAILED: rơi về bộ nút cách chơi tĩnh."""
+    await _mark_step(engine, session_id, "run_suggest_games", avoid=list(avoid or []))
+    work = engine.store.get(session_id)
+    if work.state != State.SUGGESTING_GAMES:
+        await _commit(engine, work, state=State.SUGGESTING_GAMES)
+    await _suggest(engine, work, list(avoid or []))
 
 
 async def run_design_cycle(engine: ChatEngine, session_id: str, revision: str | None = None) -> None:
@@ -155,6 +169,23 @@ async def emit_progress(engine: ChatEngine, session: Session, node: str, detail:
 
 
 # ---------- private ----------
+async def _suggest(engine: ChatEngine, work: Session, avoid: list[str]) -> None:
+    """Gọi node game_ideas; thành công -> message ý tưởng + nút idea_*; lỗi -> nút tĩnh F01."""
+    await emit_progress(engine, work, "IDEAS")
+    try:
+        ideas = await game_ideas.suggest_ideas(engine.llm, engine.settings, work, avoid)
+    except Exception as exc:  # noqa: BLE001 - lỗi gợi ý không được làm hỏng phiên
+        log.warning("Gợi ý ý tưởng game lỗi: %s", exc)
+        if not avoid:
+            work.game_ideas = []
+        msg = _bot(replies.ASK_GAMEPLAY_FALLBACK, replies.gameplay_buttons())
+        await _commit(engine, work, "game_ideas", messages=[msg], state=State.AWAIT_GAMEPLAY)
+        return
+    work.game_ideas = ideas
+    msg = _bot(replies.ideas_message(ideas), replies.idea_buttons(ideas))
+    await _commit(engine, work, "game_ideas", messages=[msg], state=State.AWAIT_GAMEPLAY)
+
+
 def _bot(text: str, buttons: list | None = None) -> Message:
     return Message(role="bot", text=text, buttons=buttons or [])
 
