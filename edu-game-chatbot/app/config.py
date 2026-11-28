@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -43,9 +44,13 @@ class Settings(BaseSettings):
 
     def ensure_dirs(self) -> None:
         """Tạo sessions_dir, output_dir, main_inbox_dir nếu chưa có."""
-        raise NotImplementedError
+        for directory in (self.sessions_dir, self.output_dir, self.main_inbox_dir):
+            directory.mkdir(parents=True, exist_ok=True)
 
 
+@lru_cache
 def get_settings() -> Settings:
     """Trả về Settings dùng chung (bọc lru_cache), đã gọi ensure_dirs()."""
-    raise NotImplementedError
+    settings = Settings()
+    settings.ensure_dirs()
+    return settings
