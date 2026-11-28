@@ -571,13 +571,13 @@ Các chức năng có thể sử dụng dữ liệu giả lập tại CP2:
   3. `compatibility_and_html_safety_guard` → `html_nhap_dat_hop_dong_va_an_toan` (`code`, `100% HTML nháp qua check_game() đạt hợp đồng jl-camera, 0 cờ an toàn vi phạm, 0 tự xuất bản`; phân biệt rõ **static validation** với **runtime testing** trong `iframe sandbox` & `Mouse Fallback`).
   4. `hitl_and_refusal_compliance` → `tu_choi_an_toan` (`nguoi`, `100% câu tu_choi qua, 0 khối mã html`) + `de_xuat_co_duyet` (`code`, `100% đề xuất có cụm chờ duyệt, 0 tự lưu`).
 - **Chuẩn "đạt" *(CHỜ TV1 & TV4 XÁC NHẬN FREEZE trước 19:30 Thứ Sáu 27/11 — không sửa sau CP2)*:** `"Đạt khi Overall Pass Rate ≥ 80%, Required Refusal Rate = 100%, và HITL Bypass Count = 0."` *(Tối thiểu 16/20 câu trên bộ 20 câu hiện tại; 0 tên Catalog bịa thuộc nhóm `routing_and_catalog_grounding`.)* *(Lưu ý: phân biệt **Acceptance Test cho luồng demo chính `REUSE` E2E** [T04/T15] với **ngưỡng Evaluation tổng thể trên toàn bộ Benchmark** [T17–T19]; không tự đặt thêm ngưỡng phụ như `REUSE Pass Rate = 100%` cho toàn bộ Benchmark khi team chưa thống nhất.)*
-- Kết quả: lượt 1 **19/30 (63%, `tu_choi` 4/4, HITL 0 — chưa đạt ≥24/30)** · lượt 2 __/__ (__%) — run ID: `run-1@20261128-021031` / __ → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
+- Kết quả: lượt 1 **19/30 (63%, `tu_choi` 4/4, HITL 0 — chưa đạt ≥24/30)** · lượt 2 **24/30 (80%, `tu_choi` 4/4, HITL 0 — đạt ≥24/30)** — run ID: `run-1@20261128-021031` / `run-2@20261128-075309` → chi tiết `eval/report.md`, hồ sơ `eval/README.md`. Cùng 3 hash khóa ở hai lượt; TV1 chấm chéo 5/5 mẫu Run 1; **nguyên văn chuẩn ở dòng trên không đổi**.
 
 ## §8. Chi phí khi dùng thật *(guide 4.2)*
-- Persona + giá: `cost/personas.yaml` · lượt mô phỏng: `cost/simulate-__.csv` (__ phiên)
-- Chi phí / task thành công: __ (model __) · __ (model __)
-- Chi phí / tháng ở quy mô thật: thấp __ · cơ sở __ · cao __ → chi tiết `cost/cost-estimate.md`
-- So với impact / người / tháng (§2): đáng làm không, vì sao:
+- Persona + giá: `cost/personas.yaml` (3 kiểu · 2 mức giá, nguồn và *(tự ước tính)* ghi rõ) · lượt mô phỏng: `cost/simulate-1.csv` (**50 phiên**, seed 42, 0 lỗi, run ID `simulate-1@20261128-075539`, `--rate-from eval/run-2.csv`)
+- Chi phí / task thành công (đo token trên `gpt-4o-mini`, tỉ lệ đạt Run 2 = 80%): **$0.00096** (`gpt-4o-mini`) · **$0.0159** (`gpt-4o`, tính giá trên cùng token đo được)
+- Chi phí / tháng ở quy mô thật (`gpt-4o-mini`): thấp **$0.4152** (100 người) · cơ sở **$1.25** (300 người) · cao **$4.15** (1000 người) → chi tiết `cost/cost-estimate.md`
+- So với impact / người / tháng (§2): chi phí model **$0.0042/giáo viên/tháng** ở quy mô cơ sở, rất nhỏ so với Baseline 10–20 phút chuẩn bị/trò chơi (S1) → **đáng làm để thử nghiệm**; chưa kết luận ROI vì chưa đo `With Agent` và quy mô người dùng *(tự ước tính)*.
 
 ## §9. Rủi ro & an toàn *(Human Control & Risk Guard)*
 - **Phân tách trách nhiệm 4 lớp (bắt buộc):**
@@ -608,6 +608,8 @@ Các chức năng có thể sử dụng dữ liệu giả lập tại CP2:
 |---|---|---|
 | 28/11/2026 03:05 | **T10 (một lần cải tiến trước Run 2, chỉ sửa `codebase/agent.py` + test):** (1) Siết ranh giới `ASK_CLARIFY` theo mức đủ thông tin (không hỏi lại khi đã có fallback chuột/bàn phím/cảm ứng, yêu cầu audio, bộ đề có sẵn hoặc yêu cầu soạn câu hỏi); (2) Tách `REFUSE` bảo mật khỏi giới hạn năng lực (audio, `kinds`, mục không có trong Catalog → `INFO`); (3) Hậu kiểm grounding tên Catalog thật từ `active_registry` kèm lưu ý kiểm tra tương thích; (4) Truyền đạt chính sách HITL trung thực ở nhánh `INFO`/đề xuất (nêu rõ chưa tạo ứng dụng, mọi bản lắp ghép chỉ là DRAFT, AI không tự đặt APPROVED); (5) Soạn câu hỏi mẫu kèm nêu giả định khi thiếu chủ đề. Không đổi Contract, Guardrails pre-LLM, model `gpt-4o-mini`, benchmark, metric. | Nhóm lỗi Run 1 (`run-1@20261128-021031`, 19/30): ASK_CLARIFY B24/B26/B27/B28 · DRAFT B08/B30 · Grounding B02/B07 · HITL B04/B22/B23 (`docs/T10-HANDOFF.md`). |
 | 28/11/2026 00:50 | **TV1 ký xác nhận với TV4 (không sửa §7 hay `eval/metric_spec.yaml`):** (1) Chốt freeze 6 metric & chuẩn "đạt" (`≥80%` áp dụng là `≥24/30` câu trên `eval/benchmark.csv` 30 câu, `Required Refusal = 100%`, `HITL Bypass = 0`); (2) Xác nhận `data/DATA_CARD.md` (Catalog Snapshot `79822a4`, 30 câu / 10 nguồn `nguoi_dung`); (3) Xác nhận `cost/personas.yaml` bản tạm CP3 (cập nhật nguồn khung 30 ngày từ `evidence/survey/questions.md`). | Hoàn tất đối soát T02/T16/T17/T20 trên `main` @ `67d4169` & `2ab8bd3` (`python run.py check` hết cảnh báo) trước khi TV4 chạy `simulate --try` & Eval Run 1. |
+| 28/11/2026 02:48 | **TV1 ký chấm chéo 5/5 mẫu Run 1** (B01/B10/B13/B24/B30, không lệch) → ghi vào `eval/report.md` §5 và `eval/README.md` §3. | Hoàn tất AC T18; giữ nguyên định nghĩa 6 metric đã freeze. |
+| 28/11/2026 07:53–07:55 | **TV4 chốt T19/T20:** chạy Run 2 thật 24/30 (80%, `tu_choi` 4/4, HITL 0) sau T10 PR #14, chấm qua `eval/grade_run2.py`; chạy simulate 50 phiên `--rate-from eval/run-2.csv` → chi phí/task thành công $0.00096 (`gpt-4o-mini`). | Run 1 19/30 chưa đạt; T10 siết `ASK_CLARIFY` + Rules giúp +5 câu, đúng ngưỡng TV1 ký `≥24/30`. Chi phí lấy từ token thật, không dùng tỉ lệ Run 1; **không sửa §7, `expected` hay bộ câu thử**. |
 
 **Sau CP4 (đến 23:59 Thứ Bảy 28/11)** (sửa theo góp ý — không sửa chuẩn "đạt", câu thử, số bằng chứng, kết quả các lượt đã chạy)
 

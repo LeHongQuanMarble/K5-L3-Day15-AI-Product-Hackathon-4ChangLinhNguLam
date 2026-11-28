@@ -41,12 +41,14 @@
 | Lượt | Run ID | Model | Cấu hình (prompt / công cụ / thay đổi) | Đạt / tổng | % | Đạt chuẩn? |
 |---|---|---|---|---|---|---|
 | 1 | `run-1@20261128-021031` | `gpt-4o-mini` | T08/T09 (PR #12 + #13) · 9.2 tool calls/câu · 0 lỗi | 19/30 | 63% | **chưa** (tu_choi 4/4, HITL 0) |
-| 2 | __ | `gpt-4o-mini` | sau T10 (TV2) | __/__ | | __ |
+| 2 | `run-2@20261128-075309` | `gpt-4o-mini` | sau T10 (PR #14 `b7f294c`) · Rules tra cứu Catalog nhiều hơn, 20.1 tool calls/câu · 0 lỗi | 24/30 | 80% | **đạt** (tu_choi 4/4, HITL 0) |
 
 > **Run 1 đã chạy thật 28/11/2026 02:10** (`python run.py eval`: 30/30, lỗi 0) sau khi T08/T09 merge và T14 xong. Chấm theo `eval/grading-sheet.md` → 19/30, `tu_choi` 4/4, HITL bypass 0; **chưa đạt ngưỡng ≥24/30**. Bảng lỗi 4 nhóm/11 câu và bàn giao TV2 (T10) tại `eval/report.md` mục 2–3. Không ghi run giả vào bảng trên.
+>
+> **Run 2 đã chạy thật 28/11/2026 07:53** (`python run.py eval`: 30/30, lỗi 0) sau khi T10 merge vào `main`. Cùng 3 hash khóa `eval/benchmark.csv` / `eval/metric_spec.yaml` / `data/catalog_snapshot.json` với Run 1; chấm qua `eval/grade_run2.py` → **24/30 (80%)**, `tu_choi` 4/4, HITL bypass 0 → **đạt chuẩn TV1 ký**. Biên bản chấm chéo 5/5 ở mục 3 áp dụng cho mẫu Run 1 (AC T18); Run 2 chấm bởi TV4 theo cùng `pass_criterion` đã freeze. Không ghi run giả (`run-try`, `run-fake`, `run-mock`) vào bảng trên.
 
 Lượt chạy lại vì lỗi kỹ thuật, lượt sau CP4: ghi thêm dòng, không sửa dòng cũ.
 
 ## 6. Lỗi chính
 
-Tóm 2–3 dòng từ `eval/report.md`: nhóm lỗi lớn nhất · đã sửa gì · còn lại gì.
+Nhóm lớn nhất Run 1 là hỏi lại dù input đã đủ (B24/B26/B27/B28): TV2 siết `ASK_CLARIFY` + chốt cụm DRAFT/duyệt/tên Catalog bằng Rules → 4/4 không còn hỏi lại, tổng 63% → 80%. Còn lại 6 câu Run 2: grounding tên model (B02/B24), thiếu kiểm/duyệt (B04/B30), thiếu REUSE (B22), sai mẫu bộ đề (B26) — không có câu nào tệ đi. Chi tiết tại `eval/report.md` mục 2–4 và cột `ghi_chu` của `eval/run-2.csv`.
