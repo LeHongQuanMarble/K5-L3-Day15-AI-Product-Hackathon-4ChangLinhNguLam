@@ -10,8 +10,10 @@
 #   bash scripts/staging.sh logs      xem log
 #   bash scripts/staging.sh backup    sao lưu file DB sang ailab/data/backup-<giờ>.db
 #   bash scripts/staging.sh reset     chuyển dữ liệu cũ sang ailab/data/old-<giờ>/ (KHÔNG xoá), lần chạy sau là DB mới
-# Biến môi trường: AILAB_HOST (127.0.0.1) · AILAB_PORT (8800) · AILAB_DB · AILAB_ADMIN_PASSWORD · MODEL_PROVIDER/MODEL_NAME/API_KEY (.env).
-# Chỉ thư viện chuẩn Python 3.10+, không pip install. Không ghi mật khẩu hay key vào file nào của repo.
+#   bash scripts/staging.sh deps      (tuỳ chọn) tạo .venv và cài Playwright cho tính năng Train mô hình; staging.sh tự dùng .venv nếu có
+#   bash scripts/staging.sh check     kiểm máy: Python, curl, Chrome, Playwright, .env, model thật hay giả (không chạy gì)
+# Biến môi trường: AILAB_HOST (127.0.0.1) · AILAB_PORT (8800) · AILAB_DB · AILAB_ADMIN_PASSWORD · AILAB_COOKIE_SECURE · AILAB_DEMO · AILAB_CHROME · MODEL_PROVIDER/MODEL_NAME/API_KEY (.env).
+# Lõi chỉ dùng thư viện chuẩn Python 3.10+; chỉ tính năng Train mô hình cần Playwright (bash scripts/staging.sh deps). Không ghi mật khẩu hay key vào file nào của repo.
 set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
@@ -20,7 +22,7 @@ DATA="$ROOT/ailab/data"; PIDF="$DATA/staging.pid"; LOG="$DATA/staging.log"
 URL="http://$HOST:$PORT"
 [ "$HOST" = "0.0.0.0" ] && URL="http://127.0.0.1:$PORT"
 
-PY="$(command -v python3 || command -v python || true)"
+if [ -x "$ROOT/.venv/bin/python" ]; then PY="$ROOT/.venv/bin/python"; else PY="$(command -v python3 || command -v python || true)"; fi
 [ -n "$PY" ] || { echo "Không thấy python3. Cần Python 3.10+." >&2; exit 1; }
 "$PY" -c 'import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)' || { echo "Cần Python 3.10 trở lên (máy có $("$PY" -V 2>&1))." >&2; exit 1; }
 
@@ -82,7 +84,26 @@ cmd_reset() {
   echo "Dữ liệu cũ chuyển sang $OLD. Lần chạy sau tạo DB mới và admin mới. Xoá hẳn thì tự xoá thư mục đó khi chắc chắn."
 }
 
+cmd_deps() {
+  SYS="$(command -v python3 || command -v python)"
+  [ -x "$ROOT/.venv/bin/python" ] || "$SYS" -m venv "$ROOT/.venv" || { echo "Không tạo được .venv (Debian/Ubuntu: sudo apt install python3-venv)." >&2; return 1; }
+  "$ROOT/.venv/bin/python" -m pip install -q -r ailab/train_worker/requirements.txt && echo "Đã cài Playwright vào .venv (không cần 'playwright install', dùng Chrome có sẵn)."
+}
+
+cmd_check() {
+  echo "Python:     $("$PY" -V 2>&1) ($PY)"
+  command -v curl >/dev/null && echo "curl:       có" || echo "curl:       THIẾU (cần cho smoke và /health)"
+  CH="${AILAB_CHROME:-$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)}"
+  [ -n "$CH" ] && echo "Chrome:     $CH" || echo "Chrome:     không thấy (chỉ cần cho Train mô hình; đặt AILAB_CHROME)"
+  "$PY" -c 'import playwright' 2>/dev/null && echo "Playwright: có (Train mô hình dùng được)" || echo "Playwright: chưa cài (Train mô hình báo 'chưa cài bộ train'; cài: bash scripts/staging.sh deps)"
+  [ -f .env ] && echo ".env:       có" || echo ".env:       chưa có (staging.sh all sẽ tạo từ .env.example)"
+  P="$(grep -E '^MODEL_PROVIDER=' .env 2>/dev/null | cut -d= -f2)"
+  case "$P" in ""|fake) echo "Model:      GIẢ (chatbot dựng từ khuôn có sẵn)";; *) echo "Model:      $P (thật, cần API_KEY)";; esac
+  return 0
+}
+
 cmd_all() {
+  cmd_check; echo
   # Một lệnh cho cả dự án: .env → unittest → chạy server → smoke → in cách vào.
   if [ ! -f .env ]; then cp .env.example .env && echo "Đã tạo .env từ .env.example (chưa có model thật → chatbot ở chế độ GIẢ). .env không bị commit."; fi
   DBF="${AILAB_DB:-$DATA/ailab.db}"; GEN=0
@@ -118,5 +139,7 @@ case "${1:-}" in
   logs) [ -f "$LOG" ] && tail -n 50 -f "$LOG" || echo "Chưa có log." ;;
   backup) cmd_backup ;;
   reset) cmd_reset ;;
+  deps) cmd_deps ;;
+  check) cmd_check ;;
   *) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; [ -z "${1:-}" ] || exit 2 ;;
 esac
