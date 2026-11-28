@@ -39,7 +39,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 
 ## Giai đoạn 1 — Lõi domain (thuần Python, không mạng)
 
-### [ ] T03. Bộ câu hỏi: schema, validate, nạp file
+### [x] T03. Bộ câu hỏi: schema, validate, nạp file
 - **Đọc:** QUESTION_SCHEMA (toàn bộ)
 - **File:** `app/domain/questions.py`, `tests/fixtures/questions_valid.json`, `questions_valid.csv`, `questions_invalid.json`, `tests/unit/test_questions.py`
 - **Làm:** `QUESTION_SCHEMA_TEXT`, `validate_bank(bank)->list[str]`, `normalize_bank`, `max_score`, `load_bank_file(path)` (json/csv), `BankFileError(errors: list[str])`.

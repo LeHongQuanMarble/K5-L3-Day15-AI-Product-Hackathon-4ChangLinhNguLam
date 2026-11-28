@@ -9,6 +9,7 @@ T20 | 2026-11-28 | Chat UI thuần JS: quick-reply, upload, SSE, iframe preview,
 T06 | 2026-11-28 | LLMClient/OpenAILLM retry, parse_json, extract_html, load_prompt, FakeLLM, conftest | fixture lazy; calls có key "prompt"
 T04 | 2026-11-28 | CONTRACT_TEXT, static_check, inject_bank, reference_game.html 3 loại câu | 24 test; chưa chạy browser
 T02 | 2026-11-28 | Settings đủ biến .env.example, get_settings lru_cache + ensure_dirs | 4 test
+T03 | 2026-11-28 | validate_bank, normalize_bank, max_score, load_bank_file json/csv, BankFileError | 25 test
 
 ## Câu hỏi cần người dùng trả lời
 
