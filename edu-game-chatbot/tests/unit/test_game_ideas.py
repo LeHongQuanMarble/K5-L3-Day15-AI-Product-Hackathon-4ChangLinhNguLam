@@ -87,7 +87,8 @@ def test_idea_replies() -> None:
     assert buttons[0].label == "💡 Ý tưởng 1"
     assert all(len(b.label) <= 40 for b in buttons)
     text = replies.ideas_message(ideas)
-    assert "**Ý tưởng 1**" in text and "Tương tác: di chuyển nhân vật, né chướng ngại" in text
+    assert "**Ý tưởng 1**" in text
+    assert "  • di chuyển nhân vật\n  • né chướng ngại" in text
     assert "Tiến triển:" in text
     ctl = replies.controls_buttons(["motion"])
     assert ctl[0].id == "ctl_motion" and ctl[0].label.endswith("(gợi ý)")

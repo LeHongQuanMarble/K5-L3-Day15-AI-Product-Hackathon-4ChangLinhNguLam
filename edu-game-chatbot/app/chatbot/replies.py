@@ -113,15 +113,11 @@ def ideas_message(ideas: list[dict]) -> str:
     lines = ["Bộ câu hỏi đã sẵn sàng. Mình gợi ý vài ý tưởng game có nhiều tương tác hơn là chỉ chọn đáp án:"]
     for i, idea in enumerate(ideas, 1):
         interactions = idea.get("interactions") or []
-        if isinstance(interactions, list):
-            interactions = ", ".join(str(x) for x in interactions)
-        lines += [
-            "",
-            f"{i}. **{idea.get('title', '')}**",
-            str(idea.get("pitch", "")),
-            f"Tương tác: {interactions}",
-            f"Tiến triển: {idea.get('progression', '')}",
-        ]
+        if not isinstance(interactions, list):
+            interactions = [interactions]
+        lines += ["", f"{i}. **{idea.get('title', '')}**", str(idea.get("pitch", "")), "Tương tác:"]
+        lines += [f"  • {str(x).strip().rstrip('.')}" for x in interactions if str(x).strip()]
+        lines.append(f"Tiến triển: {idea.get('progression', '')}")
     lines += ["", "Thầy/cô chọn một ý tưởng, bấm gợi ý khác, hoặc tự mô tả cách chơi mong muốn."]
     return "\n".join(lines)
 

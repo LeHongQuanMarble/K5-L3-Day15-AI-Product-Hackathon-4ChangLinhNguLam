@@ -24,7 +24,7 @@ Chỉ trả MỘT đối tượng JSON, không kèm giải thích hay markdown:
     "core_loop": "vòng chơi chính lặp lại mỗi câu hỏi",
     "question_integration": "câu hỏi và các đáp án xuất hiện trong thế giới game như thế nào",
     "interactions": ["lớp tương tác 1", "lớp tương tác 2", "..."],
-    "progression": "mạng/combo/vật phẩm/màn chơi/độ khó/phần thưởng và hệ quả khi sai",
+    "progression": "mạng/combo/vật phẩm/màn chơi/độ khó/phần thưởng và hệ quả khi sai — viết cho giáo viên đọc, 1–2 câu, KHÔNG nhắc quy tắc kỹ thuật (thứ tự câu, points, explanation, API)",
     "recommended_controls": ["mouse", "keyboard"]
   }
 ]}

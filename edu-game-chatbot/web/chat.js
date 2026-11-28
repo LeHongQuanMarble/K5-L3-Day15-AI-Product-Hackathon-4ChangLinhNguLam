@@ -168,7 +168,7 @@ function renderMessage(message) {
   el.setAttribute("data-testid", "msg-" + role);
   const p = document.createElement("div");
   p.className = "msg__text";
-  p.innerHTML = escapeHtml(message.text || "").replace(/\n/g, "<br>");
+  p.innerHTML = escapeHtml(message.text || "").replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>");
   el.appendChild(p);
   if (message.buttons && message.buttons.length) renderButtons(el, message.buttons);
   $("messages").appendChild(el);
