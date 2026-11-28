@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+import asyncio
+from pathlib import Path
+
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 router = APIRouter(prefix="/preview", tags=["preview"])
@@ -16,4 +19,19 @@ PREVIEW_CSP = (
 @router.get("/{session_id}/v{number}", response_class=HTMLResponse)
 async def preview_game(session_id: str, number: int, request: Request) -> HTMLResponse:
     """Trả index.html của phiên bản <number> kèm header Content-Security-Policy=PREVIEW_CSP. 404 nếu không có."""
-    raise NotImplementedError
+    store = request.app.state.store
+    if not store.exists(session_id):
+        raise HTTPException(404, "Không tìm thấy phiên")
+    session = store.get(session_id)
+    version = next((v for v in session.versions if v.number == number), None)
+    if version is None:
+        raise HTTPException(404, "Không tìm thấy phiên bản")
+    path = Path(version.html_path)
+    try:
+        html = await asyncio.to_thread(path.read_text, encoding="utf-8")
+    except OSError:
+        raise HTTPException(404, "Không tìm thấy phiên bản") from None
+    return HTMLResponse(
+        html,
+        headers={"Content-Security-Policy": PREVIEW_CSP},
+    )
