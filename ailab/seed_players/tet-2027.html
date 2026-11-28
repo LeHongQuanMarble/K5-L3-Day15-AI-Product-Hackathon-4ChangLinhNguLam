@@ -151,7 +151,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e0712;font-family:"B
     thit: { id: "thit", name: "Th\u1ECBt ba ch\u1EC9", glyph: "\u{1F969}", fact: "Th\u1ECBt ba ch\u1EC9 \u01B0\u1EDBp ti\xEAu, h\xE0nh l\xE0m nh\xE2n b\xE9o b\xF9i." },
     lat: { id: "lat", name: "L\u1EA1t tre", glyph: "\u{1F9F5}", fact: "L\u1EA1t tre bu\u1ED9c ch\u1EB7t b\xE1nh tr\u01B0\u1EDBc khi lu\u1ED9c c\u1EA3 \u0111\xEAm." }
   };
-  var RECIPE = ["la", "gao", "dau", "thit", "gao", "la", "lat"];
+  var RECIPE = ["la", "gao", "dau", "thit", "lat"];
   var DECOYS = [{ id: "cam", name: "Qu\u1EA3 cam", glyph: "\u{1F34A}", fact: "" }, { id: "keo", name: "K\u1EB9o", glyph: "\u{1F36C}", fact: "" }, { id: "hoa", name: "Hoa \u0111\xE0o", glyph: "\u{1F338}", fact: "" }];
   var MOLD = { id: "mold", name: "Khu\xF4n b\xE1nh", icon: "\u{1F7E9}", x: 430, y: 520, w: 420, h: 170 };
   var SWEEP_FACTS = [
@@ -173,7 +173,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e0712;font-family:"B
       mode: "sort",
       foes: { every: 11, max: 2, brute: 0 },
       when: "23 th\xE1ng Ch\u1EA1p \xB7 \u0110inh M\xF9i 2027 s\u1EAFp v\u1EC1",
-      quota: 4,
+      quota: 3,
       level: { speed: 62, every: 2.3, max: 4 },
       intro: ["M\u1EE5 \u0110\xF4ng Gi\xE1 th\u1ED5i gi\xF3 bu\u1ED1t, \u0111\xF3ng b\u0103ng c\u1EA3 m\xF9a xu\xE2n.", "D\xEA V\xE0ng ph\u1EA3i gom \u0111\u1EE7 \u0111\u1ED3 T\u1EBFt \u0111\u1EC3 th\u1EAFp l\u1EA1i ng\u1ECDn l\u1EEDa xu\xE2n.", "\u0110\u1ED3 T\u1EBFt bay l\u1EA1i g\u1EA7n: n\u1EAFm tay l\u1EA5y, x\xF2e tay th\u1EA3 v\xE0o \u0111\xFAng m\xE2m!"],
       outro: ["Ch\u1EE3 T\u1EBFt \u0111\xE3 \u0111\u1EE7 \u0111\u1EA7y, b\u0103ng tr\xEAn c\u1ED5ng ch\u1EE3 n\u1EE9t ra.", "D\xEA V\xE0ng ti\u1EBFn v\u1EC1 ph\xEDa ng\xF4i nh\xE0."]
@@ -183,7 +183,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e0712;font-family:"B
       mode: "sweep",
       foes: { every: 9, max: 3, brute: 0.2 },
       when: "28 T\u1EBFt \xB7 nh\xE0 c\u1EEDa tinh t\u01B0\u01A1m",
-      quota: 5,
+      quota: 3,
       level: { every: 1.6, max: 5 },
       intro: ["Nh\xE0 c\u1EEDa \u0111\u1EA7y b\u1EE5i m\u1EA1ng nh\u1EC7n c\u1EE7a M\u1EE5 \u0110\xF4ng Gi\xE1.", "X\xD2E b\xE0n tay r\u1ED3i QU\xC9T qua \u0111\xE1m b\u1EE5i \u0111\u1EC3 d\u1ECDn s\u1EA1ch.", "\u0110\u1EEBng qu\xE9t m\u1EA5t nh\u1EEFng \u0111\u1ED3ng l\u1ED9c v\xE0ng nh\xE9!"],
       outro: ["Ng\xF4i nh\xE0 r\u1EF1c r\u1EE1 hoa v\xE0 \u0111\xE8n l\u1ED3ng.", "\u0110\xEAm giao th\u1EEBa \u0111ang \u0111\u1EBFn g\u1EA7n."]
@@ -193,7 +193,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e0712;font-family:"B
       mode: "wrap",
       foes: { every: 8, max: 3, brute: 0.3 },
       when: "\u0110\xEAm 30 T\u1EBFt \xB7 n\u1ED3i b\xE1nh ch\u01B0ng giao th\u1EEBa",
-      quota: 7,
+      quota: 5,
       level: { speed: 70, every: 2, max: 5 },
       intro: ["C\u1EA3 nh\xE0 qu\xE2y qu\u1EA7n g\xF3i b\xE1nh ch\u01B0ng ch\u1EDD giao th\u1EEBa.", "Nguy\xEAn li\u1EC7u bay l\u1EA1i: n\u1EAFm tay l\u1EA5y \u0111\xFAng th\u1EE9 t\u1EF1 c\xF4ng th\u1EE9c", "r\u1ED3i x\xF2e tay th\u1EA3 v\xE0o khu\xF4n b\xE1nh. Sai th\u1EE9 t\u1EF1 l\xE0 h\u1ECFng b\xE1nh!"],
       outro: ["Ph\xE1o hoa b\u1EEBng s\xE1ng c\u1EA3 b\u1EA7u tr\u1EDDi!", "Ch\u1EC9 c\xF2n m\u1ED9t c\u1ED5ng b\u0103ng cu\u1ED1i c\xF9ng."]
@@ -204,7 +204,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e0712;font-family:"B
       boss: true,
       foes: null,
       when: "M\xF9ng 1 T\u1EBFt \u0110inh M\xF9i \xB7 6/2/2027",
-      quota: 8,
+      quota: 5,
       level: { speed: 0, every: 1, max: 1 },
       intro: ["M\u1EE5 \u0110\xF4ng Gi\xE1 hi\u1EC7n ra, ph\xF3ng nh\u1EEFng m\u1EA3nh b\u0103ng v\u1EC1 ph\xEDa b\u1EA1n!", "N\u1EAEM l\xEC x\xEC, VUNG TAY r\u1ED3i x\xF2e ra \u0111\u1EC3 n\xE9m tr\xFAng M\u1EE5.", "M\u1EA3nh b\u0103ng bay t\u1EDBi: ch\xE9m bay b\u1EB1ng tay kh\xF4ng."],
       outro: ["B\u0103ng tan, hoa n\u1EDF, xu\xE2n v\u1EC1 kh\u1EAFp n\u01A1i!", "M\u1EE5 \u0110\xF4ng Gi\xE1 h\xF3a th\xE0nh l\xE0n gi\xF3 \u1EA5m."]
@@ -455,7 +455,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e0712;font-family:"B
       g.items = [];
       g.held = null;
       g.enemies = [];
-      g.m = { t: 0, flights: [], respawn: 0, shields: [3, 6], bolt: 5, n: 0 };
+      g.m = { t: 0, flights: [], respawn: 0, shields: [2, 4], bolt: 5, n: 0 };
       const p = bossAt(0);
       g.boss = { x: p.x, y: p.y, s: p.s, flash: 0 };
       spawnAmmo(g);
@@ -563,7 +563,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e0712;font-family:"B
     };
   }
   var inRect2 = (r, x, y, pad = 0) => x >= r.x - pad && x <= r.x + r.w + pad && y >= r.y - pad && y <= r.y + r.h + pad;
-  function pickFormat(q, purpose, count) {
+  function pickFormat(q, purpose, count, first = false) {
+    if (purpose === "gate" && first) return "key";
     if (purpose !== "gate") return q.choices.length <= 2 ? "slash" : count % 2 ? "eliminate" : "slash";
     const cycle = q.choices.length <= 2 || q.type === "truefalse" ? ["key", "slash"] : ["key", "slash", "eliminate", "judge"];
     return cycle[count % cycle.length];
@@ -599,7 +600,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e0712;font-family:"B
   var current = (g) => g.ask ? g.ask.list[g.ask.qi] : null;
   function begin(g) {
     const a = g.ask, q = current(g);
-    a.format = pickFormat(q, a.purpose, g.askCount || 0);
+    a.format = pickFormat(q, a.purpose, g.askCount || 0, a.qi === 0);
     a.mods = pickMods(a.format, a.purpose, g.askCount || 0);
     g.askCount = (g.askCount || 0) + 1;
     a.disabled = [];
