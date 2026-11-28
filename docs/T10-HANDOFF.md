@@ -119,7 +119,12 @@ Chi tiết đầy đủ (output, trace, biên bản chấm chéo): `eval/report.
 
 ## 5. T10 → T19 Handoff (Dành cho TV4 chạy Evaluation Run 2)
 
-- **Branch:** `feat/t10-eval-driven-improvement` (base T10 `fcb9c4d`, đã đồng bộ merge với `origin/main` @ `1c209a9` gồm PR #14/#15/#16/#17 của TV3).
+- **Branch:** `feat/t10-eval-driven-improvement` (base T10 `fcb9c4d`, merge tích hợp `16dc329` đồng bộ `origin/main` @ `1c209a9` gồm PR #14/#15/#16/#17 của TV3).
+- **Trạng thái nghiệm thu T10 (phân tách rõ theo thực tế):**
+  - T10 implementation (`codebase/agent.py`, `codebase/test_t08_t09_agent_guardrails.py`, `codebase/test_t10_finalize.py`): **HOÀN THÀNH**.
+  - Offline regression sau tích hợp (`291/291 PASS` + `run.py check` PASS + 5/5 artifact khóa nguyên vẹn): **HOÀN THÀNH**.
+  - Independent Integration Review (Agent C — Codex role): **HOÀN THÀNH (`PASS WITH NOTES`, `0 CRITICAL`, `0 HIGH`)**.
+  - Evaluation Run 2 chính thức (T19): **ĐANG CHỜ TV4** *(chưa tuyên bố đạt mục tiêu ≥ 24/30 trước khi có kết quả chính thức từ `eval/run-2.csv`)*.
 - **Model / Provider / Configuration (giữ nguyên 100% so với Run 1):**
   - `MODEL_PROVIDER=openai`, `MODEL_NAME=gpt-4o-mini`, `API_KEY=<key trong .env cục bộ>`
 - **Xác nhận toàn vẹn 5 artifact Run 1 (`git diff origin/main -- eval/ traces/ data/` = rỗng; 5/5 LF git blob SHA256 tại `3227932` == `1c209a9`, sai khác hash 02:40 vs 07:01 đã chứng minh 100% do `core.autocrlf=true` LF/CRLF trên Windows):**
