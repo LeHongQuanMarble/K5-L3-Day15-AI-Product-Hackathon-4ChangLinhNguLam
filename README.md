@@ -65,6 +65,26 @@ Gói miễn phí báo hết lượt: thêm `--wait 4` sau `eval` hoặc `simulat
 
 Nhóm dùng stack khác (Node, Streamlit, notebook…): sửa hàm `run_app()` trong `run.py` để `python run.py` vẫn chạy được bản chạy thử, và giữ `answer()` trong `codebase/agent.py` để `eval`, `simulate` chạy được.
 
+## Chạy cả hệ thống (AI Lab) bằng một lệnh
+
+Một file duy nhất, [scripts/staging.sh](scripts/staging.sh), dựng cả AI Lab (Mô hình · Trình chơi · Ứng dụng · Trợ lý game · Train mô hình). Cần Python 3.10+, bash, curl; **lõi không cần `pip install`**.
+
+```bash
+bash scripts/staging.sh all     # .env → unittest → chạy server nền → smoke → in địa chỉ + mật khẩu admin (in một lần, hãy chép lại)
+# mở http://127.0.0.1:8800 · đăng nhập: admin
+bash scripts/staging.sh down    # dừng
+```
+
+| Lệnh | Việc |
+|---|---|
+| `check` | Kiểm máy: Python, curl, Chrome, Playwright, `.env`, model giả hay thật |
+| `deps` | *(tuỳ chọn)* tạo `.venv` + cài Playwright để dùng **Train mô hình** (cần Chrome; đặt `AILAB_CHROME` nếu không ở đường dẫn mặc định) |
+| `up` · `down` · `restart` · `status` · `logs` | Chạy / dừng / chạy lại / trạng thái / xem log |
+| `test` · `smoke` | unittest (không cần mạng) · bộ kiểm 24 bước trên server đang chạy |
+| `backup` · `reset` | Sao lưu DB · chuyển dữ liệu cũ sang `ailab/data/old-<giờ>/` (không xoá) |
+
+Biến môi trường: `AILAB_HOST` · `AILAB_PORT` (8800) · `AILAB_DB` · `AILAB_ADMIN_PASSWORD` · `AILAB_COOKIE_SECURE` · `AILAB_DEMO` · `AILAB_CHROME`; model thật qua `.env` (`MODEL_PROVIDER`, `MODEL_NAME`, `API_KEY`, xem [docs/connect-model.md](docs/connect-model.md)). Chưa nối model thì Trợ lý game ở chế độ **GIẢ**. Camera chỉ bật được trên `localhost` hoặc HTTPS. Chi tiết, tài khoản, lỗi thường gặp: [ailab/staging.md](ailab/staging.md).
+
 ## Bản chạy thử — viết ở đâu
 
 | File | Viết gì | Bước guide |
