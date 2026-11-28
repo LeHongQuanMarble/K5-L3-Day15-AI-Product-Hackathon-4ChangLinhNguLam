@@ -15,6 +15,7 @@ T12 | 2026-11-28 | N3 generate: codegen prompt, extract_html, inject_bank, ghi v
 T09 | 2026-11-28 | read_documents pdf/docx(bảng)/txt/md, giới hạn 10MB, cắt max_chars | sample.pdf lưu dạng text, bị CRLF khi checkout (vẫn đọc được)
 T11 | 2026-11-28 | N2 design: thống kê bank + 3 câu mẫu, revision ưu tiên, design_history | ngữ cảnh truyền qua user message
 T10 | 2026-11-28 | N1b: from_user_file, generate retry ≤2, edit giữ câu không nhắc tới, preview | "nhắc tới" = id hoặc "câu N"
+T07 | 2026-11-28 | 7 prompt đầy đủ, dòng đầu # prompt: <name>, giữ đúng biến | intent trả {"button_id": ...}
 
 ## Câu hỏi cần người dùng trả lời
 

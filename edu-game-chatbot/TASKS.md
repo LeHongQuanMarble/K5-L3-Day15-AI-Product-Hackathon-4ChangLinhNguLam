@@ -79,7 +79,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Kiểm tra:** `pytest tests/unit/test_llm.py -q`
 - **Bẫy:** không đọc `OPENAI_API_KEY` lúc import module. Chỉ đọc khi khởi tạo `OpenAILLM`.
 
-### [ ] T07. Prompts
+### [x] T07. Prompts
 - **Đọc:** SPEC §2, GAME_CONTRACT §4 và §6, QUESTION_SCHEMA §1
 - **File:** `app/prompts/{intake,intent,question_gen,question_edit,design,codegen,fix}.md`, `tests/unit/test_prompts.py`
 - **Làm:** dòng 1 của mỗi file là `# prompt: <name>`. Nội dung:
