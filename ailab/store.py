@@ -8,6 +8,8 @@ import os
 import secrets
 import sqlite3
 import time
+import urllib.error
+import urllib.request
 
 import contract
 import llm
@@ -146,7 +148,8 @@ def init(admin_password=None):
     c.executescript(SCHEMA)
     import rooms  # noqa: PLC0415  (rooms nhập store → nhập muộn để khỏi vòng)
     rooms.ensure(c)
-    for table, col, ddl in (("models", "image", "TEXT NOT NULL DEFAULT ''"), ("players", "image", "TEXT NOT NULL DEFAULT ''"),
+    for table, col, ddl in (("models", "image", "TEXT NOT NULL DEFAULT ''"), ("models", "status", "TEXT NOT NULL DEFAULT 'ready'"),
+                            ("players", "image", "TEXT NOT NULL DEFAULT ''"),
                             ("apps", "image", "TEXT NOT NULL DEFAULT ''"), ("apps", "exam_id", "INTEGER")):
         if col not in {r[1] for r in c.execute("PRAGMA table_info(%s)" % table)}:  # DB cũ: thêm cột, không mất dữ liệu
             c.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, col, ddl))
@@ -285,7 +288,26 @@ def model_row(r, user, apps_using=None):
     d["outputs"] = json.loads(d["outputs"])
     d["mine"] = r["owner_id"] == user["id"]
     d["usedBy"] = apps_using or 0
+    # Model sẵn sàng: status != 'broken' (URL chết / artifact 404 sẽ bị đánh dấu broken khi tạo)
+    d["ready"] = (d.get("status") or "ready") != "broken"
     return d
+
+
+def check_model_url(url, timeout=2.5):
+    """Kiểm nhanh artifact model có tải được không (HEAD model.json). `jl:builtin` luôn sẵn sàng.
+    Trả True/False — không raise (mạng chậm/lỗi chỉ nghĩa là 'chưa xác minh được' → coi như sẵn sàng
+    để không chặn offline; chỉ đánh dấu broken khi chắc chắn 4xx/5xx)."""
+    if not isinstance(url, str) or not url or url.startswith("jl:"):
+        return True
+    base = url if url.endswith("/") else url + "/"
+    try:
+        req = urllib.request.Request(base + "model.json", method="GET")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status < 400
+    except urllib.error.HTTPError as e:
+        return False  # 4xx/5xx chắc chắn: artifact không tồn tại
+    except Exception:
+        return True  # mạng lỗi/timeout: không kết luận là broken
 
 
 def model_visible(r, user):

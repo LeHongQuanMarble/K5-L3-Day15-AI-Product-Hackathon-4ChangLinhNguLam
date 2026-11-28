@@ -780,6 +780,16 @@ def _handle_generate(parsed: dict, req: dict, registry: dict, use_live_tools: bo
     # Nhận diện thêm trường hợp giáo viên nhắc "mediapipe" hoặc "bàn tay" khi có model kind="hands" trong registry
     if explicit_model is None and re.search(r"\b(?:mediapipe|ban tay|cu chi tay)\b", guardrails.fold_text(user_msg)):
         explicit_model = next((m for m in models if m.get("kind") == "hands"), None)
+    # Model hỏng (URL chết/artifact 404, status='broken'): từ chối trung thực, không dùng cho GENERATE
+    if explicit_model is not None and explicit_model.get("ready") is False:
+        return _make_envelope(
+            "ERROR",
+            'Model "%s" hiện KHÔNG tải được artifact (model.json trả lỗi khi kiểm tra). '
+            "Mình không ghép model này vào trò chơi mới để tránh game không điều khiển được. "
+            "Bạn hãy kiểm tra lại URL Teachable Machine của model, hoặc chọn model khác (ví dụ Bàn tay MediaPipe dùng được ngay)."
+            % (explicit_model.get("name") or "#" + str(explicit_model.get("id"))),
+            errors=[ac.issue("incompatible_model", "model artifact không tải được (status=broken)", "model")],
+        )
 
     explicit_exam = _detect_explicit_resource(user_msg, exams, req.get("selected_exam_id"))
     if explicit_exam is None and parsed.get("exam_mode") == "reuse_existing" and parsed.get("exam_id") is not None:

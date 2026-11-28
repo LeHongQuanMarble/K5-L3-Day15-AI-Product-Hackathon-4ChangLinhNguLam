@@ -311,6 +311,18 @@ def format_game_spec_for_generator(spec: dict) -> str:
             json.dumps(manifest_hint, ensure_ascii=False),
         ])
     lines.extend([
+        "- window.JLRuntime (Runtime Wrapper hệ thống có thể lắp sẵn trong file): nếu thấy `window.JLRuntime`, "
+        "BẮT BUỘC dùng API của nó — `JLRuntime.onInit(fn)`, `onHand(fn)` (landmark), `onAction(fn)` (camera.result), "
+        "`onFrame(fn)`, `setScore(score,total)`, `setProgress(cur,total)`, `finish(correct,total)`; khi đó KHÔNG tự gửi "
+        "'ready'/'hands on' lần nữa, KHÔNG dựng HUD điểm/câu hỏi riêng (header chuẩn có sẵn), KHÔNG tự thêm hộp "
+        "`data-jl-camera` (ô camera duy nhất do hệ thống vẽ).",
+        "- CHẤM ĐIỂM ĐÚNG LUẬT: đúng/sai xác định bằng `d.input === q.answer` (`d.input` là KEY ô đáp án, ví dụ "
+        "'A'/'B'/'grab'/'taynghiengphai'); TUYỆT ĐỐI KHÔNG so đáp án với `d.label` (label là tên lớp của model, ví dụ "
+        "'fist'/'Mèo' — không phải đáp án). Với hands: chọn mục tiêu bằng vị trí trỏ (`indexTip`/`palm` từ `onHand`), "
+        "xác nhận bằng `onAction` khi `d.input === 'grab'` HOẶC dwell ~600ms kèm cooldown chống chọn lặp.",
+        "- GIAO DIỆN (Design System dùng được ngay nếu Wrapper lắp sẵn): ô đáp án thêm class `jl-opt`, phản hồi đúng "
+        "`is-good` / sai `is-bad`, nút `jl-btn`, màn bắt đầu/kết thúc `jl-screen`, hiệu ứng vào `jl-fadein`; được tự "
+        "thêm CSS riêng để cá nhân hóa chủ đề (không nạp asset ngoài).",
         "- KẾT THÚC & CHƠI LẠI:",
         "  * Khi trả lời xong tất cả câu hỏi: hiện màn hình kết quả + gửi `parent.postMessage({type:'finish', correct: score, total: total}, '*')`.",
         "  * BẮT BUỘC có nút 'Chơi lại' (Reset) xóa sạch điểm, chỉ số câu, trạng thái đã chọn và khởi động lại ván mới.",

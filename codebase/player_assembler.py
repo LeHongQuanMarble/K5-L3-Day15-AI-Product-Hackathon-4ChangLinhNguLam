@@ -43,7 +43,12 @@ def build_manifest_from_spec(spec: dict, demo_questions: list | None = None) -> 
 
 
 def extract_gameplay_parts(raw_snippet: str) -> tuple[str, str, str]:
-    """Tách (css, markup, js) từ đoạn gameplay AI sinh (hỗ trợ cả mảnh HTML lẫn file HTML đầy đủ)."""
+    """Tách (css, markup, js) từ đoạn gameplay AI sinh (hỗ trợ cả mảnh HTML lẫn file HTML đầy đủ).
+
+    Markup được làm sạch: bỏ khối manifest jl-camera, bỏ mọi hộp camera AI tự vẽ
+    (`data-jl-camera`) — Runtime Wrapper là chủ thể DUY NHẤT hiển thị camera/micro
+    (Single Source of Truth, tránh hai MediaStream/hai khung camera trùng nhau).
+    """
     text = (raw_snippet or "").strip()
     css_parts = [m.group(1).strip() for m in _STYLE_RE.finditer(text)]
     js_parts = [m.group(1).strip() for m in _SCRIPT_RE.finditer(text)]
@@ -53,6 +58,8 @@ def extract_gameplay_parts(raw_snippet: str) -> tuple[str, str, str]:
     markup = _SCRIPT_RE.sub("", markup)
     markup = re.sub(r"<script\b[^>]*application/json[^>]*>.*?</script>", "", markup, flags=re.S | re.I)
     markup = re.sub(r"<!doctype[^>]*>|</?(?:html|head|meta|title|body)[^>]*>", "", markup, flags=re.I).strip()
+    # Camera do Wrapper sở hữu: AI chỉ nhận dữ liệu qua JLRuntime events
+    markup = re.sub(r"\s+data-jl-camera(?:\s*=\s*(\"[^\"]*\"|'[^']*'|[^\s>]+))?", "", markup, flags=re.I)
     return "\n".join(css_parts), markup, "\n".join(js_parts)
 
 
@@ -77,20 +84,44 @@ _TEMPLATE = """<!doctype html>
 __MANIFEST_JSON__
 </script>
 <style>
+  /* === JL DESIGN SYSTEM (dùng chung cho Player sinh mới — AI dùng lại class, không tự dựng HUD) === */
+  :root{
+    --jl-bg:#0b1220; --jl-surface:#141d31; --jl-surface-2:#1c2947; --jl-line:rgba(148,163,184,.22);
+    --jl-text:#f1f5f9; --jl-muted:#94a3b8;
+    --jl-brand:#6366f1; --jl-brand-strong:#4f46e5; --jl-ok:#22c55e; --jl-ok-soft:rgba(34,197,94,.16);
+    --jl-bad:#ef4444; --jl-bad-soft:rgba(239,68,68,.16); --jl-gold:#facc15; --jl-sky:#38bdf8;
+    --jl-radius:14px; --jl-radius-sm:10px; --jl-space:14px; --jl-font:system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
   *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#f8fafc;min-height:100vh;display:flex;flex-direction:column}
-  .jl-hud{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 16px;background:#1e293b;border-bottom:1px solid rgba(255,255,255,.1)}
-  .jl-hud-title{font-size:16px;font-weight:700;margin:0}
+  body{margin:0;font-family:var(--jl-font);background:radial-gradient(1200px 700px at 80% -10%,rgba(99,102,241,.18),transparent 60%),var(--jl-bg);color:var(--jl-text);min-height:100vh;display:flex;flex-direction:column}
+  .jl-hud{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 18px;background:rgba(20,29,49,.9);border-bottom:1px solid var(--jl-line);backdrop-filter:blur(4px)}
+  .jl-hud-title{font-size:16px;font-weight:800;margin:0;letter-spacing:.2px}
   .jl-hud-stats{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .jl-pill{padding:5px 11px;border-radius:999px;background:rgba(99,102,241,.22);color:#e0e7ff;font-size:13px;font-weight:600}
-  .jl-btn{padding:7px 14px;border:0;border-radius:9px;background:#4f46e5;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
-  .jl-btn:hover{background:#4338ca}
-  .jl-stage{position:relative;flex:1;min-height:420px;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
-  .jl-cam-pip{position:fixed;right:12px;bottom:12px;width:168px;height:126px;border-radius:12px;overflow:hidden;background:#020617;border:2px solid rgba(255,255,255,.18);z-index:20}
+  .jl-pill{padding:5px 12px;border-radius:999px;background:rgba(99,102,241,.2);color:#e0e7ff;font-size:13px;font-weight:700}
+  .jl-btn{padding:10px 20px;border:0;border-radius:var(--jl-radius-sm);background:var(--jl-brand-strong);color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background .12s ease;box-shadow:0 4px 14px rgba(79,70,229,.35)}
+  .jl-btn:hover{background:#4338ca;transform:translateY(-1px)}
+  .jl-btn:active{transform:translateY(0)}
+  .jl-btn.ghost{background:transparent;border:1px solid var(--jl-line);box-shadow:none;color:var(--jl-text)}
+  .jl-stage{position:relative;flex:1;min-height:420px;padding:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+  /* Ốp camera/micro duy nhất (Wrapper sở hữu) */
+  .jl-cam-pip{position:fixed;right:12px;bottom:12px;width:168px;height:126px;border-radius:12px;overflow:hidden;background:#020617;border:2px solid rgba(255,255,255,.18);z-index:20;box-shadow:0 6px 18px rgba(2,6,23,.5)}
   .jl-cam-pip canvas{width:100%;height:100%;object-fit:cover;display:block}
-  .jl-hand-cursor{position:fixed;width:24px;height:24px;border-radius:50%;border:3px solid #38bdf8;background:rgba(56,189,248,.28);pointer-events:none;transform:translate(-50%,-50%);display:none;z-index:30}
-  .jl-err{display:none;margin:12px;padding:12px 16px;border-radius:10px;background:#7f1d1d;color:#fecaca;font-size:14px}
+  .jl-hand-cursor{position:fixed;width:26px;height:26px;border-radius:50%;border:3px solid var(--jl-sky);background:rgba(56,189,248,.28);pointer-events:none;transform:translate(-50%,-50%);display:none;z-index:30;box-shadow:0 0 0 3px rgba(56,189,248,.15)}
+  /* Thành phần trả lời — AI thêm class jl-opt vào ô đáp án của mình */
+  .jl-opt{padding:14px 18px;margin:8px 0;border-radius:var(--jl-radius);background:var(--jl-surface);border:1px solid var(--jl-line);font-size:16px;font-weight:600;cursor:pointer;transition:background .15s ease,border-color .15s ease,transform .12s ease;min-width:min(420px,86vw);text-align:left}
+  .jl-opt:hover{background:var(--jl-surface-2);border-color:rgba(99,102,241,.5);transform:translateY(-1px)}
+  .jl-opt.is-picked{border-color:var(--jl-brand);box-shadow:0 0 0 2px rgba(99,102,241,.35)}
+  .jl-opt.is-good{background:var(--jl-ok-soft);border-color:var(--jl-ok)}
+  .jl-opt.is-bad{background:var(--jl-bad-soft);border-color:var(--jl-bad)}
+  /* Màn hình bắt đầu / kết thúc */
+  .jl-screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(11,18,32,.86);z-index:15;text-align:center;padding:24px;border-radius:var(--jl-radius)}
+  .jl-screen h2{margin:0;font-size:26px;font-weight:800}
+  .jl-screen p{margin:0;color:var(--jl-muted);font-size:15px;max-width:520px}
+  .jl-err{display:none;margin:12px;padding:12px 16px;border-radius:var(--jl-radius-sm);background:#450a0a;color:#fecaca;font-size:14px;border:1px solid rgba(239,68,68,.4)}
   .jl-err.show{display:block}
+  .jl-fadein{animation:jl-fade .28s ease both}
+  @keyframes jl-fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 __AI_CSS__
 </style>
 </head>
@@ -149,6 +180,8 @@ __HAND_CURSOR__
     if (d.type === 'camera.init'){
       lastQs = Array.isArray(d.questions) ? d.questions : [];
       RT.questions = lastQs.slice();
+      RT.setProgress(0, lastQs.length);
+      RT.setScore(0, lastQs.length);
       initCbs.forEach(function(fn){ fn(lastQs.slice()); });
     } else if (d.type === 'camera.hand'){
       var hands = Array.isArray(d.hands) ? d.hands : [];

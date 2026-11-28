@@ -486,10 +486,13 @@ class H(BaseHTTPRequestHandler):
                 name, desc, kind, url, outs, vis = store.clean_model(body)
                 if c.execute("SELECT COUNT(*) FROM models WHERE owner_id=?", (user["id"],)).fetchone()[0] >= 100:
                     raise Err(409, "storage_full", "Mỗi tài khoản có tối đa 100 mô hình.")
-                cur = c.execute("INSERT INTO models(owner_id,name,description,kind,url,outputs,visibility,created,image) VALUES(?,?,?,?,?,?,?,?,?)",
-                                (user["id"], name, desc, kind, url, json.dumps(outs), vis, time.time(), store.clean_image(body.get("image"))))
+                # Kiểm artifact thật (HEAD model.json) — URL chết bị đánh dấu 'broken' để không xuất hiện như model dùng được
+                status = "ready" if store.check_model_url(url) else "broken"
+                cur = c.execute("INSERT INTO models(owner_id,name,description,kind,url,outputs,visibility,created,image,status) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                                (user["id"], name, desc, kind, url, json.dumps(outs), vis, time.time(), store.clean_image(body.get("image")), status))
                 c.commit()
-                return self._json(201, {"id": cur.lastrowid})
+                return self._json(201, {"id": cur.lastrowid, "ready": status == "ready",
+                                        "message": None if status == "ready" else "Đã lưu model nhưng không tải được artifact (model.json trả lỗi). Model ở trạng thái Chưa kết nối — kiểm tra URL Teachable Machine."})
         elif len(parts) == 2:
             mid = _int(parts[1])
             if method == "GET":
