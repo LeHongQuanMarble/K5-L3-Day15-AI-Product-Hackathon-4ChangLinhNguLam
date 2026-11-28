@@ -620,6 +620,63 @@ parent.postMessage({type:'ready'},'*');
         self.assertIn("data-jl-camera", html)  # ô hiển thị phổ tần số từ micro
         self.assertIn("micro", html.lower())
 
+    def test_missing_generated_exam_is_error_not_placeholder_question(self):
+        """An Exam-required Player must not be previewed with the old one-question sample fallback."""
+        payload = {
+            "decision": "GENERATE", "message": "Tạo trò chơi khám phá vòng đời bướm.",
+            "app_name": "Vòng đời bướm", "player_id": None, "model_id": None, "mapping": {},
+            "exam_mode": "generate_new", "exam_id": None, "exam_content": None,
+            "expected_question_count": None,
+            "game_idea": "Người chơi khám phá các giai đoạn phát triển của bướm qua môi trường tương tác.",
+        }
+
+        def _mock_llm(system, user):
+            if "ĐỊNH DẠNG ĐẦU RA" in system:
+                return {"text": "```json\n%s\n```" % json.dumps(payload, ensure_ascii=False),
+                        "model": "gpt-4o-mini", "tokens_in": 100, "tokens_out": 80}
+            return {"text": "Game khám phá.\n```html\n%s\n```" % POC3_FREEFORM_CLASSIFY_HTML,
+                    "model": "gpt-4.1", "tokens_in": 180, "tokens_out": 220}
+
+        with mock.patch.object(agent, "call_model", side_effect=_mock_llm):
+            st, res, _ = _req("POST", "/api/agent", {"text": "Tạo game mới khám phá vòng đời bướm"}, self.cookie_a)
+        self.assertEqual(st, 200)
+        self.assertEqual(res["decision"], "ERROR")
+        self.assertIn("chưa tạo được nội dung hợp lệ", res["message"])
+        self.assertNotIn("Câu hỏi mẫu", json.dumps(res, ensure_ascii=False))
+
+    def test_gamespec_prompt_carries_gameplay_and_visual_direction(self):
+        spec = game_spec.build_game_spec(
+            {"game_idea": "Thu hoạch táo bằng cách nghiêng người vào làn đúng", "expected_question_count": 4},
+            {"message": "Tạo game thu hoạch táo phép nhân lớp 3 gồm 4 câu"},
+            {"models": [], "exams": []},
+        )
+        prompt = game_spec.format_game_spec_for_generator(spec)
+        self.assertEqual(spec["target_audience"], "Học sinh lớp 3")
+        self.assertIn("không mặc định biến mỗi lượt thành một thẻ quiz", spec["game_rules"])
+        for field in ("core_gameplay_loop", "difficulty_and_progression", "visual_direction", "scene_composition",
+                      "animation_and_feedback", "start_and_completion"):
+            self.assertTrue(spec[field], field)
+            self.assertIn(spec[field], prompt)
+
+    def test_runtime_audio_capture_has_no_secondary_visualization_stream(self):
+        with open(os.path.join(ROOT, "ailab", "web", "js", "host-input.js"), encoding="utf-8") as f:
+            runtime = f.read()
+        self.assertEqual(runtime.count("getUserMedia({"), 1)
+        self.assertIn("rec.listen(", runtime)
+        self.assertNotIn("startViz", runtime)
+        self.assertIn("modelStatus = 'inference-running'", runtime)
+
+    def test_generator_reads_badminton_showcase_structure_without_copying_game_content(self):
+        profile = agent._reference_game_structure()
+        self.assertIn("src/sim.js", profile)
+        self.assertIn("createGame", profile)
+        self.assertIn("src/bridge.js", profile)
+        self.assertIn("JLRuntime/postMessage", profile)
+        self.assertIn("canvas 2D", profile)
+        self.assertIn("đổi skin", profile)
+        self.assertIn(profile, agent.GENERATE_HTML_SYSTEM)
+        self.assertNotIn("Lin Dan", profile)
+
 
 if __name__ == "__main__":
     unittest.main()

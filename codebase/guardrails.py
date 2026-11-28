@@ -33,6 +33,8 @@ from chatbot import schemas  # noqa: E402
 MAX_MESSAGE_LEN = 4000
 ALLOWED_REQUEST_KEYS = {
     "session_id",
+    "conversation_id",
+    "conversation_state",
     "message",
     "history",
     "document_ids",
@@ -214,8 +216,17 @@ def validate_request_input(request):
     if mode not in (None, "auto", "reuse_existing", "generate_new"):
         return None, [ac.issue("invalid_input", "generation_mode không hợp lệ.", "generation_mode")]
 
+    conv_id = request.get("conversation_id")
+    if conv_id is not None and not (ac._id(conv_id) or (isinstance(conv_id, str) and 1 <= len(conv_id.strip()) <= 128)):
+        return None, [ac.issue("invalid_input", "conversation_id phải là số nguyên dương hoặc chuỗi 1–128 ký tự.", "conversation_id")]
+    conv_state = request.get("conversation_state")
+    if conv_state is not None and not isinstance(conv_state, dict):
+        return None, [ac.issue("invalid_input", "conversation_state phải là object JSON hoặc null.", "conversation_state")]
+
     return {
         "session_id": session_id.strip(),
+        "conversation_id": conv_id.strip() if isinstance(conv_id, str) else conv_id,
+        "conversation_state": conv_state,
         "message": message.strip(),
         "history": history,
         "document_ids": doc_ids,

@@ -28,6 +28,7 @@ import application_contract as ac  # noqa: E402
 from chatbot import catalog as chatbot_catalog  # noqa: E402
 import composer  # noqa: E402
 import contract  # noqa: E402
+import conversation_state as conv_state  # noqa: E402
 import game_spec  # noqa: E402
 import game_templates  # noqa: E402
 import guardrails  # noqa: E402
@@ -48,6 +49,52 @@ MAX_EXAM_RETRIES = 1 # Tối đa 1 lượt sửa cú pháp bộ đề khi valida
 FENCE = chr(96) * 3
 HTML_RE = re.compile(FENCE + r"(?:html)?\s*\n(.*?)" + FENCE, re.S | re.I)
 JSON_FENCE_RE = re.compile(FENCE + r"(?:json)?\s*\n(.*?)" + FENCE, re.S | re.I)
+
+
+def _reference_game_structure():
+    """Build a compact architecture brief from the local badminton showcase, never copy its source into prompts."""
+    src = os.path.join(_ROOT, "badminton-3d", "src")
+    required = ("main.js", "sim.js", "bridge.js", "rally.js", "arena.js", "gfx3d.js", "template.html")
+    if not os.path.isdir(src) or any(not os.path.isfile(os.path.join(src, name)) for name in required):
+        return ""
+
+    def read(name):
+        try:
+            with open(os.path.join(src, name), encoding="utf-8") as f:
+                return f.read()
+        except (OSError, UnicodeError):
+            return ""
+
+    def exports(name):
+        text = read(name)
+        return re.findall(r"\bexport\s+(?:async\s+)?(?:function|const|class)\s+([A-Za-z_$][\w$]*)", text)
+
+    entry_imports = re.findall(r"\bfrom\s+['\"]\.\/([A-Za-z0-9_.-]+)['\"]", read("main.js"))
+    template = read("template.html")
+    manifest = bool(re.search(r'<script\s+type=["\']application/json["\']\s+id=["\']jl-camera["\']', template, re.I))
+    stage = bool(re.search(r'<[^>]+\bid=["\']scene["\']', template, re.I))
+    sim_exports = ", ".join(exports("sim.js"))
+    rally_exports = ", ".join(exports("rally.js"))
+    bridge_exports = ", ".join(exports("bridge.js"))
+    world_exports = ", ".join(exports("arena.js"))
+    gfx_exports = ", ".join(exports("gfx3d.js"))
+    import_names = ", ".join(entry_imports)
+    bundle_exists = os.path.isfile(os.path.join(_ROOT, "badminton-3d", "dist", "badminton-3d.html"))
+
+    return "\n".join([
+        "=== CẤU TRÚC THAM KHẢO ĐÃ ĐỌC TỪ GAME SHOWCASE CỤC BỘ `badminton-3d` ===",
+        "Đây là tham khảo về cách chia hệ thống, nhịp gameplay và trình bày; không sao chép luật cầu lông, tên nhân vật, nội dung câu hỏi, HTML/CSS hay đoạn mã của game này.",
+        "- `src/main.js` là composition root, nối các module: %s." % import_names,
+        "- `src/sim.js` tách state machine/luật thuần khỏi DOM và render; API quan sát được: %s. Hãy giữ luật game thành các chuyển trạng thái rõ (ready → intro → active/input → resolve → next/finish), với reset idempotent." % sim_exports,
+        "- `src/rally.js` cô lập mô phỏng chuyển động theo seed; API quan sát được: %s. Với chủ đề mới, tạo chuỗi sự kiện/động tác có nhịp chuẩn bị → tương tác → kết quả, có thể lặp và kiểm soát được." % rally_exports,
+        "- `src/arena.js` và `src/gfx3d.js` tách cảnh/vẽ khỏi luật; API: arena [%s], geometry [%s]. Showcase dùng một canvas 2D vẽ góc nhìn sân pseudo-3D, không WebGL hay thư viện runtime." % (world_exports, gfx_exports),
+        "- `src/bridge.js` cô lập JLRuntime/postMessage; API: %s. Giữ handshake, event model và finish trong adapter/bridge nhỏ; gameplay chỉ xử lý action đã map và mouse fallback." % bridge_exports,
+        "- `src/template.html` là khung một scene có manifest `jl-camera` (%s) và lớp HUD/overlay (%s); build ghép entry module thành HTML một file (%s)." % ("có" if manifest else "không có", "có" if stage else "không có", "dist bundle có sẵn" if bundle_exists else "dist bundle chưa có"),
+        "Áp dụng nguyên tắc này cho chủ đề giáo viên yêu cầu: một thế giới chính có chiều sâu, HUD gọn, nhân vật/vật thể có vai trò, chuyển động có mục đích, sự kiện gameplay tiến triển giữa các câu hỏi. Chỉ giữ những mechanic phù hợp; không biến game mới thành bản cầu lông đổi skin. Đầu ra vẫn phải là Player một file, cục bộ, đúng JLRuntime/CSP, dữ liệu Exam động và các giới hạn GameSpec hiện hành.",
+    ])
+
+
+_REFERENCE_GAME_CONTEXT = _reference_game_structure()
 
 ROUTING_SYSTEM_TEMPLATE = """Bạn là AI Game Composer của hệ thống AI Lab (Track A – EdTech).
 Chiến lược bắt buộc: **Reuse-first, Generate-if-needed** (Ưu tiên tái sử dụng Catalog; chỉ sinh HTML nháp mới khi Catalog không có cơ chế game phù hợp).
@@ -105,6 +152,7 @@ GENERATE_HTML_SYSTEM = (
     + "- GIỮ FILE GỌN: tối đa khoảng 250 dòng, CSS/JS ngắn, không thư viện ngoài, ít hiệu ứng, 4–8 mục dữ liệu mẫu để không bị cắt cụt giữa chừng.\n"
     + "- CHẤT LƯỢNG TRỰC QUAN (bắt buộc — game demo trước ban giám khảo): dựng bối cảnh theo chủ đề bài học bằng CSS/SVG/Canvas (nền gradient hoặc vẽ cảnh đơn giản, vật thể/trò chơi vẽ bằng CSS hoặc inline SVG, KHÔNG nạp ảnh từ mạng; ảnh tĩnh chỉ dùng data: URI nhỏ), có MÀN HÌNH BẮT ĐẦU (tên game + hướng dẫn cách chơi 1–2 câu + nút Bắt đầu) và MÀN HÌNH KẾT THÚC (điểm + lời khen/nhận xét + nút Chơi lại), phản hồi đúng/sai rõ ràng (đổi màu + biểu tượng ✓/✗ + hiệu ứng nhẹ ≤0.4s), chữ to bố cục lớn hiển thị tốt trên máy chiếu, các vật tương tác đủ to để chỉ tay bằng camera. Ưu tiên gameplay KHÔNG phải quiz đổi màu: có chuyển động/vị trí/thuật đo điểm riêng theo chủ đề.\n"
     + "- Trả về 1–2 câu mô tả tiếng Việt và ĐÚNG MỘT khối mã ```html ... ``` hoàn chỉnh từ `<!doctype html>` đến `</html>`.\n"
+    + (_REFERENCE_GAME_CONTEXT + "\n" if _REFERENCE_GAME_CONTEXT else "")
 )
 
 EXAM_REPAIR_SYSTEM = (
@@ -983,12 +1031,11 @@ def _handle_generate(parsed: dict, req: dict, registry: dict, use_live_tools: bo
             plan_exam = {"mode": "generate_new", "exam_id": None, "content": valid_content}
             warnings.append(copy.deepcopy(guardrails.KNOWLEDGE_REVIEW_WARNING))
         else:
-            plan_exam = {
-                "mode": "generate_new",
-                "exam_id": None,
-                "content": "Câu hỏi mẫu (giáo viên cần sửa và kiểm duyệt nội dung trước khi dùng) | Phương án A | Phương án B | =A",
-            }
-            warnings.append(copy.deepcopy(guardrails.KNOWLEDGE_REVIEW_WARNING))
+            return _make_envelope(
+                "ERROR",
+                "Trình chơi cần bộ câu hỏi nhưng AI chưa tạo được nội dung hợp lệ. Không có bản nháp sẵn sàng xem xét; vui lòng thử lại hoặc cung cấp câu hỏi.",
+                errors=[ac.issue("invalid_exam", "Không thể dùng câu hỏi mẫu làm Exam hoàn chỉnh.", "exam.content")],
+            )
 
     plan_model = None
     primary_ctrl = "mouse"
@@ -1208,8 +1255,9 @@ def _handle_info(parsed: dict, registry: dict, user_msg: str = ""):
     return _make_envelope("ASK_CLARIFY", enriched, warnings=warnings)
 
 
-def _run_agent_core(request, registry=None):
-    """Lõi điều phối nội bộ trả về (envelope, raw_non_json_or_None)."""
+def _run_agent_core(request, registry=None, state_out=None):
+    """Lõi điều phối nội bộ trả về (envelope, raw_non_json_or_None).
+    Nếu `state_out` là dict, sẽ ghi `state` (structured conversation state sau lượt này) vào `state_out['state']`."""
     req, input_errors = guardrails.validate_request_input(request)
     if input_errors:
         note("T09 input validation chặn đầu vào không hợp lệ")
@@ -1229,6 +1277,106 @@ def _run_agent_core(request, registry=None):
         active_registry = copy.deepcopy(registry)
         db_ready = False
 
+    # Bước 2b (P0 Multi-turn Context & Grounded Resource Selection):
+    # Kích hoạt khi có conversation_state / conversation_id / history (Web multi-turn hoặc caller có state).
+    has_conv_ctx = (
+        req.get("conversation_state") is not None
+        or req.get("conversation_id") is not None
+        or bool(req.get("history"))
+    )
+    c_state = None
+    c_meta = None
+    model_res = None
+    player_res = None
+    req_eff = dict(req)
+
+    if has_conv_ctx:
+        c_state, c_meta = conv_state.update_state_from_turn(
+            req.get("conversation_state"),
+            req["message"],
+            registry=active_registry,
+            request_hints=req,
+        )
+        if state_out is not None:
+            state_out["state"] = c_state
+            state_out["meta"] = c_meta
+
+        # Câu đồng ý ngắn trong chat KHÔNG BAO GIỜ là phê duyệt HITL
+        if c_meta.get("turn_intent") == "chat_agreement":
+            msg = (
+                "Lời đồng ý trong khung chat không phải là phê duyệt xuất bản (HITL). "
+                "Vui lòng kiểm tra bản nháp và bấm nút Phê duyệt (Approve) trực tiếp trên giao diện?"
+            )
+            return _make_envelope("ASK_CLARIFY", msg), None
+
+        # Grounded Model Selection (chỉ dùng Live Registry, không chọn model broken/placeholder, không tự đổi kind)
+        model_res = conv_state.resolve_grounded_model(
+            c_state,
+            active_registry,
+            explicit_model_id=req.get("selected_model_id"),
+        )
+        if model_res["status"] == "forbidden_model":
+            c_state["conversation_status"] = "blocked"
+            return _make_envelope(
+                "ERROR",
+                model_res["reason"],
+                errors=[ac.issue("forbidden_resource", model_res["reason"], "model.model_id")],
+            ), None
+        if model_res["status"] == "broken_model":
+            c_state["conversation_status"] = "blocked"
+            return _make_envelope(
+                "ERROR",
+                model_res["reason"],
+                errors=[ac.issue("incompatible_model", model_res["reason"], "model")],
+            ), None
+        if model_res["status"] == "missing_model":
+            alts = model_res.get("alternatives") or []
+            alt_txt = (
+                " Các Model hiện khả dụng trong Catalog: "
+                + ", ".join('"%s" (kind=%s)' % (m["name"], m["kind"]) for m in alts)
+                + "."
+                if alts
+                else ""
+            )
+            msg = (
+                "%s%s Bạn muốn chuyển sang một Model khả dụng khác hay dùng chế độ chỉ chuột (Mouse Fallback)?"
+                % (model_res["reason"], alt_txt)
+            )
+            c_state["conversation_status"] = "collecting"
+            note("Grounded Model Selection: missing_model (%s)" % c_state.get("preferred_model_kind"))
+            return _make_envelope("ASK_CLARIFY", msg), None
+
+        resolved_model = model_res.get("model")
+        if resolved_model is not None:
+            c_state["selected_model_id"] = resolved_model["id"]
+            req_eff["selected_model_id"] = resolved_model["id"]
+
+        # Deterministic Player Compatibility (Hard Filters -> Relevance Ranking)
+        player_res = conv_state.resolve_grounded_player(
+            c_state,
+            resolved_model,
+            active_registry,
+            explicit_player_id=req.get("selected_player_id"),
+        )
+        if player_res["action"] == "ERROR":
+            c_state["conversation_status"] = "blocked"
+            return _make_envelope(
+                "ERROR",
+                player_res["reason"],
+                errors=[ac.issue("incompatible_player", player_res["reason"], "player.player_id")],
+            ), None
+        if c_state.get("creation_preference") == "reuse" and player_res["action"] == "ASK_CLARIFY":
+            c_state["conversation_status"] = "collecting"
+            return _make_envelope("ASK_CLARIFY", player_res["reason"]), None
+
+        if c_state.get("selected_exam_id") is not None and req_eff.get("selected_exam_id") is None:
+            req_eff["selected_exam_id"] = c_state["selected_exam_id"]
+        if c_state.get("creation_preference") == "new":
+            req_eff["generation_mode"] = "generate_new"
+            req_eff["selected_player_id"] = None
+        elif c_state.get("creation_preference") == "reuse":
+            req_eff["generation_mode"] = "reuse_existing"
+
     catalog_ctx = guardrails.format_catalog_context(active_registry)
     audio_clarify_note = (
         " (kể cả model âm thanh)" if chatbot_catalog.AUDIO_SUPPORTED else " hoặc đã nêu rõ giới hạn audio/giọng nói"
@@ -1237,12 +1385,33 @@ def _run_agent_core(request, registry=None):
         catalog_context=catalog_ctx, audio_rule=_audio_rule_text(), audio_clarify_note=audio_clarify_note
     )
 
-    user_prompt = req["message"]
-    if req.get("selected_player_id") or req.get("selected_model_id") or req.get("selected_exam_id") or req.get("generation_mode"):
+    user_prompt = req_eff["message"]
+    if has_conv_ctx and c_state is not None:
+        ctx_block = conv_state.format_context_for_llm(c_state, req_eff.get("history"))
+        if ctx_block:
+            resolved_hint = ""
+            if model_res and model_res.get("model") is not None and player_res and player_res.get("action") == "REUSE" and player_res.get("player") is not None:
+                resolved_hint = (
+                    '\n[Tài nguyên tương thích đã xác minh từ Live Registry]: Model "%s" (id=%s, kind=%s) tương thích thật với Player "%s" (id=%s, mapping=%s). '
+                    'Nếu đã đủ yêu cầu học tập, hãy trả decision="REUSE" với đúng player_id=%s, model_id=%s và soạn exam_content đúng chủ đề (KHÔNG báo không tương thích).'
+                    % (
+                        model_res["model"]["name"], model_res["model"]["id"], model_res["model"]["kind"],
+                        player_res["player"]["name"], player_res["player"]["id"],
+                        json.dumps(player_res.get("mapping") or {}, ensure_ascii=False),
+                        player_res["player"]["id"], model_res["model"]["id"],
+                    )
+                )
+            extra_rule = (
+                "\n[Chỉ dẫn hội thoại]: ĐÃ ĐỦ yêu cầu cốt lõi — KHÔNG hỏi lại thông tin giáo viên đã cung cấp."
+                if not c_state.get("missing_requirements")
+                else "\n[Chỉ dẫn hội thoại]: Chỉ hỏi thông tin thực sự còn thiếu trong danh sách trên; KHÔNG hỏi lại thông tin đã xác nhận."
+            )
+            user_prompt = "%s\n\n%s%s%s" % (ctx_block, user_prompt, resolved_hint, extra_rule)
+    if req_eff.get("selected_player_id") or req_eff.get("selected_model_id") or req_eff.get("selected_exam_id") or req_eff.get("generation_mode"):
         hints = {
-            k: req[k]
+            k: req_eff[k]
             for k in ("selected_player_id", "selected_model_id", "selected_exam_id", "generation_mode")
-            if req.get(k) is not None
+            if req_eff.get(k) is not None
         }
         user_prompt = "%s\n\n[Ngữ cảnh đã chọn từ giao diện]: %s" % (user_prompt, json.dumps(hints, ensure_ascii=False))
 
@@ -1267,12 +1436,19 @@ def _run_agent_core(request, registry=None):
         env = _make_envelope("ASK_CLARIFY", safe_non_json, simulated=is_simulated)
         return env, raw_text
 
+    # Bổ sung thông tin tích lũy từ conversation_state vào parsed (không làm mất context đã thu thập)
+    if has_conv_ctx and c_state is not None:
+        if c_state.get("question_count") and not parsed.get("expected_question_count"):
+            parsed["expected_question_count"] = c_state["question_count"]
+        if model_res and model_res.get("model") is not None:
+            parsed["model_id"] = model_res["model"]["id"]
+
     decision = (parsed.get("decision") or "").strip().upper()
-    forced_mode = req.get("generation_mode")
+    forced_mode = req_eff.get("generation_mode")
     if forced_mode == "reuse_existing" and decision == "GENERATE":
         decision = "REUSE"
     elif forced_mode == "generate_new" and decision == "REUSE":
-        if req.get("selected_player_id") is not None:
+        if req_eff.get("selected_player_id") is not None:
             return _make_envelope(
                 "ERROR",
                 "Không thể vừa chọn Player có sẵn vừa yêu cầu generate_new.",
@@ -1280,13 +1456,27 @@ def _run_agent_core(request, registry=None):
                 simulated=is_simulated,
             ), None
         decision = "GENERATE"
+
+    # Cưỡng chế Grounded Player Compatibility trong multi-turn:
+    # - Nếu không có Player tương thích (player_res == GENERATE) và LLM đòi REUSE → chuyển sang GENERATE (không REUSE sai!).
+    # - Nếu creation_preference == "new" và LLM đòi REUSE → chuyển sang GENERATE.
+    if has_conv_ctx and player_res is not None:
+        if player_res["action"] == "GENERATE" and decision == "REUSE":
+            note("Grounded Player Compatibility: no compatible player or explicit new → override REUSE to GENERATE")
+            decision = "GENERATE"
+        elif player_res["action"] == "REUSE" and decision == "REUSE" and player_res.get("player") is not None:
+            if parsed.get("player_id") != player_res["player"]["id"] and req_eff.get("selected_player_id") is None:
+                parsed["player_id"] = player_res["player"]["id"]
+                if player_res.get("mapping"):
+                    parsed["mapping"] = player_res["mapping"]
+
     if decision == "REFUSE":
         msg = guardrails.strip_html_fences(parsed.get("message") or "") or (
             "Từ chối yêu cầu vì vượt phạm vi an toàn hoặc quy tắc AI Lab."
         )
         if _is_capability_limit_text(msg):
-            msg = _ensure_catalog_grounding(msg, active_registry, user_msg=req["message"])
-            msg = _ensure_info_hitl_policy(msg, req["message"])
+            msg = _ensure_catalog_grounding(msg, active_registry, user_msg=req_eff["message"])
+            msg = _ensure_info_hitl_policy(msg, req_eff["message"])
             note("LLM trả REFUSE cho giới hạn năng lực → chuyển về INFO/ASK_CLARIFY")
             return _make_envelope("ASK_CLARIFY", msg, simulated=is_simulated), None
         note("LLM quyết định REFUSE")
@@ -1297,20 +1487,84 @@ def _run_agent_core(request, registry=None):
         note("LLM quyết định ASK_CLARIFY")
         return _make_envelope("ASK_CLARIFY", msg, simulated=is_simulated), None
 
-    wants_new_game = game_spec.is_explicit_new_game_request(req["message"])
-    if wants_new_game and forced_mode != "reuse_existing" and decision in ("REUSE", "INFO") and not _is_pure_count_query(req["message"]):
+    wants_new_game = game_spec.is_explicit_new_game_request(req_eff["message"])
+    if wants_new_game and forced_mode != "reuse_existing" and decision in ("REUSE", "INFO") and not _is_pure_count_query(req_eff["message"]):
         note("Intent Policy: tôn trọng yêu cầu tạo cơ chế chơi mới → chuyển sang GENERATE (không ép về REUSE)")
         decision = "GENERATE"
 
     if decision == "INFO":
+        # Multi-turn rescue: khi đã tích lũy đủ yêu cầu trong conversation (không phải câu hỏi tra cứu thuần túy)
+        # và đã xác minh Model + Player tương thích thật nhưng LLM vẫn trả INFO (vd câu trả lời ngắn "bàn tay"),
+        # cưỡng chế hoàn tất REUSE/GENERATE theo tài nguyên đã xác minh.
+        if (
+            has_conv_ctx
+            and c_state is not None
+            and c_meta is not None
+            and c_meta.get("turn_intent") != "info_query"
+            and not c_state.get("missing_requirements")
+            and player_res is not None
+        ):
+            if player_res["action"] == "REUSE" and player_res.get("player") is not None:
+                rescued = dict(parsed)
+                rescued["decision"] = "REUSE"
+                rescued["player_id"] = player_res["player"]["id"]
+                if model_res and model_res.get("model") is not None:
+                    rescued["model_id"] = model_res["model"]["id"]
+                if player_res.get("mapping"):
+                    rescued["mapping"] = player_res["mapping"]
+                p_man = player_res["player"].get("manifest") if isinstance(player_res["player"].get("manifest"), dict) else {}
+                p_needs_exam = p_man.get("questions") == "exam" or (p_man.get("content") or {}).get("kind") == "questions"
+                if p_needs_exam and not rescued.get("exam_id") and not (isinstance(rescued.get("exam_content"), str) and rescued["exam_content"].strip()):
+                    exp_exam = _detect_explicit_resource(
+                        req_eff["message"],
+                        active_registry.get("exams") or [],
+                        req_eff.get("selected_exam_id") or c_state.get("selected_exam_id"),
+                    )
+                    if exp_exam is not None:
+                        rescued["exam_mode"] = "reuse_existing"
+                        rescued["exam_id"] = exp_exam["id"]
+                    else:
+                        cnt_q = c_state.get("question_count") or 5
+                        topic_desc = " ".join(
+                            str(x) for x in (c_state.get("learning_subject"), c_state.get("grade_level"), c_state.get("learning_topic")) if x
+                        ) or req_eff["message"]
+                        q_rep = call_model(
+                            EXAM_REPAIR_SYSTEM,
+                            "Soạn đúng %d câu hỏi trắc nghiệm tiếng Việt (4 phương án A, B, C, D, đáp án cuối là =A..=D) cho: %s.\n"
+                            "Mỗi câu 1 dòng dạng `Câu hỏi | A | B | C | D | =A`. Chỉ trả về các dòng câu hỏi."
+                            % (cnt_q, topic_desc),
+                        )
+                        q_txt = re.sub(r"^```[a-zA-Z]*\s*\n|\n```$", "", (q_rep.get("text") or "").strip()).strip()
+                        if q_txt:
+                            rescued["exam_mode"] = "generate_new"
+                            rescued["exam_content"] = q_txt
+                            if c_state.get("question_count"):
+                                rescued["expected_question_count"] = c_state["question_count"]
+                if not rescued.get("app_name"):
+                    topic_title = " ".join(str(x) for x in (c_state.get("learning_subject"), c_state.get("grade_level"), c_state.get("learning_topic")) if x)
+                    rescued["app_name"] = ("Trò chơi " + topic_title)[:80] if topic_title else player_res["player"]["name"]
+                note("Multi-turn INFO rescue -> REUSE: player_id=%s, model_id=%s" % (rescued["player_id"], rescued.get("model_id")))
+                env = _handle_reuse(rescued, req_eff, active_registry, use_live_tools=db_ready)
+                env["simulated"] = is_simulated
+                if env.get("decision") == "REUSE":
+                    c_state["conversation_status"] = "draft_pending"
+                return env, None
+            if player_res["action"] == "GENERATE":
+                note("Multi-turn INFO rescue -> GENERATE")
+                env = _handle_generate(parsed, req_eff, active_registry, use_live_tools=db_ready)
+                env["simulated"] = is_simulated
+                if env.get("decision") == "GENERATE":
+                    c_state["conversation_status"] = "draft_pending"
+                return env, None
+
         # Chỉ áp dụng Model-aware REUSE rescue khi người dùng KHÔNG yêu cầu cơ chế chơi mới (wants_new_game=False)
-        u_fold = guardrails.fold_text(req["message"])
+        u_fold = guardrails.fold_text(req_eff["message"])
         wants_game = bool(re.search(r"\b(?:tao game|tao tro choi|lam game|ghep.*game|tro choi)\b", u_fold))
-        if wants_game and not wants_new_game and not _is_pure_count_query(req["message"]):
-            exp_model = _detect_explicit_resource(req["message"], active_registry.get("models") or [], req.get("selected_model_id"))
-            exp_player = _detect_explicit_resource(req["message"], active_registry.get("players") or [], req.get("selected_player_id"))
+        if wants_game and not wants_new_game and not _is_pure_count_query(req_eff["message"]):
+            exp_model = _detect_explicit_resource(req_eff["message"], active_registry.get("models") or [], req_eff.get("selected_model_id"))
+            exp_player = _detect_explicit_resource(req_eff["message"], active_registry.get("players") or [], req_eff.get("selected_player_id"))
             if exp_model is not None and exp_player is None:
-                exp_exam = _detect_explicit_resource(req["message"], active_registry.get("exams") or [], req.get("selected_exam_id"))
+                exp_exam = _detect_explicit_resource(req_eff["message"], active_registry.get("exams") or [], req_eff.get("selected_exam_id"))
                 compat_p, compat_map = _find_compatible_player_for_model(
                     exp_model,
                     active_registry.get("players") or [],
@@ -1325,25 +1579,26 @@ def _run_agent_core(request, registry=None):
                     if exp_exam is not None and not rescued.get("exam_id") and not rescued.get("exam_content"):
                         rescued["exam_mode"] = "reuse_existing"
                         rescued["exam_id"] = exp_exam["id"]
-                    elif not rescued.get("exam_id") and not rescued.get("exam_content"):
-                        # Nếu bộ đề có sẵn đầu tiên phù hợp? Không đoán mò — để _handle_reuse hỏi làm rõ hoặc dùng exam_content
-                        pass
                     note("Model-aware REUSE rescued from INFO: player_id=%s, model_id=%s" % (compat_p["id"], exp_model["id"]))
-                    env = _handle_reuse(rescued, req, active_registry, use_live_tools=db_ready)
+                    env = _handle_reuse(rescued, req_eff, active_registry, use_live_tools=db_ready)
                     env["simulated"] = is_simulated
                     return env, None
-        env = _handle_info(parsed, active_registry, user_msg=req["message"])
+        env = _handle_info(parsed, active_registry, user_msg=req_eff["message"])
         env["simulated"] = is_simulated
         return env, None
 
     if decision == "REUSE":
-        env = _handle_reuse(parsed, req, active_registry, use_live_tools=db_ready)
+        env = _handle_reuse(parsed, req_eff, active_registry, use_live_tools=db_ready)
         env["simulated"] = is_simulated
+        if has_conv_ctx and c_state is not None and env.get("decision") == "REUSE":
+            c_state["conversation_status"] = "draft_pending"
         return env, None
 
     if decision == "GENERATE":
-        env = _handle_generate(parsed, req, active_registry, use_live_tools=db_ready)
+        env = _handle_generate(parsed, req_eff, active_registry, use_live_tools=db_ready)
         env["simulated"] = is_simulated
+        if has_conv_ctx and c_state is not None and env.get("decision") == "GENERATE":
+            c_state["conversation_status"] = "draft_pending"
         return env, None
 
     note("LLM trả decision không hợp lệ: %s" % decision)
@@ -1353,6 +1608,13 @@ def _run_agent_core(request, registry=None):
         errors=[ac.issue("invalid_enum", "Unknown decision from model.", "decision")],
         simulated=is_simulated,
     ), None
+
+
+def run_agent_with_state(request, registry=None) -> tuple:
+    """Chạy Shared Core và trả về `(envelope, updated_conversation_state_or_None)` cho Web/Backend multi-turn."""
+    holder = {}
+    env, _ = _run_agent_core(request, registry=registry, state_out=holder)
+    return env, holder.get("state")
 
 
 def run_agent(request, registry=None) -> dict:

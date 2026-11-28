@@ -108,6 +108,10 @@ def build_game_spec(parsed: dict, req: dict, registry: dict, explicit_model=None
         m_cnt = re.search(r"\b(\d{1,2})\s+cau\b", guardrails.fold_text(user_msg))
         exp_cnt = int(m_cnt.group(1)) if m_cnt and 1 <= int(m_cnt.group(1)) <= 50 else None
 
+    folded_request = guardrails.fold_text(user_msg)
+    audience_match = re.search(r"\b(?:lop|khoi)\s*(\d{1,2})\b", folded_request)
+    target_audience = ("Học sinh lớp %s" % audience_match.group(1)) if audience_match else "Học sinh theo độ tuổi và cấp học giáo viên nêu trong yêu cầu"
+
     model_caps = None
     inputs = []
     mapping = {}
@@ -139,12 +143,20 @@ def build_game_spec(parsed: dict, req: dict, registry: dict, explicit_model=None
     return {
         "title": title,
         "learning_objective": user_msg[:200],
+        "target_audience": target_audience,
         "game_mechanic": game_idea[:240],
         "game_rules": (
-            "Hiển thị câu hỏi động từ camera.init, người chơi tương tác bằng %s hoặc chuột/chạm/bàn phím để chọn đáp án; "
-            "phản hồi đúng/sai ngay, có debounce tránh chọn lặp liên tục, tính điểm, chuyển câu, kết thúc gửi finish và có nút Chơi lại."
-            % (model_caps["model_name"] if model_caps else "chuột/chạm/bàn phím")
+            "Dùng bộ câu hỏi nhận từ camera.init làm nội dung học tập; thể hiện cơ chế '%s' thành hành động chính trong thế giới game, "
+            "không mặc định biến mỗi lượt thành một thẻ quiz. Điều khiển bằng %s. "
+            "Mỗi câu chỉ được chấm một lần; phản hồi đúng/sai, tiến trình/điểm, finish và Chơi lại phải nhất quán."
+            % (game_idea[:100], "Model đã chọn và chuột/chạm/phím" if model_caps else "chuột/chạm/phím")
         ),
+        "core_gameplay_loop": "Bắt đầu → quan sát mục tiêu trong bối cảnh → dùng cơ chế đã yêu cầu để tương tác → nhận phản hồi học tập và tiến triển → hoàn thành thử thách.",
+        "difficulty_and_progression": "Tăng thử thách nhẹ theo tiến trình; giữ số câu, đáp án và tổng điểm khớp với Exam được giáo viên duyệt.",
+        "visual_direction": "Chọn một phong cách hình ảnh phù hợp chủ đề và lứa tuổi; tạo bối cảnh có chiều sâu, phân cấp thị giác rõ, vật thể tương tác dễ nhận ra; tránh bố cục dashboard hoặc danh sách card chiếm toàn bộ màn chơi.",
+        "scene_composition": "Dành vùng chính cho thế giới và hành động; đặt HUD nhỏ, dễ đọc; đặt camera pip ở góc không che mục tiêu; không tạo khoảng trống lớn hoặc tràn ngang.",
+        "animation_and_feedback": "Chuyển động giúp người chơi hiểu vị trí, trạng thái hoặc kết quả; phản hồi đúng/sai rõ bằng màu, chuyển động nhẹ và chữ; hỗ trợ prefers-reduced-motion.",
+        "start_and_completion": "Màn bắt đầu nêu mục tiêu và cách điều khiển; màn kết thúc thể hiện điểm/tổng câu, nhận xét ngắn và nút chơi lại.",
         "game_states": ["ready", "playing", "feedback", "finished"],
         "scoring": {"correct_points": 1, "wrong_points": 0, "emit_finish": True},
         "model_capabilities": model_caps,
@@ -269,8 +281,15 @@ def format_game_spec_for_generator(spec: dict) -> str:
         "=== GAMESPEC BẮT BUỘC TUÂN THỦ ===",
         "- Tên game: %s" % spec.get("title"),
         "- Mục tiêu học tập: %s" % spec.get("learning_objective"),
+        "- Đối tượng: %s" % spec.get("target_audience"),
         "- Cơ chế chơi (game_mechanic): %s" % spec.get("game_mechanic"),
         "- Luật chơi & vòng đời: %s" % spec.get("game_rules"),
+        "- Vòng lặp gameplay: %s" % spec.get("core_gameplay_loop"),
+        "- Độ khó & tiến trình: %s" % spec.get("difficulty_and_progression"),
+        "- Hướng hình ảnh: %s" % spec.get("visual_direction"),
+        "- Bố cục cảnh: %s" % spec.get("scene_composition"),
+        "- Animation & phản hồi: %s" % spec.get("animation_and_feedback"),
+        "- Start / completion: %s" % spec.get("start_and_completion"),
         "- Mouse Fallback: %s" % spec.get("mouse_fallback"),
     ]
     if mc is not None:
@@ -316,10 +335,11 @@ def format_game_spec_for_generator(spec: dict) -> str:
         "`onFrame(fn)`, `setScore(score,total)`, `setProgress(cur,total)`, `finish(correct,total)`; khi đó KHÔNG tự gửi "
         "'ready'/'hands on' lần nữa, KHÔNG dựng HUD điểm/câu hỏi riêng (header chuẩn có sẵn), KHÔNG tự thêm hộp "
         "`data-jl-camera` (ô camera duy nhất do hệ thống vẽ).",
-        "- CHẤM ĐIỂM ĐÚNG LUẬT: đúng/sai xác định bằng `d.input === q.answer` (`d.input` là KEY ô đáp án, ví dụ "
-        "'A'/'B'/'grab'/'taynghiengphai'); TUYỆT ĐỐI KHÔNG so đáp án với `d.label` (label là tên lớp của model, ví dụ "
-        "'fist'/'Mèo' — không phải đáp án). Với hands: chọn mục tiêu bằng vị trí trỏ (`indexTip`/`palm` từ `onHand`), "
-        "xác nhận bằng `onAction` khi `d.input === 'grab'` HOẶC dwell ~600ms kèm cooldown chống chọn lặp.",
+        "- DỮ LIỆU HỌC TẬP: dùng đúng `d.questions` của Exam; không tạo bộ câu hỏi thay thế trong Player, không biến mọi cơ chế thành quiz ABCD hoặc danh sách card. Đưa kiến thức vào hành động/cảnh theo game_mechanic; không làm mất câu hỏi hay sửa đáp án đã duyệt.",
+        "- ĐỌC INPUT ĐÚNG NGHĨA: `d.input` là KEY đã ánh xạ, dùng để điều khiển cơ chế game; không dùng `d.label` (tên lớp model) thay cho input. "
+        "Nếu cơ chế là chọn đáp án thì chuyển input/vị trí thành KEY lựa chọn rồi so KEY đó với `q.answer`; với cơ chế điều hướng/hành động, "
+        "input kích hoạt hành động trong game và chỉ chấm điểm khi điều kiện học tập của câu được đáp ứng. Mỗi câu tối đa một điểm. "
+        "Với hands, dùng tọa độ `indexTip`/`palm` từ `onHand` để điều khiển con trỏ; `onAction` grab hoặc dwell có khóa lặp để xác nhận mục tiêu.",
         "- GIAO DIỆN (Design System dùng được ngay nếu Wrapper lắp sẵn): ô đáp án thêm class `jl-opt`, phản hồi đúng "
         "`is-good` / sai `is-bad`, nút `jl-btn`, màn bắt đầu/kết thúc `jl-screen`, hiệu ứng vào `jl-fadein`; được tự "
         "thêm CSS riêng để cá nhân hóa chủ đề (không nạp asset ngoài).",
