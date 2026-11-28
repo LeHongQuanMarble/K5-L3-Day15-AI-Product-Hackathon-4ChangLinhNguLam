@@ -6,7 +6,8 @@ var roomToken = room ? (localStorage.getItem('ailab_room_' + room) || '') : '';
 if (room) { var backLink = document.getElementById('back'); backLink.href = '/room/' + room; backLink.textContent = 'Về phòng'; }
 var frame = document.getElementById('stage'), title = document.getElementById('title'), status = document.getElementById('status'), camBtn = document.getElementById('cam');
 var errBox = document.getElementById('play-error'), errText = document.getElementById('play-error-msg'), retryBtn = document.getElementById('retry');
-var data = null, host = null;
+var data = null, host = null, speech = null, autoTried = false;
+import('/js/host-input.js').then(function (mod) { speech = mod.createSpeech(frame, say); }).catch(function () {});
 function say(t) { status.textContent = t; }
 function toFrame(m, transfer) { frame.contentWindow.postMessage(m, '*', transfer || []); }
 // Nhắc giáo viên: lỗi camera/micro không chặn lối chơi — fallback chuột luôn bật.
@@ -20,7 +21,12 @@ function init() {
 }
 window.addEventListener('message', function (e) {
   if (e.source !== frame.contentWindow || !e.data) return;
-  if (e.data.type === 'ready') { init(); if (host) host.status(); }
+  if (e.data.type === 'ready') {
+    init(); if (host) host.status();
+    // Vào chơi là tự mở camera/micro (một lần); lỗi hay bị từ chối thì chơi bằng chuột, nút bên trên để thử lại.
+    if (host && !autoTried && !host.isRunning()) { autoTried = true; host.start(); }
+  }
+  if (e.data.type === 'speech' && speech) speech.message(e.data);
   if (e.data.type === 'camera.want' || e.data.type === 'hands') {
     if (host) host.message(e.data);
     else if (e.data.type === 'hands' && e.data.on === true) toFrame({ type: 'camera.hand', hands: [], available: false });
@@ -46,7 +52,7 @@ function makeHost(d) {
       onSay: say, onRunning: function (r) { camBtn.disabled = r === null; camBtn.textContent = (r ? 'Tắt ' : 'Bật ') + thing; } });
   });
 }
-function stopHost(keep) { if (host) host.stop(keep); }
+function stopHost(keep) { if (host) host.stop(keep); if (speech) speech.stop(); }
 camBtn.addEventListener('click', function () { if (host) host.isRunning() ? host.stop() : host.start(); });
 window.addEventListener('pagehide', function () { stopHost(true); });
 
@@ -59,7 +65,7 @@ function showFail(head, why) {
   say(head + (why ? ' — ' + why : ''));
 }
 function loadApp() {
-  stopHost(true); host = null; // an toàn khi thử lại giữa chừng: tắt camera cũ, không đổi trạng thái của iframe
+  autoTried = false; stopHost(true); host = null; // an toàn khi thử lại giữa chừng: tắt camera cũ, không đổi trạng thái của iframe
   if (errBox) errBox.hidden = true;
   frame.hidden = false;
   title.textContent = 'Đang nạp trò chơi…';
@@ -67,7 +73,7 @@ function loadApp() {
   fetch(room ? '/api/rooms/' + room + '/play' : '/api/apps/' + id + '/play', { credentials: 'same-origin', headers: room ? { 'X-Room-Token': roomToken } : {} }).then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.message || 'Không mở được.'); return d; }); }).then(function (d) {
     if (d.unavailable) { showFail('Chưa chơi được', d.reason); return; }
     data = d; title.textContent = d.app.name; document.title = d.app.name + ' — AI Lab';
-    var ready = d.model ? makeHost(d).then(function () { camBtn.hidden = false; say('Bấm “' + camBtn.textContent + '” để bắt đầu.'); }).catch(function () { say('Không nạp được bộ đọc camera/micro.' + mouseHint()); }) : Promise.resolve();
+    var ready = d.model ? makeHost(d).then(function () { camBtn.hidden = false; say('Đang tự bật ' + (d.model.kind === 'audio' ? 'micro' : 'camera') + '…'); }).catch(function () { say('Không nạp được bộ đọc camera/micro.' + mouseHint()); }) : Promise.resolve();
     return ready.then(function () { frame.srcdoc = d.srcdoc; });
   }).catch(function (e) { showFail('Không mở được', e.message); });
 }

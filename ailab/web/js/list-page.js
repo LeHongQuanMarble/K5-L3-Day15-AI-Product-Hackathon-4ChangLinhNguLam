@@ -253,6 +253,7 @@ function loadScript(src) {
 }
 
 export function cameraTry(m, box, setScores, button) {
+  var hand = { fist: false, present: false }, overlay = null, hi = null;
   var stream = null, run = false, video = null, timer = 0, handle;
   function idle() { box.className = 'ail-cambox'; box.replaceChildren(ico('image'), h('div', null, 'Chưa có ảnh')); button.replaceChildren(ico('camera'), 'Bật camera'); button.disabled = false; setScores(null); }
   function stop() {
@@ -274,19 +275,32 @@ export function cameraTry(m, box, setScores, button) {
   function start() {
     if (run) return;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { box.replaceChildren(errBox({ message: 'Trình duyệt chỉ cho dùng camera khi mở bằng https hoặc localhost.' })); return; }
-    var libs = LIBS[m.kind];
+    var libs = m.kind === 'hands' ? [] : LIBS[m.kind];
     if (!libs) { box.replaceChildren(errBox({ message: 'Loại mô hình này chưa thử được bằng camera ở bản này.' })); return; }
     button.disabled = true; box.replaceChildren(h('div', { role: 'status' }, 'Đang bật camera và nạp mô hình…'));
-    var model;
+    var model, curl;
     navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false }).then(function (s) {
       stream = s; video = h('video', { playsinline: true, muted: true, 'aria-label': 'Hình ảnh từ camera' }); video.muted = true; video.srcObject = s; return video.play();
     }).then(function () { return libs.reduce(function (p, src) { return p.then(function () { return loadScript(src); }); }, Promise.resolve()); })
-      .then(function () { return m.kind === 'pose' ? window.tmPose.load(m.url + 'model.json', m.url + 'metadata.json') : window.tmImage.load(m.url + 'model.json', m.url + 'metadata.json'); })
-      .then(function (mm) { model = mm; run = true; box.className = 'ail-cambox on'; box.replaceChildren(video); button.replaceChildren(ico('x'), 'Tắt camera'); button.disabled = false; tick(); })
+      .then(function () {
+        if (m.kind === 'hands') return import('./host-input.js').then(function (mod) { hi = mod; curl = mod.curlOf; return mod.loadHandLandmarker(); });
+        return import('./host-input.js').then(function (mod) { hi = mod; return m.kind === 'pose' ? window.tmPose.load(m.url + 'model.json', m.url + 'metadata.json') : window.tmImage.load(m.url + 'model.json', m.url + 'metadata.json'); });
+      })
+      .then(function (mm) { model = mm; run = true; box.className = 'ail-cambox on'; overlay = h('canvas', { class: 'ail-cam-overlay', 'aria-hidden': 'true' }); box.replaceChildren(video, overlay); button.replaceChildren(ico('x'), 'Tắt camera'); button.disabled = false; tick(); })
       .catch(function (err) { stop(); box.replaceChildren(errBox({ message: camError(err) })); });
     function tick() {
       if (!run) return;
-      var p = m.kind === 'pose' ? model.estimatePose(video).then(function (r) { return model.predict(r.posenetOutput); }) : model.predict(video);
+      if (m.kind === 'hands') {
+        var r = null;
+        try { r = model.detectForVideo(video, performance.now()); } catch (e) { /* khung hình chưa sẵn sàng */ }
+        var lm = r && r.landmarks && r.landmarks[0];
+        if (overlay && hi) hi.drawHands(overlay, video, r && r.landmarks);
+        if (lm) { var c = curl(lm, video.videoWidth / video.videoHeight); hand.fist = hand.present ? (hand.fist ? c > 0.4 : c > 0.6) : c > 0.6; hand.present = true; } else { hand.present = false; hand.fist = false; }
+        setScores({ fist: hand.present && hand.fist ? 1 : 0, open: hand.present && !hand.fist ? 1 : 0, none: hand.present ? 0 : 1 });
+        timer = setTimeout(tick, 100);
+        return;
+      }
+      var p = m.kind === 'pose' ? model.estimatePose(video).then(function (r) { if (overlay && hi) hi.drawPose(overlay, video, r.pose); return model.predict(r.posenetOutput); }) : model.predict(video);
       p.then(function (preds) { var o = {}; preds.forEach(function (x) { o[x.className] = x.probability; }); setScores(o); }).catch(function () {}).then(function () { timer = setTimeout(tick, 150); });
     }
   }
@@ -380,11 +394,12 @@ export function previewFrame(playerIdOrUrl, onInfo) {
       if (!frame.isConnected) return cleanup();
       if (e.source !== frame.contentWindow || !e.data) return;
       if (e.data.type === 'ready') { gotReady(); init(); if (wrap.onFrameReady) wrap.onFrameReady(); }
+      else if (e.data.type === 'speech') { if (!wrap.speech) import('./host-input.js').then(function (mod) { wrap.speech = mod.createSpeech(frame); wrap.speech.message(e.data); }); else wrap.speech.message(e.data); }
       else if (wrap.onFrameMsg) wrap.onFrameMsg(e.data);
     }
     var obs = null;
     function cleanup() {
-      clearTimeout(slowT);
+      clearTimeout(slowT); if (wrap.speech) wrap.speech.stop();
       window.removeEventListener('message', onMsg);
       if (obs) { obs.disconnect(); obs = null; }
     }

@@ -183,7 +183,7 @@ function draw(bmp){
 }
 function note(el,txt){boxes.forEach(function(c,e){if(!e.querySelector('.jl-note')){var n=document.createElement('div');n.className='jl-note';
   n.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font:14px system-ui;text-align:center;padding:8px';
-  e.style.position=e.style.position||'relative';e.appendChild(n);}e.querySelector('.jl-note').textContent=txt;});}
+  if(getComputedStyle(e).position==='static')e.style.position='relative';e.appendChild(n);}e.querySelector('.jl-note').textContent=txt;});}
 window.addEventListener('message',function(e){var d=e.data;if(!d||e.source!==parent)return;
   if(d.type==='camera.image'&&d.image)draw(d.image);
   if(d.type==='camera.status'){var m={denied:'Chưa được cấp quyền camera',busy:'Camera đang bận','no-camera':'Không thấy camera','model-failed':'Không nạp được mô hình',off:'Camera đã tắt',loading:'Đang bật camera…',ready:''}[d.state];
