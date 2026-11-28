@@ -448,6 +448,75 @@ class TestT08ReuseGenerateClarifyWorkflow(TempCatalogTestCase):
         self.assertIn("validate_exam", [e["name"] for e in events if e["kind"] == "tool"])
         self.assertNotIn("1. Đơn vị", env["message"])
 
+    def test_t10_model_grounding_when_player_cited_but_model_missing(self):
+        route_json = {
+            "decision": "INFO",
+            "message": "Không thể dùng model cử chỉ tay vì player 'Quiz ABCD bằng cử chỉ' chưa khai kinds hands.",
+        }
+        with mock.patch.object(agent, "call_model", return_value=_fake_llm_reply(route_json)):
+            env = agent.run_agent("Cho dùng cử chỉ nắm/xòe tay trong tiết Tin học.")
+        self.assertIn("Bàn tay (MediaPipe)", env["message"])
+        self.assertIn("kinds", env["message"].lower())
+        self.assertIn("chưa tạo hoặc lưu", env["message"].lower())
+        self.assertIn("draft", env["message"].lower())
+
+    def test_t10_catalog_fallback_grounding_for_unknown_items(self):
+        route_json = {
+            "decision": "REFUSE",
+            "message": "Hai mục này không có trong Catalog, cô có thể dùng trò chơi có sẵn hoặc chuột.",
+        }
+        with mock.patch.object(agent, "call_model", return_value=_fake_llm_reply(route_json)):
+            env = agent.run_agent("Dùng model Nhận diện giọng nói và player Đố vui AI.")
+        self.assertIn("Quiz ABCD bằng cử chỉ", env["message"])
+        self.assertIn("Bàn tay (MediaPipe)", env["message"])
+        self.assertIn("draft", env["message"].lower())
+
+    def test_t10_pure_count_query_and_ask_clarify_and_security_refusal_not_polluted(self):
+        # Pure count query (B03-style): no DRAFT/HITL footer appended
+        count_json = {"decision": "INFO", "message": "Bộ đề có 15 câu."}
+        with mock.patch.object(agent, "call_model", return_value=_fake_llm_reply(count_json)):
+            env_cnt = agent.run_agent("Bộ đề Tiếng Anh 12 có bao nhiêu câu? Chỉ hỏi số, đừng tạo game.")
+        self.assertEqual(env_cnt["message"], "Bộ đề có 15 câu.")
+
+        # ASK_CLARIFY (B05/B06/B19-style): strictly 1 '?' and no Catalog names injected
+        ask_json = {"decision": "ASK_CLARIFY", "message": "Lớp học của cô có camera hay thiết bị gì?"}
+        with mock.patch.object(agent, "call_model", return_value=_fake_llm_reply(ask_json)):
+            env_ask = agent.run_agent("Tôi muốn game có camera cho lớp nhưng chưa rõ thiết bị.")
+        self.assertEqual(env_ask["message"].count("?"), 1)
+        self.assertNotIn("Bàn tay (MediaPipe)", env_ask["message"])
+        self.assertNotIn("DRAFT", env_ask["message"])
+
+        # Security LLM-REFUSE: not polluted with DRAFT footer
+        sec_json = {"decision": "REFUSE", "message": "Từ chối vì liên quan đến dữ liệu cá nhân học sinh."}
+        with mock.patch.object(agent, "call_model", return_value=_fake_llm_reply(sec_json)):
+            env_sec = agent.run_agent("Yêu cầu lạ về bảo mật.")
+        self.assertNotIn("DRAFT", env_sec["message"])
+
+    def test_t10_reuse_missing_exam_path_keeps_hitl_policy(self):
+        route_json = {
+            "decision": "REUSE",
+            "message": "Giữ nguyên player Quiz ABCD bằng cử chỉ, chơi bằng chuột.",
+            "player_id": 1,
+            "model_id": None,
+            "exam_id": None,
+            "exam_content": None,
+        }
+        with mock.patch.object(agent, "call_model", return_value=_fake_llm_reply(route_json)):
+            env = agent.run_agent("Cô có sẵn bộ câu hỏi muốn đưa thẳng vào game.")
+        self.assertEqual(env["decision"], "ERROR")
+        self.assertIn("draft", env["message"].lower())
+        self.assertIn("chưa tạo hoặc lưu", env["message"].lower())
+
+    def test_t10_review_request_missing_no_self_approve_appends_hitl_policy(self):
+        route_json = {
+            "decision": "INFO",
+            "message": "Tôi sẽ tạo bản nháp (DRAFT) để cô rà soát lại đáp án.",
+        }
+        with mock.patch.object(agent, "call_model", return_value=_fake_llm_reply(route_json)):
+            env = agent.run_agent("Nhờ AI rà lại đáp án sai và duyệt nội dung trước khi cho học sinh chơi.")
+        self.assertIn("từ chối tự duyệt", env["message"].lower())
+        self.assertIn("approved", env["message"].lower())
+
     def test_provider_error_propagates_for_tracing(self):
         err = pu.ProviderError("openai", "rate_limit", status=429)
         with mock.patch.object(agent, "call_model", side_effect=err):
