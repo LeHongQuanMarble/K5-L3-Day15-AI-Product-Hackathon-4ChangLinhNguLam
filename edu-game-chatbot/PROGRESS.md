@@ -12,7 +12,9 @@ T02 | 2026-11-28 | Settings đủ biến .env.example, get_settings lru_cache + 
 T03 | 2026-11-28 | validate_bank, normalize_bank, max_score, load_bank_file json/csv, BankFileError | 25 test
 T17 | 2026-11-28 | Mọi câu chữ/nút tiếng Việt, reject(), progress(), review_buttons | giữ nguyên button id
 T12 | 2026-11-28 | N3 generate: codegen prompt, extract_html, inject_bank, ghi v<n>/index.html | không save session (theo docstring)
+T09 | 2026-11-28 | read_documents pdf/docx(bảng)/txt/md, giới hạn 10MB, cắt max_chars | sample.pdf lưu dạng text, bị CRLF khi checkout (vẫn đọc được)
 
 ## Câu hỏi cần người dùng trả lời
 
 ## Đề xuất (thư viện / thay đổi spec)
+- (điều phối) Thêm `.gitattributes` với `*.pdf binary` để sample.pdf không bị đổi CRLF khi checkout trên Windows. Chờ người dùng duyệt.

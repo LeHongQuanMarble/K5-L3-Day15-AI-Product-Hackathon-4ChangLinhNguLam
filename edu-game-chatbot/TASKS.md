@@ -103,7 +103,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Test:** FakeLLM trả true/false; JSON sai định dạng thì raise `LLMFormatError`; khớp label trực tiếp thì `llm.calls == []`.
 - **Kiểm tra:** `pytest tests/unit/test_intake.py -q`
 
-### [ ] T09. N1 — Đọc tài liệu
+### [x] T09. N1 — Đọc tài liệu
 - **Đọc:** SPEC §5 (giới hạn tài liệu)
 - **File:** `app/nodes/n1_read_docs.py`, `tests/fixtures/sample.{txt,md,docx,pdf}`, `tests/unit/test_n1.py`
 - **Làm:** `read_documents(paths, max_chars) -> DocResult(text, docs, warnings)`. Hỗ trợ `.pdf .docx (cả bảng) .txt .md`. File > 10 MB hoặc sai đuôi thì báo lỗi. PDF không trích được chữ thì cảnh báo "có thể là file scan". Cắt tổng còn `max_chars`.
