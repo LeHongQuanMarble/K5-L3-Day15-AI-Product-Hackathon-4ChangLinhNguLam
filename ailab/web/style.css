@@ -426,3 +426,8 @@ code,kbd{font-family:var(--jl-font-mono);font-size:var(--jl-font-size-sm)}
 .ail-tr-cam{display:grid;gap:8px}
 .ail-tr-adv summary{cursor:pointer;font-weight:500}
 .ail-tr-clip{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:6px;background:var(--jl-au-soft);color:var(--jl-brand-600);font-size:14px}
+
+/* Video giới thiệu (motion) */
+.modal.ail-motion .box{width:min(960px,96vw);max-width:96vw}
+.ail-motion-wrap{aspect-ratio:16/9;width:100%;background:#000;border-radius:8px;overflow:hidden}
+.ail-motion-frame{width:100%;height:100%;border:0;display:block}

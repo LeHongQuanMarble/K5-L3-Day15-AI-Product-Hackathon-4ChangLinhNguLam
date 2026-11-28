@@ -3,6 +3,7 @@
  * (Chrome không giao diện điều khiển ở máy chủ, xem ailab/train_worker). Xong, mô hình tự có trong danh sách (riêng tư),
  * người dùng vào sửa để gán vai trò cho từng lớp. */
 import { h, api, ico, btn, errBox, toast } from './dom.js';
+import { showIntro } from './motion-intro.js';
 
 var MIN = 10, MAX = 300, MAX_CLASSES = 8, MAX_SIDE = 320, TOTAL_CAP = 60 * 1024 * 1024;
 var NOISE = 'Background Noise', NOISE_MIN = 20, SOUND_MIN = 8, SOUND_MAX = 60;
@@ -215,7 +216,8 @@ export function trainPage(ctx, kind) {
         .catch(function (x) { msg.replaceChildren(errBox(x)); trainBtn.disabled = false; updateTrain(); });
     }
     root.replaceChildren(h('div', { class: 'ail-form' },
-      h('h2', null, 'Train mô hình ' + KIND[kind].label.toLowerCase()),
+      h('div', { class: 'row' }, h('h2', { class: 'grow' }, 'Train mô hình ' + KIND[kind].label.toLowerCase()),
+        kind === 'image' ? null : btn(kind === 'pose' ? 'Xem giới thiệu Aura Flow' : 'Xem giới thiệu Aura Echo', 'play', { onclick: function () { showIntro(kind); } })),
       h('div', { class: 'note' }, h('strong', null, 'Cách làm. '), '1) Chia lớp và thêm ' + (kind === 'audio' ? 'âm thanh' : 'ảnh') + ' ở đây (tải file hoặc ' + (kind === 'audio' ? 'thu âm' : 'chụp webcam') + '). 2) Bấm Train: AI Lab nhờ Teachable Machine huấn luyện giúp, mất khoảng ' + (kind === 'audio' ? '2–5 phút (âm thanh được phát vào trang theo thời gian thực)' : '20–60 giây') + '. 3) Xong, mô hình có trong danh sách; vào sửa để gán vai trò cho từng lớp. ' + KIND[kind].hint),
       h('label', { class: 'l' }, 'Tên mô hình', name),
       h('label', { class: 'l' }, 'Mô tả (không bắt buộc)', desc),

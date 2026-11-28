@@ -145,6 +145,17 @@ class H(BaseHTTPRequestHandler):
             traceback.print_exc()
             self._json(500, {"error": "server", "message": "Có lỗi ở máy chủ. Thử lại, nếu vẫn lỗi hãy báo Admin."})
 
+    def _motion_page(self, full):
+        """Bài giới thiệu (motion) chỉ nhận lệnh từ trang có nguồn gốc nằm trong `origins` của chính bài: thêm nguồn gốc của AI Lab vào danh sách."""
+        host = self.headers.get("Host") or ""
+        if not re.match(r"^[A-Za-z0-9.\-]+(:\d{1,5})?$", host):
+            raise Err(400, "bad_host", "Địa chỉ máy chủ không hợp lệ.")
+        origin = ("https://" if os.environ.get("AILAB_COOKIE_SECURE") == "1" else "http://") + host
+        with open(full, encoding="utf-8") as f:
+            html = f.read()
+        html = html.replace('"origins":[', '"origins":[%s,' % json.dumps(origin), 1)
+        self._send(200, html, "text/html; charset=utf-8")
+
     def _static(self, path):
         if path in ("/", ""):
             path = "/index.html"
@@ -154,6 +165,8 @@ class H(BaseHTTPRequestHandler):
         full = os.path.normpath(os.path.join(WEB, path.lstrip("/")))
         if not full.startswith(WEB + os.sep) or not os.path.isfile(full):
             raise Err(404, "not_found", "Không thấy trang này.")
+        if path.startswith("/motion/") and path.endswith(".html"):
+            return self._motion_page(full)
         ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
         with open(full, "rb") as f:
             self._send(200, f.read(), ctype + ("; charset=utf-8" if ctype.startswith("text/") or ctype.endswith("javascript") else ""))

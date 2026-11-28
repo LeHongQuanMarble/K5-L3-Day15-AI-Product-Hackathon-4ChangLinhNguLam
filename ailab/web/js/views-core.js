@@ -10,6 +10,7 @@ import { h, api, ico, btn, errBox, STATUS, fmtStatus, KIND, srcOf, QHELP,
          validateQuestionsClient, serializeQuestionsClient } from './dom.js';
 import { listPage, previewFrame, cameraTry, imageField, pickField } from './list-page.js';
 import { trainPage } from './train.js';
+import { showIntro } from './motion-intro.js';
 
 var KEYS = 'ABCD';
 
@@ -212,7 +213,7 @@ export function modelsView(ctx, parts) {
   api('GET', '/api/models?scope=usable').then(function (d) {
     /* Theo spec.md §4 (Không làm: Không huấn luyện mô hình AI tương tác từ đầu):
        giáo viên chỉ xem danh mục Model Registry có sẵn; Admin mới thấy nút nạp thêm vào Catalog. */
-    var actions = [btn('Train mô hình hình ảnh', 'wand', { cls: 'pri', href: '#/models/train/image' }), btn('Train mô hình tư thế', 'wand', { href: '#/models/train/pose' }), btn('Train mô hình âm thanh', 'wand', { href: '#/models/train/audio' })];
+    var actions = [btn('Giới thiệu JULY Aura', 'play', { onclick: function () { showIntro('overview'); } }), btn('Train mô hình hình ảnh', 'wand', { cls: 'pri', href: '#/models/train/image' }), btn('Train mô hình tư thế', 'wand', { href: '#/models/train/pose' }), btn('Train mô hình âm thanh', 'wand', { href: '#/models/train/audio' })];
     if (ctx.me && ctx.me.role === 'admin') actions.push(btn('Thêm mô hình vào Catalog', 'plus', { href: '#/models/new' }));
     ctx.listMount('Mô hình tương tác', listPage(modelsCfg(ctx, d.models, { actions: actions })));
   }).catch(function (e) { ctx.mount(errBox(e)); });
