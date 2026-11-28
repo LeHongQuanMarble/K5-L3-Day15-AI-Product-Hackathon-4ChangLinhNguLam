@@ -204,7 +204,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong
 - **Test:** `httpx.AsyncClient` + `ASGITransport`, đi luồng topic tới AWAIT_REVIEW; upload file `.exe` bị 400; path traversal bị 400; export trước DONE bị 409.
 - **Kiểm tra:** `pytest tests/integration/test_api.py -q`
 
-### [ ] T20. Giao diện chat web
+### [x] T20. Giao diện chat web
 - **Đọc:** SPEC §4, ARCHITECTURE §4
 - **File:** `web/index.html`, `web/chat.js`, `web/chat.css`
 - **Làm:** khung chat (bong bóng bot/người dùng), nút quick-reply từ `message.buttons`, ô nhập + nút gửi, nút đính kèm file (chỉ hiện ở `AWAIT_SOURCE_INPUT`), thanh tiến độ từ SSE, `iframe sandbox="allow-scripts"` cho `preview_url` kèm nút "Mở toàn màn hình", link tải zip khi `DONE`. Khôi phục phiên qua `?session=<id>` (lưu id vào `localStorage`). Responsive tới 375px. Không framework, không CDN.
