@@ -3,7 +3,8 @@ Phần khai báo trường là cấu trúc cố định — không đổi tên t
 
 from __future__ import annotations
 
-from datetime import datetime
+import uuid
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Literal
 
@@ -39,12 +40,12 @@ class Source(StrEnum):
 
 def utcnow() -> datetime:
     """Thời điểm hiện tại (UTC, có timezone)."""
-    raise NotImplementedError
+    return datetime.now(UTC)
 
 
 def new_id() -> str:
     """Sinh id ngắn duy nhất (12 ký tự hex)."""
-    raise NotImplementedError
+    return uuid.uuid4().hex[:12]
 
 
 class Button(BaseModel):
@@ -108,4 +109,4 @@ class Session(BaseModel):
     @property
     def latest_version(self) -> Version | None:
         """Phiên bản mới nhất hoặc None."""
-        raise NotImplementedError
+        return self.versions[-1] if self.versions else None
